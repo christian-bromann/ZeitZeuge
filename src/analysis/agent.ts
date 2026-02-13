@@ -1,64 +1,11 @@
 import { createDeepAgent, type BackendProtocol } from 'deepagents';
 import { providerStrategy } from 'langchain';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { z } from 'zod';
+
 import { SYSTEM_PROMPT } from './prompts.js';
 import { VITEST_SYSTEM_PROMPT } from '../vitest/prompts.js';
+import { FindingsSchema } from '../schema.js';
 import type { Finding } from '../types.js';
-
-/**
- * All finding categories — shared between page-load and test-performance analysis.
- */
-const ALL_CATEGORIES = [
-  // Page-load / runtime categories
-  'memory-leak',
-  'large-retained-object',
-  'detached-dom',
-  'render-blocking',
-  'long-task',
-  'unused-code',
-  'waterfall-bottleneck',
-  'large-asset',
-  'frame-blocking-function',
-  'listener-leak',
-  'gc-pressure',
-  // Test / application performance categories
-  'slow-test',
-  'expensive-setup',
-  'hot-function',
-  'unnecessary-computation',
-  'import-overhead',
-  'dependency-bottleneck',
-  'other',
-] as const;
-
-const FindingSchema = z.object({
-  severity: z.enum(['critical', 'warning', 'info']),
-  title: z.string().describe('Short title for the finding'),
-  description: z.string().describe('Detailed explanation of the issue'),
-  category: z.enum(ALL_CATEGORIES).describe('Category of the performance issue'),
-  resourceUrl: z.string().optional().describe('URL of the resource involved'),
-  workspacePath: z.string().optional().describe('Path in the VFS workspace'),
-  impactMs: z.number().optional().describe('Impact on page load time in ms'),
-  retainedSize: z.number().optional().describe('Retained heap size in bytes'),
-  retainerPath: z.array(z.string()).optional().describe('Object retention path in the heap'),
-  suggestedFix: z.string().describe('Code snippet or guidance to fix the issue'),
-  testFile: z.string().optional().describe('Test file path (for test performance findings)'),
-  hotFunction: z
-    .object({
-      name: z.string(),
-      scriptUrl: z.string(),
-      lineNumber: z.number(),
-      selfTime: z.number(),
-      selfPercent: z.number(),
-    })
-    .optional()
-    .describe('Hot function details (for hot-function findings)'),
-});
-
-const FindingsSchema = z.object({
-  findings: z.array(FindingSchema),
-});
 
 /**
  * Analyze performance data using a Deep Agent that explores
@@ -122,9 +69,10 @@ export async function analyzeTestPerformance(
     "1. Read /hot-functions/application.json — these are the hotspots IN the user's own code",
     '2. Read /scripts/application.json — per-file CPU time for application source files',
     '3. Read /hot-functions/dependencies.json — expensive dependency calls',
-    '4. Read /summary.json and /timing/overview.json for the big picture',
-    '5. Read CPU profiles in /profiles/ for detailed call trees',
-    '6. Read source files in /src/ and /tests/ to understand root causes and propose code-level fixes',
+    '4. If present, read /heap-profiles/index.json and /heap-profiles/<file>.json for allocation hotspots',
+    '5. Read /summary.json and /timing/overview.json for the big picture',
+    '6. Read CPU profiles in /profiles/ for detailed call trees',
+    '7. Read source files in /src/ and /tests/ to understand root causes and propose code-level fixes',
     '',
     'Focus findings on the APPLICATION code — what can the developer change in their own codebase',
     'to improve performance? Dependency bottlenecks are worth reporting if the developer can',

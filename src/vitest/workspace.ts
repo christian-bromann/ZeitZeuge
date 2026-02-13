@@ -10,7 +10,12 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import type { CorrelatedProfile, HotFunction, VitestWorkspaceOptions } from './types.js';
+import type {
+  CorrelatedProfile,
+  CorrelatedHeapProfile,
+  HotFunction,
+  VitestWorkspaceOptions,
+} from './types.js';
 
 export interface VitestWorkspaceResult {
   /** Backend for use with createDeepAgent */
@@ -32,7 +37,7 @@ const SLOW_TEST_THRESHOLD = 100;
 export async function createVitestWorkspace(
   options: VitestWorkspaceOptions,
 ): Promise<VitestWorkspaceResult> {
-  const { testTiming, profiles, testSources, sourcePaths } = options;
+  const { testTiming, profiles, heapProfiles, testSources, sourcePaths } = options;
 
   const files: Record<string, string> = {};
 
@@ -102,6 +107,23 @@ export async function createVitestWorkspace(
   for (const profile of profiles) {
     const safeName = sanitizeFilename(profile.testFile);
     files[`/profiles/${safeName}.json`] = JSON.stringify(profile.summary, null, 2);
+  }
+
+  // ── /heap-profiles/index.json + /heap-profiles/<sanitized-filename>.json ──
+  if (heapProfiles && heapProfiles.length > 0) {
+    files['/heap-profiles/index.json'] = JSON.stringify(
+      heapProfiles.map((p) => ({
+        testFile: p.testFile,
+        profilePath: p.profilePath,
+      })),
+      null,
+      2,
+    );
+
+    for (const hp of heapProfiles) {
+      const safeName = sanitizeFilename(hp.testFile);
+      files[`/heap-profiles/${safeName}.json`] = JSON.stringify(hp.summary, null, 2);
+    }
   }
 
   // ── /hot-functions/global.json ──

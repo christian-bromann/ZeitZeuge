@@ -1,57 +1,10 @@
+import { z } from "zod";
+import { FindingSchema } from "./schema"
+
 /**
  * Shared TypeScript types for zeitzeuge.
  */
-
-// ── Finding (unified: covers memory + trace issues) ──
-
-/** A performance finding — covers memory, page-load, runtime, test performance, and network issues. */
-export interface Finding {
-  severity: 'critical' | 'warning' | 'info';
-  title: string;
-  description: string;
-  category:
-    // Page-load / runtime categories
-    | 'memory-leak'
-    | 'large-retained-object'
-    | 'detached-dom'
-    | 'render-blocking'
-    | 'long-task'
-    | 'unused-code'
-    | 'waterfall-bottleneck'
-    | 'large-asset'
-    | 'frame-blocking-function'
-    | 'listener-leak'
-    | 'gc-pressure'
-    // Test / application performance categories
-    | 'slow-test'
-    | 'expensive-setup'
-    | 'hot-function'
-    | 'unnecessary-computation'
-    | 'import-overhead'
-    | 'dependency-bottleneck'
-    | 'other';
-  /** URL of the resource involved (script URL, asset URL) */
-  resourceUrl?: string;
-  /** Path in the VFS workspace */
-  workspacePath?: string;
-  /** Impact on page load time in ms (for trace findings) */
-  impactMs?: number;
-  /** Retained heap size in bytes (for memory findings) */
-  retainedSize?: number;
-  /** Retention path in the heap (for memory findings) */
-  retainerPath?: string[];
-  suggestedFix: string;
-  /** Test file path (for test performance findings) */
-  testFile?: string;
-  /** Hot function details (for hot-function findings) */
-  hotFunction?: {
-    name: string;
-    scriptUrl: string;
-    lineNumber: number;
-    selfTime: number;
-    selfPercent: number;
-  };
-}
+export type Finding = z.infer<typeof FindingSchema>;
 
 // ── Heap snapshot types (unchanged from Spec 001) ──
 

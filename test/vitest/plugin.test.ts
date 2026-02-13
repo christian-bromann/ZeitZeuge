@@ -54,6 +54,32 @@ describe('zeitzeuge plugin', () => {
     expect(argv.some((a: string) => a.startsWith('--cpu-prof-dir='))).toBe(true);
   });
 
+  test('does not inject --heap-prof by default', () => {
+    const plugin = zeitzeuge({ profileDir: TEST_PROFILE_DIR });
+    const ctx = createMockContext();
+
+    plugin.configureVitest(ctx);
+
+    const argv: string[] = ctx.vitest.config.execArgv;
+    expect(argv).not.toContain('--heap-prof');
+    expect(argv.some((a: string) => a.startsWith('--heap-prof-dir='))).toBe(false);
+  });
+
+  test('injects --heap-prof when heapProf is enabled', () => {
+    const plugin = zeitzeuge({ profileDir: TEST_PROFILE_DIR, heapProf: true });
+    const ctx = createMockContext();
+
+    plugin.configureVitest(ctx);
+
+    const argv: string[] = ctx.vitest.config.execArgv;
+    expect(argv).toContain('--heap-prof');
+    expect(argv.some((a: string) => a.startsWith('--heap-prof-dir='))).toBe(true);
+
+    const forksArgv: string[] = ctx.vitest.config.poolOptions.forks.execArgv;
+    expect(forksArgv).toContain('--heap-prof');
+    expect(forksArgv.some((a: string) => a.startsWith('--heap-prof-dir='))).toBe(true);
+  });
+
   test('also injects into poolOptions.forks.execArgv', () => {
     const plugin = zeitzeuge({ profileDir: TEST_PROFILE_DIR });
     const ctx = createMockContext();

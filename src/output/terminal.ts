@@ -26,6 +26,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   'unnecessary-computation': 'Unnecessary Computation',
   'import-overhead': 'Import Overhead',
   'dependency-bottleneck': 'Dependency Bottleneck',
+  algorithm: 'Inefficient Algorithm',
+  serialization: 'Serialization Overhead',
+  allocation: 'Excessive Allocation',
+  'event-handling': 'Event Handling',
+  'blocking-io': 'Blocking I/O',
   other: 'Other',
 };
 

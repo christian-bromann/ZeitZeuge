@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/assets/zeitzeuge.png" alt="ZeitZeuge mascot: a detective stopwatch with a magnifying glass witnessing slowdowns" width="220" />
+</p>
+
 # zeitzeuge
 
 AI-powered performance analysis for frontend page loads and Vitest test suites. Captures V8 heap snapshots, performance traces, Chrome runtime traces, and CPU profiles — stores everything in a virtual filesystem and hands it to a Deep Agent that investigates bottlenecks and provides code-level fixes.
@@ -74,7 +78,7 @@ A Markdown report is written to `zeitzeuge-report.md` with findings and suggeste
 
 ## What it finds
 
-### Page-load analysis
+### Page-load findings
 
 **Memory issues:**
 
@@ -130,6 +134,10 @@ zeitzeuge({
   // Directory for temporary .cpuprofile files (default: '.zeitzeuge-profiles')
   profileDir: '.zeitzeuge-profiles',
 
+  // Also write V8 heap profiles (.heapprofile) for workers (default: false)
+  // Uses: --heap-prof + --heap-prof-dir=<profileDir>
+  heapProf: false,
+
   // Run Deep Agent analysis after tests finish (default: true)
   analyzeOnFinish: true,
 
@@ -141,9 +149,24 @@ zeitzeuge({
 });
 ```
 
+### Heap profiling (`heapProf`) — when to enable it
+
+`heapProf` captures **allocation sampling** (written as `.heapprofile` files) and can help you find:
+
+- Allocation hotspots (functions / modules allocating lots of bytes)
+- High GC pressure caused by excessive short-lived objects
+
+It defaults to **`false`** because it can be a net negative for everyday runs:
+
+- **Overhead**: allocation sampling adds runtime overhead and can skew timings/CPU profiles
+- **Artifact size / IO**: `.heapprofile` files can be large, increasing IO and CI flakiness
+- **Noise**: test runners allocate a lot in setup/framework code; heap data can be less actionable unless you’re specifically chasing allocations/GC
+
+Recommendation: keep it off by default and enable it when you suspect **allocation/GC issues** or when CPU hotspots alone aren’t explaining slow tests.
+
 ## CLI options
 
-```
+```text
 zeitzeuge <url> [options]
 
 Options:

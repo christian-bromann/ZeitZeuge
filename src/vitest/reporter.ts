@@ -10,13 +10,20 @@ import chalk from 'chalk';
 import ora from 'ora';
 
 import { parseCpuProfile } from './profile-parser.js';
+import { parseHeapProfile } from './heap-profile-parser.js';
 import { createVitestWorkspace } from './workspace.js';
 import { analyzeTestPerformance } from '../analysis/agent.js';
 import { initModel } from '../models/init.js';
 import { printFindings } from '../output/terminal.js';
 import { writeTestReport } from '../output/report.js';
 import { classifyScript } from './classify.js';
-import type { TestFileTiming, CorrelatedProfile, V8CpuProfile } from './types.js';
+import type {
+  TestFileTiming,
+  CorrelatedProfile,
+  CorrelatedHeapProfile,
+  V8CpuProfile,
+  V8HeapProfile,
+} from './types.js';
 
 import pkg from '../../package.json';
 
@@ -94,6 +101,7 @@ export class ZeitZeugeReporter {
       : ora({ text: 'zeitzeuge: Collecting CPU profiles...', color: 'cyan' }).start();
 
     const profiles = this.collectAndParseProfiles(testTiming);
+    const heapProfiles = this.collectAndParseHeapProfiles(testTiming);
 
     if (profiles.length === 0) {
       spinner?.warn(
@@ -104,6 +112,9 @@ export class ZeitZeugeReporter {
     }
 
     spinner?.succeed(`zeitzeuge: ${profiles.length} CPU profile(s) collected`);
+    if (this.options.verbose && heapProfiles.length > 0) {
+      console.log(`[zeitzeuge] ${heapProfiles.length} heap profile(s) collected`);
+    }
 
     // 3. Read test source files
     const testSources = this.readTestSources(testTiming);
@@ -119,6 +130,7 @@ export class ZeitZeugeReporter {
     const workspace = await createVitestWorkspace({
       testTiming,
       profiles,
+      heapProfiles,
       testSources,
       sourcePaths,
       projectRoot: this.options.projectRoot,
@@ -345,6 +357,81 @@ export class ZeitZeugeReporter {
 
     // Limit to the 10 slowest profiles for analysis
     results.sort((a, b) => b.summary.duration - a.summary.duration);
+    return results.slice(0, 10);
+  }
+
+  /**
+   * Collect .heapprofile files (from --heap-prof) and correlate them with test files.
+   *
+   * Uses the same timestamp-order correlation strategy as CPU profiles.
+   */
+  private collectAndParseHeapProfiles(testTiming: TestFileTiming[]): CorrelatedHeapProfile[] {
+    const { profileDir } = this.options;
+
+    if (!existsSync(profileDir)) {
+      return [];
+    }
+
+    const allFiles = readdirSync(profileDir);
+    const heapFiles = allFiles
+      .filter((f) => f.endsWith('.heapprofile'))
+      .map((f) => {
+        const fullPath = join(profileDir, f);
+        try {
+          const stat = statSync(fullPath);
+          return { name: f, path: fullPath, lastModified: stat.mtimeMs };
+        } catch {
+          return { name: f, path: fullPath, lastModified: 0 };
+        }
+      })
+      .sort((a, b) => a.lastModified - b.lastModified);
+
+    if (heapFiles.length === 0) {
+      return [];
+    }
+
+    const orderedTestFiles =
+      this.executionOrder.length > 0 ? this.executionOrder : testTiming.map((t) => t.file);
+
+    const results: CorrelatedHeapProfile[] = [];
+    const testFileSet = new Set(testTiming.map((t) => resolve(t.file)));
+
+    for (let i = 0; i < heapFiles.length; i++) {
+      const hf = heapFiles[i]!;
+      const testFile = orderedTestFiles[i] ?? `unknown-${i}`;
+
+      try {
+        const content = readFileSync(hf.path, 'utf-8');
+        const rawHeapProfile: V8HeapProfile = JSON.parse(content);
+        const summary = parseHeapProfile(rawHeapProfile, hf.path);
+
+        // Classify each allocation hotspot and script by source category
+        for (const fn of summary.topAllocations) {
+          fn.sourceCategory = classifyScript(fn.scriptUrl, this.options.projectRoot, testFileSet);
+        }
+        for (const script of summary.scriptBreakdown) {
+          script.sourceCategory = classifyScript(
+            script.scriptUrl,
+            this.options.projectRoot,
+            testFileSet,
+          );
+        }
+
+        results.push({
+          testFile,
+          profilePath: hf.path,
+          summary,
+        });
+      } catch (err) {
+        if (this.options.verbose) {
+          console.warn(
+            `[zeitzeuge] Failed to parse heap profile ${hf.name}: ${err instanceof Error ? err.message : err}`,
+          );
+        }
+      }
+    }
+
+    // Keep at most 10 (mirrors CPU profile cap)
     return results.slice(0, 10);
   }
 

@@ -20,6 +20,7 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
     enabled = true,
     output = 'zeitzeuge-report.md',
     profileDir = '.zeitzeuge-profiles',
+    heapProf = false,
     analyzeOnFinish = true,
     verbose = false,
     projectRoot = process.cwd(),
@@ -46,9 +47,11 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
       //    Set both top-level execArgv AND poolOptions.forks.execArgv
       //    to ensure the flags reach the actual worker processes.
       const cpuProfArgs = ['--cpu-prof', `--cpu-prof-dir=${resolvedProfileDir}`];
+      const heapProfArgs = heapProf ? ['--heap-prof', `--heap-prof-dir=${resolvedProfileDir}`] : [];
+      const profilingArgs = [...cpuProfArgs, ...heapProfArgs];
 
       const existingArgv: string[] = vitest.config.execArgv ?? [];
-      vitest.config.execArgv = [...existingArgv, ...cpuProfArgs];
+      vitest.config.execArgv = [...existingArgv, ...profilingArgs];
 
       // 3. Force pool: 'forks' — --cpu-prof via execArgv is only reliably
       //    passed to forked child processes (not worker_threads).
@@ -62,7 +65,7 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
         vitest.config.poolOptions.forks = {};
       }
       const existingForksArgv: string[] = vitest.config.poolOptions.forks.execArgv ?? [];
-      vitest.config.poolOptions.forks.execArgv = [...existingForksArgv, ...cpuProfArgs];
+      vitest.config.poolOptions.forks.execArgv = [...existingForksArgv, ...profilingArgs];
 
       // 4. Disable file parallelism for deterministic, per-file profiles
       vitest.config.fileParallelism = false;
