@@ -1,7 +1,7 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
 import { initModel } from "../../src/models/init";
 
-const envKeys = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "PERFAGENT_MODEL"] as const;
+const envKeys = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ZEITZEUGE_MODEL"] as const;
 
 function saveEnv(): Record<string, string | undefined> {
   const saved: Record<string, string | undefined> = {};
@@ -35,7 +35,7 @@ describe("initModel", () => {
   test("when OPENAI_API_KEY is set → returns a ChatOpenAI instance", () => {
     process.env.OPENAI_API_KEY = "test-key";
     delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.PERFAGENT_MODEL;
+    delete process.env.ZEITZEUGE_MODEL;
 
     const model = initModel();
 
@@ -46,7 +46,7 @@ describe("initModel", () => {
   test("when only ANTHROPIC_API_KEY is set → returns a ChatAnthropic instance", () => {
     delete process.env.OPENAI_API_KEY;
     process.env.ANTHROPIC_API_KEY = "test-key";
-    delete process.env.PERFAGENT_MODEL;
+    delete process.env.ZEITZEUGE_MODEL;
 
     const model = initModel();
 
@@ -57,7 +57,7 @@ describe("initModel", () => {
   test("when both keys are set → prefers OpenAI (returns ChatOpenAI)", () => {
     process.env.OPENAI_API_KEY = "test-key";
     process.env.ANTHROPIC_API_KEY = "test-key";
-    delete process.env.PERFAGENT_MODEL;
+    delete process.env.ZEITZEUGE_MODEL;
 
     const model = initModel();
 
@@ -68,7 +68,7 @@ describe("initModel", () => {
   test("when neither key is set → throws with a helpful error message containing OPENAI_API_KEY and ANTHROPIC_API_KEY", () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.PERFAGENT_MODEL;
+    delete process.env.ZEITZEUGE_MODEL;
 
     let err: Error | null = null;
     try {
@@ -81,10 +81,10 @@ describe("initModel", () => {
     expect(err!.message).toContain("ANTHROPIC_API_KEY");
   });
 
-  test("when PERFAGENT_MODEL override is set along with OPENAI_API_KEY → the model is initialized (doesn't throw)", () => {
+  test("when ZEITZEUGE_MODEL override is set along with OPENAI_API_KEY → the model is initialized (doesn't throw)", () => {
     process.env.OPENAI_API_KEY = "test-key";
     delete process.env.ANTHROPIC_API_KEY;
-    process.env.PERFAGENT_MODEL = "gpt-4o-mini";
+    process.env.ZEITZEUGE_MODEL = "gpt-4o-mini";
 
     expect(() => initModel()).not.toThrow();
     const model = initModel();

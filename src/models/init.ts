@@ -3,7 +3,7 @@ import { ChatAnthropic } from "@langchain/anthropic";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
 export function initModel(): BaseChatModel {
-  const modelOverride = process.env.PERFAGENT_MODEL;
+  const modelOverride = process.env.ZEITZEUGE_MODEL;
   const openaiKey = process.env.OPENAI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
 

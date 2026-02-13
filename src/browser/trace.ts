@@ -121,10 +121,10 @@ export async function tracePageLoad(
   await cdpSession.send("Page.enable");
   await cdpSession.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `
-      window.__perfagent_longTasks = [];
+      window.__zeitzeuge_longTasks = [];
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          window.__perfagent_longTasks.push({
+          window.__zeitzeuge_longTasks.push({
             startTime: entry.startTime,
             duration: entry.duration,
             scriptUrl: null,
@@ -218,7 +218,7 @@ export async function tracePageLoad(
       try {
         const longTaskResult = await cdpSession.send("Runtime.evaluate", {
           expression:
-            "JSON.stringify(window.__perfagent_longTasks || [])",
+            "JSON.stringify(window.__zeitzeuge_longTasks || [])",
         });
         longTasks = JSON.parse(longTaskResult.result.value || "[]");
       } catch {

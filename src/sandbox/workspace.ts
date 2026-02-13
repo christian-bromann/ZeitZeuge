@@ -188,7 +188,7 @@ export async function createWorkspace(
   }
 
   // ── Write all files to a temp directory ──
-  const tempDir = mkdtempSync(join(tmpdir(), "perfagent-workspace-"));
+  const tempDir = mkdtempSync(join(tmpdir(), "zeitzeuge-workspace-"));
 
   for (const [filePath, content] of Object.entries(files)) {
     // Strip leading / to get a relative path for the real filesystem

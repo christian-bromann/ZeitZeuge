@@ -1,10 +1,10 @@
 {
-  "name": "perfagent",
+  "name": "zeitzeuge",
   "version": "0.3.0",
   "type": "module",
   "module": "src/cli.ts",
   "bin": {
-    "perfagent": "./dist/cli.js"
+    "zeitzeuge": "./dist/cli.js"
   },
   "files": [
     "dist"

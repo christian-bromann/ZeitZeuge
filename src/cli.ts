@@ -37,7 +37,7 @@ function getVersion(): string {
 const VERSION = getVersion();
 
 const argv = yargs(hideBin(process.argv))
-  .scriptName("perfagent")
+  .scriptName("zeitzeuge")
   .usage("Usage: $0 <url> [options]")
   .command("$0 <url>", "Analyze frontend performance of a URL", (yargs) => {
     return yargs.positional("url", {
@@ -65,7 +65,7 @@ const argv = yargs(hideBin(process.argv))
   .option("output", {
     alias: "o",
     type: "string",
-    default: "perfagent-report.md",
+    default: "zeitzeuge-report.md",
     describe: "Output path for the Markdown report",
   })
   .help("help", "Show help")

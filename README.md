@@ -1,6 +1,8 @@
-# perfagent
+# zeitzeuge
 
 AI-powered frontend performance analysis from the command line. Captures a heap snapshot, performance trace, **and full Chrome runtime trace** from a single page load, stores all assets in a virtual filesystem, and hands everything to a Deep Agent that investigates memory issues, blocking functions, listener leaks, and page-load bottlenecks.
+
+> *"Zeuge" = witness — the tool "witnesses" slowdowns in your test runs.*
 
 ## Quick start
 
@@ -9,7 +11,7 @@ AI-powered frontend performance analysis from the command line. Captures a heap 
 export OPENAI_API_KEY=sk-...    # or ANTHROPIC_API_KEY
 
 # Analyze any URL
-npx perfagent http://localhost:3000
+npx zeitzeuge http://localhost:3000
 ```
 
 ## How it works
@@ -53,7 +55,7 @@ npx perfagent http://localhost:3000
 ## Options
 
 ```
-perfagent <url> [options]
+zeitzeuge <url> [options]
 
 Options:
   --verbose, -v   Enable verbose/debug logging       [boolean] [default: false]
@@ -69,7 +71,7 @@ Options:
 |---|---|
 | `OPENAI_API_KEY` | OpenAI API key (preferred) |
 | `ANTHROPIC_API_KEY` | Anthropic API key (fallback) |
-| `PERFAGENT_MODEL` | Override model name (e.g. `gpt-4o`, `claude-sonnet-4-20250514`) |
+| `ZEITZEUGE_MODEL` | Override model name (e.g. `gpt-4o`, `claude-sonnet-4-20250514`) |
 
 ## Development
 

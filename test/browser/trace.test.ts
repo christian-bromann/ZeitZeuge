@@ -88,7 +88,7 @@ function createMockCdpSession(opts?: { tracingStartFails?: boolean }) {
 
       // Return mock Runtime.evaluate results
       if (method === "Runtime.evaluate") {
-        if (params?.expression?.includes("__perfagent_longTasks")) {
+        if (params?.expression?.includes("__zeitzeuge_longTasks")) {
           return Promise.resolve({
             result: {
               value: JSON.stringify([
@@ -154,7 +154,7 @@ describe("tracePageLoad", () => {
       (c) => c.method === "Page.addScriptToEvaluateOnNewDocument"
     );
     expect(scriptCall).toBeTruthy();
-    expect(scriptCall!.params.source).toContain("__perfagent_longTasks");
+    expect(scriptCall!.params.source).toContain("__zeitzeuge_longTasks");
     expect(scriptCall!.params.source).toContain("PerformanceObserver");
   });
 

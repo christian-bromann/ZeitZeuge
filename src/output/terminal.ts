@@ -24,14 +24,14 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 /**
- * Print the perfagent header with version and target URL.
+ * Print the zeitzeuge header with version and target URL.
  */
 export function printHeader(url: string, version: string): void {
   const urlDisplay = url.length > 44 ? url.slice(0, 41) + "..." : url;
   console.log(
     chalk.cyan(
       `\n┌${"─".repeat(57)}┐\n` +
-        `│  perfagent v${version.padEnd(44)}│\n` +
+        `│  zeitzeuge v${version.padEnd(44)}│\n` +
         `│  Analyzing: ${urlDisplay.padEnd(44)}│\n` +
         `└${"─".repeat(57)}┘\n`
     )

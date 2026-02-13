@@ -1,5 +1,5 @@
 /**
- * Shared TypeScript types for perfagent.
+ * Shared TypeScript types for zeitzeuge.
  */
 
 // ── Finding (unified: covers memory + trace issues) ──

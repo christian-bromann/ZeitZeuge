@@ -11,7 +11,7 @@ import type {
 } from "../src/types";
 
 /**
- * Integration tests for the perfagent pipeline.
+ * Integration tests for the zeitzeuge pipeline.
  *
  * These tests verify the pipeline from snapshot parsing through to
  * workspace preparation. They use fixture data to avoid requiring
