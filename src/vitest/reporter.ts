@@ -7,7 +7,7 @@ import { readdirSync, readFileSync, existsSync, rmSync, statSync } from 'node:fs
 import { join, resolve } from 'node:path';
 
 import chalk from 'chalk';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 
 import { parseCpuProfile } from './profile-parser.js';
 import { parseHeapProfile } from './heap-profile-parser.js';
@@ -33,6 +33,74 @@ export interface ReporterOptions {
   verbose: boolean;
   /** Absolute path to the project root for source classification. */
   projectRoot: string;
+  /** Optional Vitest project name (workspaces) to scope this reporter. */
+  projectName?: string;
+}
+
+type OraLockState = { activeAnimatedSpinners: number };
+const ORA_LOCK_KEY = Symbol.for('zeitzeuge.ora.lock');
+
+function getOraLock(): OraLockState {
+  const g = globalThis as unknown as { [ORA_LOCK_KEY]?: OraLockState };
+  if (!g[ORA_LOCK_KEY]) g[ORA_LOCK_KEY] = { activeAnimatedSpinners: 0 };
+  return g[ORA_LOCK_KEY]!;
+}
+
+/**
+ * Create an ora spinner that won't conflict with other concurrent runs.
+ *
+ * ora prints a warning when multiple animated spinners run at once. In Vitest
+ * workspaces, multiple projects can finish in parallel and each reporter
+ * may try to start spinners.
+ *
+ * We allow only ONE animated spinner at a time; additional spinners are created
+ * with `isEnabled: false` (they still support the Ora API used by our progress UI).
+ */
+function createSafeSpinner(options: { text: string; color?: 'cyan' }): Ora {
+  const lock = getOraLock();
+  const canAnimate = lock.activeAnimatedSpinners === 0;
+  if (canAnimate) lock.activeAnimatedSpinners += 1;
+
+  const spinner = ora({
+    text: options.text,
+    color: options.color ?? 'cyan',
+    isEnabled: canAnimate,
+  }).start();
+
+  if (!canAnimate) return spinner;
+
+  let released = false;
+  const releaseOnce = () => {
+    if (released) return;
+    released = true;
+    const l = getOraLock();
+    l.activeAnimatedSpinners = Math.max(0, l.activeAnimatedSpinners - 1);
+  };
+
+  // Release when the spinner is terminally stopped.
+  const origStop = spinner.stop.bind(spinner);
+  const origSucceed = spinner.succeed.bind(spinner);
+  const origFail = spinner.fail.bind(spinner);
+  const origWarn = spinner.warn.bind(spinner);
+
+  spinner.stop = () => {
+    releaseOnce();
+    return origStop();
+  };
+  spinner.succeed = (text?: string) => {
+    releaseOnce();
+    return origSucceed(text);
+  };
+  spinner.fail = (text?: string) => {
+    releaseOnce();
+    return origFail(text);
+  };
+  spinner.warn = (text?: string) => {
+    releaseOnce();
+    return origWarn(text);
+  };
+
+  return spinner;
 }
 
 /**
@@ -54,11 +122,22 @@ export class ZeitZeugeReporter {
     this.options = options;
   }
 
+  private moduleBelongsToProject(testModule: any): boolean {
+    const expected = this.options.projectName;
+    if (!expected) return true;
+
+    const actual = testModule?.project?.name ? String(testModule.project.name) : undefined;
+    // If Vitest doesn't provide project info, don't accidentally drop modules.
+    if (!actual) return true;
+    return actual === expected;
+  }
+
   /**
    * Called when a test module starts executing.
    * Records execution order for profile correlation.
    */
   onTestModuleStart(testModule: any): void {
+    if (!this.moduleBelongsToProject(testModule)) return;
     const filePath = testModule?.moduleId ?? testModule?.id ?? '';
     if (filePath && !this.executionOrder.includes(filePath)) {
       this.executionOrder.push(filePath);
@@ -69,8 +148,17 @@ export class ZeitZeugeReporter {
    * Called after all tests finish. This is the main orchestration method.
    */
   async onTestRunEnd(testModules: ReadonlyArray<any>): Promise<void> {
+    const scopedModules = Array.from(testModules ?? []).filter((m) =>
+      this.moduleBelongsToProject(m),
+    );
+    if (scopedModules.length === 0) {
+      // In Vitest workspaces, multiple reporters can be registered globally.
+      // If this reporter doesn't have any modules for its project, do nothing.
+      return;
+    }
+
     try {
-      await this.runAnalysis(testModules);
+      await this.runAnalysis(scopedModules);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(chalk.red(`\n[zeitzeuge] Analysis failed: ${message}\n`));
@@ -97,7 +185,7 @@ export class ZeitZeugeReporter {
     // 2. Collect and parse profiles
     const spinner = this.isCI
       ? null
-      : ora({ text: 'zeitzeuge: Collecting CPU profiles...', color: 'cyan' }).start();
+      : createSafeSpinner({ text: 'zeitzeuge: Collecting CPU profiles...', color: 'cyan' });
 
     const profiles = this.collectAndParseProfiles(testTiming);
     const heapProfiles = this.collectAndParseHeapProfiles(testTiming);
@@ -124,7 +212,7 @@ export class ZeitZeugeReporter {
     // 5. Build workspace
     const wsSpinner = this.isCI
       ? null
-      : ora({ text: 'zeitzeuge: Building analysis workspace...', color: 'cyan' }).start();
+      : createSafeSpinner({ text: 'zeitzeuge: Building analysis workspace...', color: 'cyan' });
 
     const workspace = await createVitestWorkspace({
       testTiming,
@@ -139,18 +227,19 @@ export class ZeitZeugeReporter {
 
     // 6. Run Deep Agent analysis
     if (this.options.analyzeOnFinish) {
-      const agentSpinner = ora({
-        text: 'zeitzeuge: Analyzing test performance...',
-        color: 'cyan',
-        isEnabled: !this.isCI,
-      }).start();
+      const agentSpinner = this.isCI
+        ? null
+        : createSafeSpinner({ text: 'zeitzeuge: Analyzing test performance...', color: 'cyan' });
+      const spinnerForAgent =
+        agentSpinner ??
+        ora({ text: 'zeitzeuge: Analyzing test performance...', isEnabled: false }).start();
 
       try {
         const model = initModel();
         const { analyzeTestPerformance } = await import('../analysis/agent.js');
-        const findings = await analyzeTestPerformance(model, workspace.backend, agentSpinner);
+        const findings = await analyzeTestPerformance(model, workspace.backend, spinnerForAgent);
 
-        agentSpinner.succeed(`zeitzeuge: Analysis complete — ${findings.length} finding(s)`);
+        agentSpinner?.succeed(`zeitzeuge: Analysis complete — ${findings.length} finding(s)`);
 
         // Print findings
         console.log(chalk.cyan(`\nzeitzeuge: Performance Analysis\n`));
@@ -174,15 +263,16 @@ export class ZeitZeugeReporter {
           message.includes('OPENAI_API_KEY') ||
           message.includes('ANTHROPIC_API_KEY')
         ) {
-          agentSpinner.warn(
+          agentSpinner?.warn(
             'zeitzeuge: No LLM API key found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY for AI-powered analysis.',
           );
         } else {
-          agentSpinner.fail(`zeitzeuge: Analysis failed — ${message}`);
+          agentSpinner?.fail(`zeitzeuge: Analysis failed — ${message}`);
           throw err;
         }
       } finally {
         workspace.cleanup();
+        spinnerForAgent.stop();
       }
     } else {
       workspace.cleanup();

@@ -132,9 +132,9 @@ export async function analyzeTestPerformance(
   ].join('\n');
 
   const result = await invokeWithTodoStreaming(agent, userMessage, spinner);
-  const findings = result.structuredResponse.findings;
+  const findings = result.structuredResponse?.findings;
   if (!Array.isArray(findings)) {
-    throw new Error('Agent did not return structured findings.');
+    throw new Error(`Failed to analyze test performance: ${result.messages.at(-1)?.text}`);
   }
 
   return findings;
