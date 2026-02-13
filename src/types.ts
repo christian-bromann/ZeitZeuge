@@ -4,12 +4,13 @@
 
 // ── Finding (unified: covers memory + trace issues) ──
 
-/** A performance finding — covers memory, page-load, runtime, and network issues. */
+/** A performance finding — covers memory, page-load, runtime, test performance, and network issues. */
 export interface Finding {
   severity: "critical" | "warning" | "info";
   title: string;
   description: string;
   category:
+    // Page-load / runtime categories
     | "memory-leak"
     | "large-retained-object"
     | "detached-dom"
@@ -21,6 +22,13 @@ export interface Finding {
     | "frame-blocking-function"
     | "listener-leak"
     | "gc-pressure"
+    // Test / application performance categories
+    | "slow-test"
+    | "expensive-setup"
+    | "hot-function"
+    | "unnecessary-computation"
+    | "import-overhead"
+    | "dependency-bottleneck"
     | "other";
   /** URL of the resource involved (script URL, asset URL) */
   resourceUrl?: string;
@@ -33,6 +41,16 @@ export interface Finding {
   /** Retention path in the heap (for memory findings) */
   retainerPath?: string[];
   suggestedFix: string;
+  /** Test file path (for test performance findings) */
+  testFile?: string;
+  /** Hot function details (for hot-function findings) */
+  hotFunction?: {
+    name: string;
+    scriptUrl: string;
+    lineNumber: number;
+    selfTime: number;
+    selfPercent: number;
+  };
 }
 
 // ── Heap snapshot types (unchanged from Spec 001) ──

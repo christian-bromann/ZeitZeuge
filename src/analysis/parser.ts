@@ -87,10 +87,10 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
   // ------------------------------------------------------------------
   // Step 2: Build adjacency lists (forward + reverse)
   // ------------------------------------------------------------------
-  const adjacency: number[][] = new Array(nodeCount);
+  const adjacency: number[][] = Array.from({ length: nodeCount }, () => []);
   for (let i = 0; i < nodeCount; i++) adjacency[i] = [];
 
-  const reverseAdj: number[][] = new Array(nodeCount);
+  const reverseAdj: number[][] = Array.from({ length: nodeCount }, () => []);
   for (let i = 0; i < nodeCount; i++) reverseAdj[i] = [];
 
   for (let i = 0; i < nodeCount; i++) {
@@ -196,7 +196,7 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
     const node = bfsOrder[i]!;
     const dom = dominators[node]!;
     if (dom >= 0 && dom !== node) {
-      retainedSizes[dom] += retainedSizes[node]!;
+      retainedSizes[dom] = retainedSizes[dom]! + retainedSizes[node]!;
     }
   }
 

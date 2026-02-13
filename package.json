@@ -17,6 +17,17 @@
   },
   "type": "module",
   "module": "src/cli.ts",
+  "types": "./dist/cli.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
+    },
+    "./vitest": {
+      "types": "./dist/vitest/index.d.ts",
+      "default": "./dist/vitest/index.js"
+    }
+  },
   "bin": {
     "zeitzeuge": "./dist/cli.js"
   },
@@ -24,16 +35,19 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun build src/cli.ts --outdir dist --target node --format esm --packages external",
+    "build:js": "bun build src/cli.ts src/vitest/index.ts --outdir dist --target node --format esm --packages external",
+    "build:types": "bunx tsc -p tsconfig.build.json",
+    "build": "bun run build:js && bun run build:types",
     "dev": "bun run src/cli.ts",
     "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "typescript": "^5",
     "@types/yargs": "^17"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "vitest": ">=3.1.0"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.3.17",

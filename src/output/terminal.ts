@@ -20,6 +20,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   "frame-blocking-function": "Frame-Blocking Function",
   "listener-leak": "Listener Leak",
   "gc-pressure": "GC Pressure",
+  "slow-test": "Slow Test",
+  "expensive-setup": "Expensive Setup",
+  "hot-function": "Hot Function",
+  "unnecessary-computation": "Unnecessary Computation",
+  "import-overhead": "Import Overhead",
+  "dependency-bottleneck": "Dependency Bottleneck",
   other: "Other",
 };
 
@@ -83,6 +89,17 @@ export function printFindings(findings: Finding[]): void {
     if (finding.retainerPath && finding.retainerPath.length > 0) {
       console.log(
         chalk.dim(`   Path: ${finding.retainerPath.join(" → ")}`)
+      );
+    }
+    if (finding.testFile) {
+      console.log(chalk.dim(`   Test file: ${finding.testFile}`));
+    }
+    if (finding.hotFunction) {
+      const hf = finding.hotFunction;
+      console.log(
+        chalk.dim(
+          `   Function: ${hf.name} at ${hf.scriptUrl}:${hf.lineNumber} (selfTime: ${hf.selfTime.toFixed(0)}ms, ${hf.selfPercent.toFixed(1)}%)`
+        )
       );
     }
 
