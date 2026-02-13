@@ -1,6 +1,20 @@
 {
   "name": "zeitzeuge",
   "version": "0.3.0",
+  "description": "A deepagent to witnessing slowdowns in your test runs.",
+  "author": "Christian Bromann <christian@bromann.dev>",
+  "license": "MIT",
+  "homepage": "https://github.com/christian-bromann/zeitzeuge",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/christian-bromann/zeitzeuge.git"
+  },
+  "keywords": [
+    "performance", "frontend", "analysis", "deepagent", "zeitzeuge"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "module": "src/cli.ts",
   "bin": {
