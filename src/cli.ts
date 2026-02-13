@@ -204,7 +204,7 @@ async function main(): Promise<void> {
       findings = await analyze(model, workspace.backend);
       agentSpinner.succeed(`Analysis complete — ${findings.length} findings`);
     } catch (err) {
-      agentSpinner.fail("Analysis failed");
+      agentSpinner.fail(`Analysis failed: ${err instanceof Error ? err.message : "Unknown error"}`);
       throw new Error(
         "LLM analysis failed. Check your API key and network connection.\n" +
           (err instanceof Error ? `  Details: ${err.message}` : "")

@@ -1,5 +1,4 @@
-import { createDeepAgent } from "deepagents";
-import type { BackendProtocol } from "deepagents";
+import { createDeepAgent, type BackendProtocol } from "deepagents";
 import { providerStrategy } from "langchain";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { z } from "zod";
@@ -95,9 +94,7 @@ export async function analyze(
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const structured = result.structuredResponse as unknown as { findings: Finding[] };
-  console.log(result.messages.at(-1));
-  return structured.findings;
+  return result.structuredResponse.findings;
 }
 
 /**
