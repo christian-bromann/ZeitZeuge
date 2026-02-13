@@ -8,6 +8,10 @@ import { mkdirSync } from 'node:fs';
 import { ZeitZeugeReporter } from './reporter.js';
 import type { ZeitZeugeVitestOptions } from './types.js';
 
+function uniq(values: string[]): string[] {
+  return Array.from(new Set(values));
+}
+
 /**
  * Create a Vite plugin that hooks into Vitest via the configureVitest hook.
  *
@@ -26,13 +30,17 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
     projectRoot = process.cwd(),
   } = options;
 
+  // configureVitest can run once per project in a Vitest workspace.
+  // Reporters are global (not project-scoped), so only attach ours once.
+  let reporterAttached = false;
+
   return {
     name: 'vitest:zeitzeuge',
 
     configureVitest(context: any) {
       if (!enabled) return;
 
-      const { vitest } = context;
+      const { vitest, project } = context;
       const resolvedProfileDir = resolve(profileDir);
 
       // 1. Create the profile output directory — Node.js --cpu-prof-dir
@@ -43,6 +51,11 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
         // ignore — if we can't create it, profiling just won't work
       }
 
+      // Mutate the PROJECT config so worker processes inherit execArgv.
+      // In Vitest workspaces, each project has its own resolved config and
+      // is serialized separately for its workers.
+      const targetConfig = project?.config ?? vitest.config;
+
       // 2. Inject CPU profiling flags into worker execArgv.
       //    Set both top-level execArgv AND poolOptions.forks.execArgv
       //    to ensure the flags reach the actual worker processes.
@@ -50,46 +63,52 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
       const heapProfArgs = heapProf ? ['--heap-prof', `--heap-prof-dir=${resolvedProfileDir}`] : [];
       const profilingArgs = [...cpuProfArgs, ...heapProfArgs];
 
-      const existingArgv: string[] = vitest.config.execArgv ?? [];
-      vitest.config.execArgv = [...existingArgv, ...profilingArgs];
+      const existingArgv: string[] = targetConfig.execArgv ?? [];
+      targetConfig.execArgv = uniq([...existingArgv, ...profilingArgs]);
 
       // 3. Force pool: 'forks' — --cpu-prof via execArgv is only reliably
       //    passed to forked child processes (not worker_threads).
-      vitest.config.pool = 'forks';
+      targetConfig.pool = 'forks';
 
       // Also set poolOptions.forks.execArgv as belt-and-suspenders
-      if (!vitest.config.poolOptions) {
-        vitest.config.poolOptions = {};
+      if (!targetConfig.poolOptions) {
+        targetConfig.poolOptions = {};
       }
-      if (!vitest.config.poolOptions.forks) {
-        vitest.config.poolOptions.forks = {};
+      if (!targetConfig.poolOptions.forks) {
+        targetConfig.poolOptions.forks = {};
       }
-      const existingForksArgv: string[] = vitest.config.poolOptions.forks.execArgv ?? [];
-      vitest.config.poolOptions.forks.execArgv = [...existingForksArgv, ...profilingArgs];
+      const existingForksArgv: string[] = targetConfig.poolOptions.forks.execArgv ?? [];
+      targetConfig.poolOptions.forks.execArgv = uniq([...existingForksArgv, ...profilingArgs]);
 
       // 4. Disable file parallelism for deterministic, per-file profiles
-      vitest.config.fileParallelism = false;
+      targetConfig.fileParallelism = false;
 
       // 5. Attach our reporter
-      const reporter = new ZeitZeugeReporter({
-        output: resolve(output),
-        profileDir: resolvedProfileDir,
-        analyzeOnFinish,
-        verbose,
-        projectRoot: resolve(projectRoot),
-      });
+      if (!reporterAttached) {
+        const reporter = new ZeitZeugeReporter({
+          output: resolve(output),
+          profileDir: resolvedProfileDir,
+          analyzeOnFinish,
+          verbose,
+          projectRoot: resolve(projectRoot),
+        });
 
-      // Push reporter — config.reporters is already resolved as an array
-      if (Array.isArray(vitest.config.reporters)) {
-        vitest.config.reporters.push(reporter);
-      } else {
-        vitest.config.reporters = [reporter];
+        // Push reporter — global config.reporters is already resolved as an array
+        if (Array.isArray(vitest.config.reporters)) {
+          vitest.config.reporters.push(reporter);
+        } else {
+          vitest.config.reporters = [reporter];
+        }
+
+        reporterAttached = true;
       }
 
       if (verbose) {
+        const projectName = project?.name ? String(project.name) : '(root)';
         console.log(`[zeitzeuge] Plugin enabled — CPU profiling to ${resolvedProfileDir}`);
-        console.log(`[zeitzeuge] execArgv: ${JSON.stringify(vitest.config.execArgv)}`);
-        console.log(`[zeitzeuge] pool: ${vitest.config.pool}`);
+        console.log(`[zeitzeuge] project: ${projectName}`);
+        console.log(`[zeitzeuge] execArgv: ${JSON.stringify(targetConfig.execArgv)}`);
+        console.log(`[zeitzeuge] pool: ${targetConfig.pool}`);
       }
     },
   };
