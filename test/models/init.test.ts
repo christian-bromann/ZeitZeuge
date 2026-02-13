@@ -1,7 +1,7 @@
-import { test, expect, describe, beforeEach, afterEach } from "bun:test";
-import { initModel } from "../../src/models/init";
+import { test, expect, describe, beforeEach, afterEach } from 'bun:test';
+import { initModel } from '../../src/models/init';
 
-const envKeys = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ZEITZEUGE_MODEL"] as const;
+const envKeys = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ZEITZEUGE_MODEL'] as const;
 
 function saveEnv(): Record<string, string | undefined> {
   const saved: Record<string, string | undefined> = {};
@@ -21,7 +21,7 @@ function restoreEnv(saved: Record<string, string | undefined>): void {
   }
 }
 
-describe("initModel", () => {
+describe('initModel', () => {
   let savedEnv: Record<string, string | undefined>;
 
   beforeEach(() => {
@@ -32,40 +32,40 @@ describe("initModel", () => {
     restoreEnv(savedEnv);
   });
 
-  test("when OPENAI_API_KEY is set → returns a ChatOpenAI instance", () => {
-    process.env.OPENAI_API_KEY = "test-key";
+  test('when OPENAI_API_KEY is set → returns a ChatOpenAI instance', () => {
+    process.env.OPENAI_API_KEY = 'test-key';
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.ZEITZEUGE_MODEL;
 
     const model = initModel();
 
     expect(model).toBeTruthy();
-    expect(model.constructor.name).toBe("ChatOpenAI");
+    expect(model.constructor.name).toBe('ChatOpenAI');
   });
 
-  test("when only ANTHROPIC_API_KEY is set → returns a ChatAnthropic instance", () => {
+  test('when only ANTHROPIC_API_KEY is set → returns a ChatAnthropic instance', () => {
     delete process.env.OPENAI_API_KEY;
-    process.env.ANTHROPIC_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = 'test-key';
     delete process.env.ZEITZEUGE_MODEL;
 
     const model = initModel();
 
     expect(model).toBeTruthy();
-    expect(model.constructor.name).toBe("ChatAnthropic");
+    expect(model.constructor.name).toBe('ChatAnthropic');
   });
 
-  test("when both keys are set → prefers OpenAI (returns ChatOpenAI)", () => {
-    process.env.OPENAI_API_KEY = "test-key";
-    process.env.ANTHROPIC_API_KEY = "test-key";
+  test('when both keys are set → prefers OpenAI (returns ChatOpenAI)', () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.ANTHROPIC_API_KEY = 'test-key';
     delete process.env.ZEITZEUGE_MODEL;
 
     const model = initModel();
 
     expect(model).toBeTruthy();
-    expect(model.constructor.name).toBe("ChatOpenAI");
+    expect(model.constructor.name).toBe('ChatOpenAI');
   });
 
-  test("when neither key is set → throws with a helpful error message containing OPENAI_API_KEY and ANTHROPIC_API_KEY", () => {
+  test('when neither key is set → throws with a helpful error message containing OPENAI_API_KEY and ANTHROPIC_API_KEY', () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.ZEITZEUGE_MODEL;
@@ -77,14 +77,14 @@ describe("initModel", () => {
       err = e as Error;
     }
     expect(err).not.toBeNull();
-    expect(err!.message).toContain("OPENAI_API_KEY");
-    expect(err!.message).toContain("ANTHROPIC_API_KEY");
+    expect(err!.message).toContain('OPENAI_API_KEY');
+    expect(err!.message).toContain('ANTHROPIC_API_KEY');
   });
 
   test("when ZEITZEUGE_MODEL override is set along with OPENAI_API_KEY → the model is initialized (doesn't throw)", () => {
-    process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = 'test-key';
     delete process.env.ANTHROPIC_API_KEY;
-    process.env.ZEITZEUGE_MODEL = "gpt-4o-mini";
+    process.env.ZEITZEUGE_MODEL = 'gpt-4o-mini';
 
     expect(() => initModel()).not.toThrow();
     const model = initModel();

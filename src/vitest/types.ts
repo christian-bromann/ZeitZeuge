@@ -13,12 +13,7 @@
  * - `framework`   — vitest / tinybench / v8 internals
  * - `unknown`     — could not be classified (e.g. eval, no URL)
  */
-export type SourceCategory =
-  | "application"
-  | "dependency"
-  | "test"
-  | "framework"
-  | "unknown";
+export type SourceCategory = 'application' | 'dependency' | 'test' | 'framework' | 'unknown';
 
 // ── Plugin options ──
 
@@ -55,7 +50,7 @@ export interface TestFileTiming {
   tests: Array<{
     name: string;
     duration: number;
-    status: "pass" | "fail" | "skip";
+    status: 'pass' | 'fail' | 'skip';
   }>;
 }
 

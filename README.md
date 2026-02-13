@@ -2,7 +2,7 @@
 
 AI-powered performance analysis for frontend page loads and Vitest test suites. Captures V8 heap snapshots, performance traces, Chrome runtime traces, and CPU profiles — stores everything in a virtual filesystem and hands it to a Deep Agent that investigates bottlenecks and provides code-level fixes.
 
-> *"Zeuge" = witness — the tool "witnesses" slowdowns in your page loads and test runs.*
+> _"Zeuge" = witness — the tool "witnesses" slowdowns in your page loads and test runs._
 
 ## Quick start
 
@@ -21,14 +21,12 @@ npx zeitzeuge http://localhost:3000
 Add the plugin to your `vitest.config.ts` to profile your test suite and get AI-powered analysis of your **application code** performance:
 
 ```ts
-import { defineConfig } from 'vitest/config'
-import { zeitzeuge } from 'zeitzeuge/vitest'
+import { defineConfig } from 'vitest/config';
+import { zeitzeuge } from 'zeitzeuge/vitest';
 
 export default defineConfig({
-  plugins: [
-    zeitzeuge()
-  ],
-})
+  plugins: [zeitzeuge()],
+});
 ```
 
 Run your tests as usual — zeitzeuge instruments the run with V8 CPU profiling, collects the profiles, and runs a Deep Agent analysis after tests complete:
@@ -79,11 +77,13 @@ A Markdown report is written to `zeitzeuge-report.md` with findings and suggeste
 ### Page-load analysis
 
 **Memory issues:**
+
 - Memory leaks (unbounded caches, growing arrays/maps)
 - Detached DOM nodes still referenced in JavaScript
 - Large retained objects and closure leaks
 
 **Page-load issues:**
+
 - Render-blocking scripts (`<script>` without `async`/`defer`)
 - Render-blocking stylesheets
 - Long main-thread tasks (> 50ms)
@@ -91,6 +91,7 @@ A Markdown report is written to `zeitzeuge-report.md` with findings and suggeste
 - Sequential waterfall bottlenecks
 
 **Runtime issues:**
+
 - **Frame-blocking functions** — exact function name, script URL, line number, and call stack for any function blocking the main thread > 50ms
 - **Event listener leaks** — `addEventListener` calls without matching `removeEventListener`, growing listener counts
 - **GC pressure** — frequent or long garbage collection pauses indicating memory churn
@@ -99,17 +100,20 @@ A Markdown report is written to `zeitzeuge-report.md` with findings and suggeste
 ### Vitest analysis
 
 **Application code bottlenecks:**
+
 - Hot functions with high self time in your source code
 - Expensive algorithms (O(n^2) loops, redundant computation, unnecessary sorting)
 - Object allocation hotspots driving GC pressure
 - Synchronous blocking in hot paths (file I/O, crypto, JSON serialization)
 
 **Dependency bottlenecks:**
+
 - Third-party libraries consuming disproportionate CPU
 - Unnecessary calls to expensive dependency APIs in hot paths
 - Suggestions for alternative libraries or configuration changes
 
 **GC pressure:**
+
 - Functions creating many short-lived objects in tight loops
 - Large allocations that could be pooled or reused
 
@@ -134,7 +138,7 @@ zeitzeuge({
 
   // Enable debug logging (default: false)
   verbose: false,
-})
+});
 ```
 
 ## CLI options
@@ -152,11 +156,11 @@ Options:
 
 ## Environment variables
 
-| Variable | Description |
-|---|---|
-| `OPENAI_API_KEY` | OpenAI API key (preferred) |
-| `ANTHROPIC_API_KEY` | Anthropic API key (fallback) |
-| `ZEITZEUGE_MODEL` | Override model name (e.g. `gpt-4o`, `claude-sonnet-4-20250514`) |
+| Variable            | Description                                                     |
+| ------------------- | --------------------------------------------------------------- |
+| `OPENAI_API_KEY`    | OpenAI API key (preferred)                                      |
+| `ANTHROPIC_API_KEY` | Anthropic API key (fallback)                                    |
+| `ZEITZEUGE_MODEL`   | Override model name (e.g. `gpt-4o`, `claude-sonnet-4-20250514`) |
 
 ## Development
 

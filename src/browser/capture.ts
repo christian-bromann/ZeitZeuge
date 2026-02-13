@@ -1,6 +1,6 @@
-import type { Browser } from "webdriverio";
-import type { CaptureResult, CaptureOptions } from "../types.js";
-import { tracePageLoad } from "./trace.js";
+import type { Browser } from 'webdriverio';
+import type { CaptureResult, CaptureOptions } from '../types.js';
+import { tracePageLoad } from './trace.js';
 
 /**
  * Capture both a heap snapshot and a performance trace from a single page load.
@@ -15,7 +15,7 @@ import { tracePageLoad } from "./trace.js";
 export async function capturePage(
   browser: Browser,
   url: string,
-  options: CaptureOptions = {}
+  options: CaptureOptions = {},
 ): Promise<CaptureResult> {
   const { timeout = 30000 } = options;
 
@@ -24,7 +24,7 @@ export async function capturePage(
   const pages = await puppeteerBrowser.pages();
   const page = pages[0];
   if (!page) {
-    throw new Error("No page found in Puppeteer browser");
+    throw new Error('No page found in Puppeteer browser');
   }
 
   const cdpSession = await page.createCDPSession();
@@ -34,7 +34,7 @@ export async function capturePage(
 
   // Navigate and wait for page load
   await page.goto(url, {
-    waitUntil: "load",
+    waitUntil: 'load',
     timeout,
   });
 
@@ -45,28 +45,28 @@ export async function capturePage(
   const traceResult = await traceHandle.stop();
 
   // Now take the heap snapshot (after page is loaded + settled)
-  await cdpSession.send("HeapProfiler.enable");
+  await cdpSession.send('HeapProfiler.enable');
 
   const chunks: string[] = [];
-  cdpSession.on("HeapProfiler.addHeapSnapshotChunk", (params: any) => {
+  cdpSession.on('HeapProfiler.addHeapSnapshotChunk', (params: any) => {
     chunks.push(params.chunk);
   });
 
   // Force garbage collection before snapshot for accuracy
-  await cdpSession.send("HeapProfiler.collectGarbage");
+  await cdpSession.send('HeapProfiler.collectGarbage');
 
   // Take the snapshot
-  await cdpSession.send("HeapProfiler.takeHeapSnapshot", {
+  await cdpSession.send('HeapProfiler.takeHeapSnapshot', {
     reportProgress: false,
   });
 
   // Disable HeapProfiler and detach the session
-  await cdpSession.send("HeapProfiler.disable");
+  await cdpSession.send('HeapProfiler.disable');
   await cdpSession.detach();
 
   return {
     heapSnapshot: {
-      data: chunks.join(""),
+      data: chunks.join(''),
       capturedAt: Date.now(),
       url,
     },

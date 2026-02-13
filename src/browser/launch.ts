@@ -1,26 +1,24 @@
-import { remote, type Browser } from "webdriverio";
-import type { LaunchOptions } from "../types.js";
+import { remote, type Browser } from 'webdriverio';
+import type { LaunchOptions } from '../types.js';
 
-export type { Browser } from "webdriverio";
+export type { Browser } from 'webdriverio';
 
-export async function launchBrowser(
-  options: LaunchOptions = {}
-): Promise<Browser> {
+export async function launchBrowser(options: LaunchOptions = {}): Promise<Browser> {
   const { headless = true } = options;
 
   const browser = await remote({
     capabilities: {
-      browserName: "chrome",
-      "goog:chromeOptions": {
+      browserName: 'chrome',
+      'goog:chromeOptions': {
         args: [
-          ...(headless ? ["--headless=new"] : []),
-          "--no-sandbox",
-          "--disable-gpu",
-          "--disable-dev-shm-usage",
+          ...(headless ? ['--headless=new'] : []),
+          '--no-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
         ],
       },
     },
-    logLevel: "warn",
+    logLevel: 'warn',
   });
 
   return browser;

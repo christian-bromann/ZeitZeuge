@@ -6,30 +6,30 @@
 
 /** A performance finding — covers memory, page-load, runtime, test performance, and network issues. */
 export interface Finding {
-  severity: "critical" | "warning" | "info";
+  severity: 'critical' | 'warning' | 'info';
   title: string;
   description: string;
   category:
     // Page-load / runtime categories
-    | "memory-leak"
-    | "large-retained-object"
-    | "detached-dom"
-    | "render-blocking"
-    | "long-task"
-    | "unused-code"
-    | "waterfall-bottleneck"
-    | "large-asset"
-    | "frame-blocking-function"
-    | "listener-leak"
-    | "gc-pressure"
+    | 'memory-leak'
+    | 'large-retained-object'
+    | 'detached-dom'
+    | 'render-blocking'
+    | 'long-task'
+    | 'unused-code'
+    | 'waterfall-bottleneck'
+    | 'large-asset'
+    | 'frame-blocking-function'
+    | 'listener-leak'
+    | 'gc-pressure'
     // Test / application performance categories
-    | "slow-test"
-    | "expensive-setup"
-    | "hot-function"
-    | "unnecessary-computation"
-    | "import-overhead"
-    | "dependency-bottleneck"
-    | "other";
+    | 'slow-test'
+    | 'expensive-setup'
+    | 'hot-function'
+    | 'unnecessary-computation'
+    | 'import-overhead'
+    | 'dependency-bottleneck'
+    | 'other';
   /** URL of the resource involved (script URL, asset URL) */
   resourceUrl?: string;
   /** Path in the VFS workspace */

@@ -13,5 +13,5 @@
  * ```
  */
 
-export { zeitzeuge } from "./plugin.js";
-export type { ZeitZeugeVitestOptions, SourceCategory } from "./types.js";
+export { zeitzeuge } from './plugin.js';
+export type { ZeitZeugeVitestOptions, SourceCategory } from './types.js';

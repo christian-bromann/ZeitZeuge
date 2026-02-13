@@ -4,17 +4,11 @@
  * dependencies, test files, and framework internals.
  */
 
-import { resolve, relative } from "node:path";
-import type { SourceCategory } from "./types.js";
+import { resolve, relative } from 'node:path';
+import type { SourceCategory } from './types.js';
 
 /** Patterns that identify test files. */
-const TEST_FILE_PATTERNS = [
-  /\.test\./,
-  /\.spec\./,
-  /\.bench\./,
-  /__tests__\//,
-  /__mocks__\//,
-];
+const TEST_FILE_PATTERNS = [/\.test\./, /\.spec\./, /\.bench\./, /__tests__\//, /__mocks__\//];
 
 /** Patterns that identify framework internals (vitest, tinybench, v8). */
 const FRAMEWORK_PATTERNS = [
@@ -25,8 +19,8 @@ const FRAMEWORK_PATTERNS = [
   /node:internal\//,
   /node:v8/,
   /node:worker_threads/,
-  /\.XdZDrNZV\./,  // vitest bundled chunks
-  /\.CJqBMi0u\./,  // vitest bundled chunks
+  /\.XdZDrNZV\./, // vitest bundled chunks
+  /\.CJqBMi0u\./, // vitest bundled chunks
 ];
 
 /**
@@ -39,13 +33,13 @@ const FRAMEWORK_PATTERNS = [
 export function classifyScript(
   scriptUrl: string,
   projectRoot: string,
-  testFiles?: Set<string>
+  testFiles?: Set<string>,
 ): SourceCategory {
-  if (!scriptUrl) return "unknown";
+  if (!scriptUrl) return 'unknown';
 
   // Normalize file:// URLs to paths
   let filePath = scriptUrl;
-  if (filePath.startsWith("file://")) {
+  if (filePath.startsWith('file://')) {
     try {
       filePath = new URL(filePath).pathname;
     } catch {
@@ -54,34 +48,34 @@ export function classifyScript(
   }
 
   // Internal V8/node builtins
-  if (filePath.startsWith("node:") || filePath.startsWith("v8:")) {
-    return "framework";
+  if (filePath.startsWith('node:') || filePath.startsWith('v8:')) {
+    return 'framework';
   }
 
   // Check framework patterns first (vitest/tinybench internals)
   for (const pattern of FRAMEWORK_PATTERNS) {
     if (pattern.test(filePath)) {
-      return "framework";
+      return 'framework';
     }
   }
 
   // Check if it's in node_modules
-  if (filePath.includes("/node_modules/") || filePath.includes("\\node_modules\\")) {
-    return "dependency";
+  if (filePath.includes('/node_modules/') || filePath.includes('\\node_modules\\')) {
+    return 'dependency';
   }
 
   // Check if it's a known test file
   if (testFiles) {
     const resolved = resolve(filePath);
     if (testFiles.has(resolved)) {
-      return "test";
+      return 'test';
     }
   }
 
   // Check test file patterns
   for (const pattern of TEST_FILE_PATTERNS) {
     if (pattern.test(filePath)) {
-      return "test";
+      return 'test';
     }
   }
 
@@ -91,11 +85,11 @@ export function classifyScript(
   const rel = relative(resolvedProject, resolvedFile);
 
   // If relative path doesn't start with ".." it's inside the project
-  if (!rel.startsWith("..") && !rel.startsWith("/")) {
-    return "application";
+  if (!rel.startsWith('..') && !rel.startsWith('/')) {
+    return 'application';
   }
 
-  return "unknown";
+  return 'unknown';
 }
 
 /**
@@ -104,7 +98,7 @@ export function classifyScript(
 export function classifyScripts(
   scriptUrls: string[],
   projectRoot: string,
-  testFiles?: Set<string>
+  testFiles?: Set<string>,
 ): Map<string, SourceCategory> {
   const result = new Map<string, SourceCategory>();
   for (const url of scriptUrls) {

@@ -1,6 +1,6 @@
-import { test, expect, describe } from "bun:test";
-import { parseSnapshot } from "../../src/analysis/parser";
-import type { RawSnapshot } from "../../src/types";
+import { test, expect, describe } from 'bun:test';
+import { parseSnapshot } from '../../src/analysis/parser';
+import type { RawSnapshot } from '../../src/types';
 
 /**
  * Builds a minimal valid V8 heap snapshot JSON string.
@@ -28,51 +28,43 @@ function buildSnapshot(opts: {
     snapshot: {
       meta: {
         node_fields: [
-          "type",
-          "name",
-          "id",
-          "self_size",
-          "edge_count",
-          "trace_node_id",
-          "detachedness",
+          'type',
+          'name',
+          'id',
+          'self_size',
+          'edge_count',
+          'trace_node_id',
+          'detachedness',
         ],
         node_types: [
           [
-            "hidden",
-            "array",
-            "string",
-            "object",
-            "code",
-            "closure",
-            "regexp",
-            "number",
-            "native",
-            "synthetic",
-            "concatenated string",
-            "sliced string",
-            "symbol",
-            "bigint",
+            'hidden',
+            'array',
+            'string',
+            'object',
+            'code',
+            'closure',
+            'regexp',
+            'number',
+            'native',
+            'synthetic',
+            'concatenated string',
+            'sliced string',
+            'symbol',
+            'bigint',
           ],
-          "string",
-          "number",
-          "number",
-          "number",
-          "number",
-          "number",
+          'string',
+          'number',
+          'number',
+          'number',
+          'number',
+          'number',
         ],
-        edge_fields: ["type", "name_or_index", "to_node"],
+        edge_fields: ['type', 'name_or_index', 'to_node'],
         edge_types: [
-          [
-            "context",
-            "element",
-            "property",
-            "internal",
-            "hidden",
-            "shortcut",
-            "weak",
-          ],
-          "string_or_number",
-          "node",
+          ['context', 'element', 'property', 'internal', 'hidden', 'shortcut', 'weak'],
+          'string_or_number',
+          'node',
         ],
       },
       node_count: opts.nodeCount,
@@ -88,7 +80,7 @@ function makeRawSnapshot(data: string): RawSnapshot {
   return {
     data,
     capturedAt: 1700000000000,
-    url: "https://example.com",
+    url: 'https://example.com',
   };
 }
 
@@ -114,17 +106,15 @@ function makeRawSnapshot(data: string): RawSnapshot {
  *   element -> node 2 (to_node = 2*7 = 14)
  */
 const STD_STRINGS = [
-  "",
-  "Array",
-  "hello",
-  "onClick",
-  "Detached HTMLDivElement",
-  "items",
-  "callback",
-  "dom",
+  '',
+  'Array',
+  'hello',
+  'onClick',
+  'Detached HTMLDivElement',
+  'items',
+  'callback',
+  'dom',
 ];
-
-const NODE_FIELD_COUNT = 7;
 
 // prettier-ignore
 const STD_NODES = [
@@ -155,22 +145,22 @@ const STANDARD_SNAPSHOT = buildSnapshot({
 
 // ── Tests ──────────────────────────────────────────────────────────────
 
-describe("parseSnapshot", () => {
-  describe("metadata", () => {
-    test("returns correct nodeCount, edgeCount, and totalSize", () => {
+describe('parseSnapshot', () => {
+  describe('metadata', () => {
+    test('returns correct nodeCount, edgeCount, and totalSize', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
 
       expect(result.metadata.nodeCount).toBe(5);
       expect(result.metadata.edgeCount).toBe(4);
       // totalSize = 0 + 1024 + 256 + 512 + 128 = 1920
       expect(result.metadata.totalSize).toBe(1920);
-      expect(result.metadata.url).toBe("https://example.com");
+      expect(result.metadata.url).toBe('https://example.com');
       expect(result.metadata.capturedAt).toBe(1700000000000);
     });
   });
 
-  describe("largestObjects", () => {
-    test("is an array sorted by retainedSize descending", () => {
+  describe('largestObjects', () => {
+    test('is an array sorted by retainedSize descending', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
 
       expect(result.largestObjects).toBeInstanceOf(Array);
@@ -178,110 +168,108 @@ describe("parseSnapshot", () => {
 
       for (let i = 1; i < result.largestObjects.length; i++) {
         expect(result.largestObjects[i]!.retainedSize).toBeLessThanOrEqual(
-          result.largestObjects[i - 1]!.retainedSize
+          result.largestObjects[i - 1]!.retainedSize,
         );
       }
     });
 
-    test("includes expected objects from the fixture", () => {
+    test('includes expected objects from the fixture', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
       const names = result.largestObjects.map((o) => o.name);
 
       // "Array" is an object node; its retained size includes the string child
-      expect(names).toContain("Array");
+      expect(names).toContain('Array');
     });
 
-    test("each object has required fields", () => {
+    test('each object has required fields', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
 
       for (const obj of result.largestObjects) {
-        expect(typeof obj.name).toBe("string");
-        expect(typeof obj.type).toBe("string");
-        expect(typeof obj.selfSize).toBe("number");
-        expect(typeof obj.retainedSize).toBe("number");
+        expect(typeof obj.name).toBe('string');
+        expect(typeof obj.type).toBe('string');
+        expect(typeof obj.selfSize).toBe('number');
+        expect(typeof obj.retainedSize).toBe('number');
         expect(Array.isArray(obj.retainerPath)).toBe(true);
       }
     });
   });
 
-  describe("typeStats", () => {
-    test("includes expected node types from fixture", () => {
+  describe('typeStats', () => {
+    test('includes expected node types from fixture', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
       const types = result.typeStats.map((t) => t.type);
 
       // Our fixture has hidden (root), object, string, closure, native
-      expect(types).toContain("hidden");
-      expect(types).toContain("object");
-      expect(types).toContain("string");
-      expect(types).toContain("closure");
-      expect(types).toContain("native");
+      expect(types).toContain('hidden');
+      expect(types).toContain('object');
+      expect(types).toContain('string');
+      expect(types).toContain('closure');
+      expect(types).toContain('native');
     });
 
-    test("each type stat has correct structure", () => {
+    test('each type stat has correct structure', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
 
       for (const stat of result.typeStats) {
-        expect(typeof stat.type).toBe("string");
-        expect(typeof stat.count).toBe("number");
-        expect(typeof stat.totalSize).toBe("number");
-        expect(typeof stat.avgSize).toBe("number");
+        expect(typeof stat.type).toBe('string');
+        expect(typeof stat.count).toBe('number');
+        expect(typeof stat.totalSize).toBe('number');
+        expect(typeof stat.avgSize).toBe('number');
         expect(stat.count).toBeGreaterThan(0);
       }
     });
 
-    test("type stats are sorted by totalSize descending", () => {
+    test('type stats are sorted by totalSize descending', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
 
       for (let i = 1; i < result.typeStats.length; i++) {
         expect(result.typeStats[i]!.totalSize).toBeLessThanOrEqual(
-          result.typeStats[i - 1]!.totalSize
+          result.typeStats[i - 1]!.totalSize,
         );
       }
     });
   });
 
-  describe("constructorStats", () => {
-    test("includes Array constructor from fixture", () => {
+  describe('constructorStats', () => {
+    test('includes Array constructor from fixture', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
       const ctors = result.constructorStats.map((c) => c.constructor);
-      expect(ctors).toContain("Array");
+      expect(ctors).toContain('Array');
     });
 
-    test("Array constructor has correct count and totalSize", () => {
+    test('Array constructor has correct count and totalSize', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
-      const arrayStat = result.constructorStats.find(
-        (c) => c.constructor === "Array"
-      );
+      const arrayStat = result.constructorStats.find((c) => c.constructor === 'Array');
       expect(arrayStat).toBeDefined();
       expect(arrayStat!.count).toBe(1);
       expect(arrayStat!.totalSize).toBe(1024);
     });
   });
 
-  describe("detachedNodes", () => {
-    test("detects the Detached HTMLDivElement from fixture", () => {
+  describe('detachedNodes', () => {
+    test('detects the Detached HTMLDivElement from fixture', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
 
       expect(result.detachedNodes.count).toBeGreaterThan(0);
       expect(result.detachedNodes.totalSize).toBeGreaterThan(0);
       expect(result.detachedNodes.examples.length).toBeGreaterThan(0);
-      expect(result.detachedNodes.examples[0]!.name).toContain("Detached");
+      expect(result.detachedNodes.examples[0]!.name).toContain('Detached');
     });
   });
 
-  describe("closureStats", () => {
-    test("detects closures from fixture", () => {
+  describe('closureStats', () => {
+    test('detects closures from fixture', () => {
       const result = parseSnapshot(makeRawSnapshot(STANDARD_SNAPSHOT));
 
       expect(result.closureStats.count).toBe(1);
       expect(result.closureStats.totalSize).toBe(512);
       expect(result.closureStats.topClosures.length).toBe(1);
-      expect(result.closureStats.topClosures[0]!.name).toBe("onClick");
+      expect(result.closureStats.topClosures[0]!.name).toBe('onClick');
     });
   });
 
-  describe("edge cases", () => {
-    test("handles a single-node (root-only) snapshot without crashing", () => {
+  describe('edge cases', () => {
+    test('handles a single-node (root-only) snapshot without crashing', () => {
       // prettier-ignore
       const minimalNodes = [
         // root node only: hidden, name="", id=1, selfSize=0, edgeCount=0, trace=0, detachedness=0
@@ -291,7 +279,7 @@ describe("parseSnapshot", () => {
       const data = buildSnapshot({
         nodes: minimalNodes,
         edges: [],
-        strings: [""],
+        strings: [''],
         nodeCount: 1,
         edgeCount: 0,
       });
@@ -308,7 +296,7 @@ describe("parseSnapshot", () => {
       expect(result.closureStats.count).toBe(0);
     });
 
-    test("handles snapshot with only unreachable non-root nodes gracefully", () => {
+    test('handles snapshot with only unreachable non-root nodes gracefully', () => {
       // Two nodes, but root has no edges → node 1 is unreachable
       // prettier-ignore
       const nodesArr = [
@@ -319,7 +307,7 @@ describe("parseSnapshot", () => {
       const data = buildSnapshot({
         nodes: nodesArr,
         edges: [],
-        strings: ["", "Orphan"],
+        strings: ['', 'Orphan'],
         nodeCount: 2,
         edgeCount: 0,
       });
@@ -334,7 +322,7 @@ describe("parseSnapshot", () => {
       expect(result.largestObjects.length).toBe(0);
     });
 
-    test("weak edges do not contribute to retained size", () => {
+    test('weak edges do not contribute to retained size', () => {
       // root → node1 via property, root → node2 via weak
       // node2 should still be reachable? No – weak edges are skipped in adjacency.
       // So node2 is unreachable and excluded.
@@ -354,7 +342,7 @@ describe("parseSnapshot", () => {
       const data = buildSnapshot({
         nodes: nodesArr,
         edges: edgesArr,
-        strings: ["", "Obj1", "Obj2"],
+        strings: ['', 'Obj1', 'Obj2'],
         nodeCount: 3,
         edgeCount: 2,
       });
@@ -363,8 +351,8 @@ describe("parseSnapshot", () => {
 
       // Only node1 is reachable via non-weak edges
       const names = result.largestObjects.map((o) => o.name);
-      expect(names).toContain("Obj1");
-      expect(names).not.toContain("Obj2");
+      expect(names).toContain('Obj1');
+      expect(names).not.toContain('Obj2');
     });
   });
 });

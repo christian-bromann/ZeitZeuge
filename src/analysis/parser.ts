@@ -6,7 +6,7 @@ import type {
   ConstructorStat,
   DetachedNodeInfo,
   ClosureStats,
-} from "../types.js";
+} from '../types.js';
 
 interface V8Snapshot {
   snapshot: {
@@ -44,16 +44,16 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
   const edgeTypes: string[] = meta.edge_types[0] as string[];
 
   // Field indices
-  const nodeTypeIdx = meta.node_fields.indexOf("type");
-  const nodeNameIdx = meta.node_fields.indexOf("name");
-  const nodeIdIdx = meta.node_fields.indexOf("id");
-  const nodeSelfSizeIdx = meta.node_fields.indexOf("self_size");
-  const nodeEdgeCountIdx = meta.node_fields.indexOf("edge_count");
-  const nodeDetachednessIdx = meta.node_fields.indexOf("detachedness");
+  const nodeTypeIdx = meta.node_fields.indexOf('type');
+  const nodeNameIdx = meta.node_fields.indexOf('name');
+  const nodeIdIdx = meta.node_fields.indexOf('id');
+  const nodeSelfSizeIdx = meta.node_fields.indexOf('self_size');
+  const nodeEdgeCountIdx = meta.node_fields.indexOf('edge_count');
+  const nodeDetachednessIdx = meta.node_fields.indexOf('detachedness');
 
-  const edgeTypeIdx = meta.edge_fields.indexOf("type");
-  const edgeNameIdx = meta.edge_fields.indexOf("name_or_index");
-  const edgeToNodeIdx = meta.edge_fields.indexOf("to_node");
+  const edgeTypeIdx = meta.edge_fields.indexOf('type');
+  const edgeNameIdx = meta.edge_fields.indexOf('name_or_index');
+  const edgeToNodeIdx = meta.edge_fields.indexOf('to_node');
 
   const nodeCount = v8.snapshot.node_count;
 
@@ -70,15 +70,12 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
     totalSize += selfSize;
     nodes.push({
       ordinal: i,
-      type: nodeTypes[v8.nodes[base + nodeTypeIdx] ?? 0] ?? "unknown",
-      name: v8.strings[v8.nodes[base + nodeNameIdx] ?? 0] ?? "",
+      type: nodeTypes[v8.nodes[base + nodeTypeIdx] ?? 0] ?? 'unknown',
+      name: v8.strings[v8.nodes[base + nodeNameIdx] ?? 0] ?? '',
       id: v8.nodes[base + nodeIdIdx] ?? 0,
       selfSize,
       edgeCount: v8.nodes[base + nodeEdgeCountIdx] ?? 0,
-      detachedness:
-        nodeDetachednessIdx >= 0
-          ? (v8.nodes[base + nodeDetachednessIdx] ?? 0)
-          : 0,
+      detachedness: nodeDetachednessIdx >= 0 ? (v8.nodes[base + nodeDetachednessIdx] ?? 0) : 0,
       edgeStartIndex: edgeOffset,
     });
     edgeOffset += (v8.nodes[base + nodeEdgeCountIdx] ?? 0) * edgeFieldCount;
@@ -99,7 +96,7 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
       const edgeBase = node.edgeStartIndex + e * edgeFieldCount;
       const edgeTypeVal = edgeTypes[v8.edges[edgeBase + edgeTypeIdx] ?? 0];
       // Skip weak edges – they don't retain objects
-      if (edgeTypeVal === "weak") continue;
+      if (edgeTypeVal === 'weak') continue;
       const toNodeArrayIdx = v8.edges[edgeBase + edgeToNodeIdx] ?? 0;
       const toOrdinal = toNodeArrayIdx / nodeFieldCount;
       if (toOrdinal >= 0 && toOrdinal < nodeCount) {
@@ -214,20 +211,19 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
   // ------------------------------------------------------------------
   function getEdgeName(toOrdinal: number): string {
     const dom = dominators[toOrdinal]!;
-    if (dom < 0) return "";
+    if (dom < 0) return '';
     const domNode = nodes[dom]!;
     for (let e = 0; e < domNode.edgeCount; e++) {
       const edgeBase = domNode.edgeStartIndex + e * edgeFieldCount;
       const toNodeArrayIdx = v8.edges[edgeBase + edgeToNodeIdx] ?? 0;
       if (toNodeArrayIdx / nodeFieldCount === toOrdinal) {
         const nameOrIndex = v8.edges[edgeBase + edgeNameIdx] ?? 0;
-        const edgeTypeVal =
-          edgeTypes[v8.edges[edgeBase + edgeTypeIdx] ?? 0];
-        if (edgeTypeVal === "element") return `[${nameOrIndex}]`;
+        const edgeTypeVal = edgeTypes[v8.edges[edgeBase + edgeTypeIdx] ?? 0];
+        if (edgeTypeVal === 'element') return `[${nameOrIndex}]`;
         return v8.strings[nameOrIndex] ?? String(nameOrIndex);
       }
     }
-    return "";
+    return '';
   }
 
   function getRetainerPath(targetOrdinal: number, maxDepth = 10): string[] {
@@ -238,9 +234,7 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
     for (let depth = 0; depth < maxDepth; depth++) {
       const node = nodes[current]!;
       const edgeName = getEdgeName(current);
-      path.unshift(
-        edgeName ? `${node.name || node.type}` : (node.name || node.type)
-      );
+      path.unshift(edgeName ? `${node.name || node.type}` : node.name || node.type);
 
       if (current === 0) break;
       pathVisited.add(current);
@@ -253,18 +247,16 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
     return path;
   }
 
-  const largestObjects: LargestObject[] = indexed.map(
-    ({ ordinal, retainedSize }) => {
-      const node = nodes[ordinal]!;
-      return {
-        name: node.name || `(${node.type})`,
-        type: node.type,
-        selfSize: node.selfSize,
-        retainedSize,
-        retainerPath: getRetainerPath(ordinal),
-      };
-    }
-  );
+  const largestObjects: LargestObject[] = indexed.map(({ ordinal, retainedSize }) => {
+    const node = nodes[ordinal]!;
+    return {
+      name: node.name || `(${node.type})`,
+      type: node.type,
+      selfSize: node.selfSize,
+      retainedSize,
+      retainerPath: getRetainerPath(ordinal),
+    };
+  });
 
   // ------------------------------------------------------------------
   // Step 8: Type statistics
@@ -296,7 +288,7 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
   const ctorMap = new Map<string, { count: number; totalSize: number }>();
   for (const node of nodes) {
     if (!visited[node.ordinal]) continue;
-    if (node.type !== "object" || !node.name) continue;
+    if (node.type !== 'object' || !node.name) continue;
     const existing = ctorMap.get(node.name);
     if (existing) {
       existing.count++;
@@ -327,10 +319,10 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
     if (!visited[node.ordinal]) continue;
     const isDetached =
       (nodeDetachednessIdx >= 0 && node.detachedness > 0) ||
-      node.name.includes("Detached") ||
-      (node.type === "native" &&
+      node.name.includes('Detached') ||
+      (node.type === 'native' &&
         /HTML\w*Element|Document|Node/.test(node.name) &&
-        node.name.includes("Detached"));
+        node.name.includes('Detached'));
 
     if (isDetached) {
       detachedCount++;
@@ -353,19 +345,14 @@ export function parseSnapshot(rawSnapshot: RawSnapshot): HeapSummary {
   // ------------------------------------------------------------------
   // Step 11: Closure stats
   // ------------------------------------------------------------------
-  const closureNodes = nodes.filter(
-    (n) => visited[n.ordinal] && n.type === "closure"
-  );
-  const closureTotalSize = closureNodes.reduce(
-    (sum, n) => sum + n.selfSize,
-    0
-  );
+  const closureNodes = nodes.filter((n) => visited[n.ordinal] && n.type === 'closure');
+  const closureTotalSize = closureNodes.reduce((sum, n) => sum + n.selfSize, 0);
 
   const topClosures = closureNodes
     .sort((a, b) => b.selfSize - a.selfSize)
     .slice(0, 20)
     .map((n) => ({
-      name: n.name || "(anonymous)",
+      name: n.name || '(anonymous)',
       contextSize: n.selfSize,
       retainerPath: getRetainerPath(n.ordinal),
     }));

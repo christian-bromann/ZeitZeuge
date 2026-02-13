@@ -1,8 +1,8 @@
-import { FilesystemBackend, type BackendProtocol } from "deepagents";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import type { HeapSummary, TraceResult, NetworkRequest } from "../types.js";
+import { FilesystemBackend, type BackendProtocol } from 'deepagents';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import type { HeapSummary, TraceResult, NetworkRequest } from '../types.js';
 
 export interface WorkspaceOptions {
   heapSummary: HeapSummary;
@@ -28,35 +28,22 @@ export interface WorkspaceResult {
  * This avoids the VfsSandbox shell-command path issues where absolute
  * paths resolve against the real filesystem instead of the workspace.
  */
-export async function createWorkspace(
-  options: WorkspaceOptions
-): Promise<WorkspaceResult> {
-  const {
-    heapSummary,
-    traceResult,
-    url,
-    maxAssetSize = 10 * 1024 * 1024,
-  } = options;
+export async function createWorkspace(options: WorkspaceOptions): Promise<WorkspaceResult> {
+  const { heapSummary, traceResult, url, maxAssetSize = 10 * 1024 * 1024 } = options;
 
   const files: Record<string, string> = {};
 
   // ── Heap data ──
-  files["/heap/summary.json"] = JSON.stringify(heapSummary, null, 2);
+  files['/heap/summary.json'] = JSON.stringify(heapSummary, null, 2);
 
   // ── Trace summary ──
-  files["/trace/summary.json"] = JSON.stringify(
+  files['/trace/summary.json'] = JSON.stringify(
     {
       url,
       timing: traceResult.metrics,
       requestCount: traceResult.networkRequests.length,
-      totalTransferSize: traceResult.networkRequests.reduce(
-        (s, r) => s + r.encodedSize,
-        0
-      ),
-      totalDecodedSize: traceResult.networkRequests.reduce(
-        (s, r) => s + r.decodedSize,
-        0
-      ),
+      totalTransferSize: traceResult.networkRequests.reduce((s, r) => s + r.encodedSize, 0),
+      totalDecodedSize: traceResult.networkRequests.reduce((s, r) => s + r.decodedSize, 0),
       renderBlockingResources: traceResult.networkRequests
         .filter((r) => r.isRenderBlocking)
         .map((r) => ({
@@ -67,16 +54,14 @@ export async function createWorkspace(
           path: r.responseBody ? getAssetPath(r) : null,
         })),
       longTasks: traceResult.metrics.longTasks,
-      resourceBreakdown: buildResourceBreakdown(
-        traceResult.networkRequests
-      ),
+      resourceBreakdown: buildResourceBreakdown(traceResult.networkRequests),
     },
     null,
-    2
+    2,
   );
 
   // ── Network waterfall ──
-  files["/trace/network-waterfall.json"] = JSON.stringify(
+  files['/trace/network-waterfall.json'] = JSON.stringify(
     traceResult.networkRequests
       .sort((a, b) => a.startTime - b.startTime)
       .map((r) => ({
@@ -92,7 +77,7 @@ export async function createWorkspace(
         path: r.responseBody ? getAssetPath(r) : null,
       })),
     null,
-    2
+    2,
   );
 
   // ── Network assets (actual content) ──
@@ -105,7 +90,7 @@ export async function createWorkspace(
   }
 
   // ── Asset manifest ──
-  files["/trace/asset-manifest.json"] = JSON.stringify(
+  files['/trace/asset-manifest.json'] = JSON.stringify(
     traceResult.networkRequests.map((r) => ({
       url: r.url,
       type: r.resourceType,
@@ -116,51 +101,43 @@ export async function createWorkspace(
       path: r.responseBody ? getAssetPath(r) : null,
     })),
     null,
-    2
+    2,
   );
 
   // ── Runtime trace data (from Chrome Tracing domain) ──
   if (traceResult.runtimeTrace) {
     const rt = traceResult.runtimeTrace;
 
-    files["/trace/runtime/summary.json"] = JSON.stringify(
+    files['/trace/runtime/summary.json'] = JSON.stringify(
       {
         totalEvents: rt.totalEvents,
         traceDuration: rt.traceDuration,
         mainThreadId: rt.mainThreadId,
         frameBreakdown: rt.frameBreakdown,
         blockingFunctionCount: rt.blockingFunctions.length,
-        listenerImbalances: rt.eventListeners.filter(
-          (l) => l.activeCount > l.removeCount + 10
-        ).length,
+        listenerImbalances: rt.eventListeners.filter((l) => l.activeCount > l.removeCount + 10)
+          .length,
         gcPauseCount: rt.gcEvents.length,
-        gcTotalDuration: rt.gcEvents.reduce(
-          (s, e) => s + e.duration,
-          0
-        ),
+        gcTotalDuration: rt.gcEvents.reduce((s, e) => s + e.duration, 0),
         frequentEventTypes: rt.frequentEvents.map((e) => e.eventType),
       },
       null,
-      2
+      2,
     );
 
-    files["/trace/runtime/blocking-functions.json"] = JSON.stringify(
+    files['/trace/runtime/blocking-functions.json'] = JSON.stringify(
       rt.blockingFunctions.slice(0, 50), // Top 50 by duration
       null,
-      2
+      2,
     );
 
-    files["/trace/runtime/event-listeners.json"] = JSON.stringify(
+    files['/trace/runtime/event-listeners.json'] = JSON.stringify(
       rt.eventListeners.filter((l) => l.addCount > 0),
       null,
-      2
+      2,
     );
 
-    files["/trace/runtime/frame-breakdown.json"] = JSON.stringify(
-      rt.frameBreakdown,
-      null,
-      2
-    );
+    files['/trace/runtime/frame-breakdown.json'] = JSON.stringify(rt.frameBreakdown, null, 2);
   }
 
   // ── Raw trace events (from Chrome Tracing domain) ──
@@ -169,33 +146,33 @@ export async function createWorkspace(
   if (traceResult.rawTraceEvents && traceResult.rawTraceEvents.length > 0) {
     const rawJson = JSON.stringify(traceResult.rawTraceEvents);
     if (rawJson.length < 5 * 1024 * 1024) {
-      files["/trace/runtime/raw-events.json"] = rawJson;
+      files['/trace/runtime/raw-events.json'] = rawJson;
     } else {
       // Too large — store a filtered subset: only main-thread events with dur > 0
       const mainTid = traceResult.runtimeTrace?.mainThreadId;
       const filtered = traceResult.rawTraceEvents.filter(
-        (e) => e.tid === mainTid && e.dur && e.dur > 0
+        (e) => e.tid === mainTid && e.dur && e.dur > 0,
       );
       const filteredJson = JSON.stringify(filtered);
       if (filteredJson.length < 5 * 1024 * 1024) {
-        files["/trace/runtime/raw-events.json"] = filteredJson;
+        files['/trace/runtime/raw-events.json'] = filteredJson;
       } else {
         // Still too large — store only events > 1ms on the main thread
         const important = filtered.filter((e) => (e.dur ?? 0) > 1000);
-        files["/trace/runtime/raw-events.json"] = JSON.stringify(important);
+        files['/trace/runtime/raw-events.json'] = JSON.stringify(important);
       }
     }
   }
 
   // ── Write all files to a temp directory ──
-  const tempDir = mkdtempSync(join(tmpdir(), "zeitzeuge-workspace-"));
+  const tempDir = mkdtempSync(join(tmpdir(), 'zeitzeuge-workspace-'));
 
   for (const [filePath, content] of Object.entries(files)) {
     // Strip leading / to get a relative path for the real filesystem
-    const relPath = filePath.startsWith("/") ? filePath.slice(1) : filePath;
+    const relPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
     const fullPath = join(tempDir, relPath);
-    mkdirSync(join(fullPath, ".."), { recursive: true });
-    writeFileSync(fullPath, content, "utf-8");
+    mkdirSync(join(fullPath, '..'), { recursive: true });
+    writeFileSync(fullPath, content, 'utf-8');
   }
 
   const backend = new FilesystemBackend({
@@ -225,19 +202,19 @@ export function getAssetPath(req: NetworkRequest): string {
   let filename: string;
   try {
     const pathname = new URL(req.url).pathname;
-    filename = pathname.split("/").pop() || "index";
+    filename = pathname.split('/').pop() || 'index';
   } catch {
-    filename = "unknown";
+    filename = 'unknown';
   }
 
   switch (req.resourceType) {
-    case "Script":
+    case 'Script':
       return `/scripts/${filename}`;
-    case "Stylesheet":
+    case 'Stylesheet':
       return `/styles/${filename}`;
-    case "Font":
+    case 'Font':
       return `/fonts/${filename}`;
-    case "Document":
+    case 'Document':
       return `/html/${filename}`;
     default:
       return `/other/${filename}`;
@@ -254,15 +231,15 @@ function buildResourceBreakdown(requests: NetworkRequest[]) {
   };
   for (const r of requests) {
     const key =
-      r.resourceType === "Script"
-        ? "scripts"
-        : r.resourceType === "Stylesheet"
-          ? "stylesheets"
-          : r.resourceType === "Font"
-            ? "fonts"
-            : r.resourceType === "Image"
-              ? "images"
-              : "other";
+      r.resourceType === 'Script'
+        ? 'scripts'
+        : r.resourceType === 'Stylesheet'
+          ? 'stylesheets'
+          : r.resourceType === 'Font'
+            ? 'fonts'
+            : r.resourceType === 'Image'
+              ? 'images'
+              : 'other';
     groups[key]!.count++;
     groups[key]!.totalSize += r.decodedSize;
   }
