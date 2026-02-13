@@ -20,7 +20,8 @@
     "zeitzeuge": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "vitest.d.ts"
   ],
   "type": "module",
   "module": "src/cli.ts",
