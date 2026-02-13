@@ -1,11 +1,17 @@
-import chalk from 'chalk';
+import pc from 'picocolors';
 import ora, { type Ora } from 'ora';
 import type { Finding, HeapSummary, TraceResult } from '../types.js';
 
 const SEVERITY_ICONS: Record<Finding['severity'], string> = {
-  critical: chalk.red('🔴 CRITICAL'),
-  warning: chalk.yellow('🟡 WARNING'),
-  info: chalk.green('🟢 INFO'),
+  critical: pc.red('🔴 CRITICAL'),
+  warning: pc.yellow('🟡 WARNING'),
+  info: pc.green('🟢 INFO'),
+};
+
+const SEVERITY_LABELS: Record<Finding['severity'], string> = {
+  critical: pc.red('CRITICAL'),
+  warning: pc.yellow('WARNING'),
+  info: pc.green('INFO'),
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -40,7 +46,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export function printHeader(url: string, version: string): void {
   const urlDisplay = url.length > 44 ? url.slice(0, 41) + '...' : url;
   console.log(
-    chalk.cyan(
+    pc.cyan(
       `\n┌${'─'.repeat(57)}┐\n` +
         `│  zeitzeuge v${version.padEnd(44)}│\n` +
         `│  Analyzing: ${urlDisplay.padEnd(44)}│\n` +
@@ -60,39 +66,39 @@ export function createSpinner(text: string): Ora {
  * Print all findings to the terminal with formatting.
  */
 export function printFindings(findings: Finding[]): void {
-  console.log(chalk.dim('\n' + '━'.repeat(58) + '\n'));
+  console.log(pc.dim('\n' + '━'.repeat(58) + '\n'));
 
   if (findings.length === 0) {
-    console.log(chalk.green('  ✔ No significant performance issues found. Page looks healthy!\n'));
-    console.log(chalk.dim('━'.repeat(58)));
+    console.log(pc.green('  ✔ No significant performance issues found. Page looks healthy!\n'));
+    console.log(pc.dim('━'.repeat(58)));
     return;
   }
 
   for (const finding of findings) {
     const icon = SEVERITY_ICONS[finding.severity];
     const categoryLabel = CATEGORY_LABELS[finding.category] ?? finding.category;
-    console.log(`${icon} [${categoryLabel}]: ${chalk.bold(finding.title)}`);
+    console.log(`${icon} [${categoryLabel}]: ${pc.bold(finding.title)}`);
 
     // Show context-specific metadata
     if (finding.retainedSize != null) {
-      console.log(chalk.dim(`   Retained size: ${formatBytes(finding.retainedSize)}`));
+      console.log(pc.dim(`   Retained size: ${formatBytes(finding.retainedSize)}`));
     }
     if (finding.impactMs != null) {
-      console.log(chalk.dim(`   Impact: ${finding.impactMs.toFixed(0)}ms`));
+      console.log(pc.dim(`   Impact: ${finding.impactMs.toFixed(0)}ms`));
     }
     if (finding.resourceUrl) {
-      console.log(chalk.dim(`   Resource: ${finding.resourceUrl}`));
+      console.log(pc.dim(`   Resource: ${finding.resourceUrl}`));
     }
     if (finding.retainerPath && finding.retainerPath.length > 0) {
-      console.log(chalk.dim(`   Path: ${finding.retainerPath.join(' → ')}`));
+      console.log(pc.dim(`   Path: ${finding.retainerPath.join(' → ')}`));
     }
     if (finding.testFile) {
-      console.log(chalk.dim(`   Test file: ${finding.testFile}`));
+      console.log(pc.dim(`   Test file: ${finding.testFile}`));
     }
     if (finding.hotFunction) {
       const hf = finding.hotFunction;
       console.log(
-        chalk.dim(
+        pc.dim(
           `   Function: ${hf.name} at ${hf.scriptUrl}:${hf.lineNumber} (selfTime: ${hf.selfTime.toFixed(0)}ms, ${hf.selfPercent.toFixed(1)}%)`,
         ),
       );
@@ -101,20 +107,20 @@ export function printFindings(findings: Finding[]): void {
     console.log(`\n   ${finding.description}\n`);
 
     if (finding.suggestedFix) {
-      console.log(chalk.dim('   Suggested fix:'));
+      console.log(pc.dim('   Suggested fix:'));
       const lines = finding.suggestedFix.split('\n');
       const boxWidth = Math.max(...lines.map((l) => l.length), 20) + 4;
-      console.log(chalk.dim(`   ┌${'─'.repeat(boxWidth)}┐`));
+      console.log(pc.dim(`   ┌${'─'.repeat(boxWidth)}┐`));
       for (const line of lines) {
-        console.log(chalk.dim('   │ ') + chalk.white(line.padEnd(boxWidth - 2)) + chalk.dim(' │'));
+        console.log(pc.dim('   │ ') + pc.white(line.padEnd(boxWidth - 2)) + pc.dim(' │'));
       }
-      console.log(chalk.dim(`   └${'─'.repeat(boxWidth)}┘`));
+      console.log(pc.dim(`   └${'─'.repeat(boxWidth)}┘`));
     }
 
     console.log();
   }
 
-  console.log(chalk.dim('━'.repeat(58)));
+  console.log(pc.dim('━'.repeat(58)));
 
   // Summary line
   const counts = {
@@ -123,9 +129,91 @@ export function printFindings(findings: Finding[]): void {
     info: findings.filter((f) => f.severity === 'info').length,
   };
   console.log(
-    `\nSummary: ${chalk.red(`${counts.critical} critical`)}, ` +
-      `${chalk.yellow(`${counts.warning} warning`)}, ` +
-      `${chalk.green(`${counts.info} info`)}\n`,
+    `\nSummary: ${pc.red(`${counts.critical} critical`)}, ` +
+      `${pc.yellow(`${counts.warning} warning`)}, ` +
+      `${pc.green(`${counts.info} info`)}\n`,
+  );
+}
+
+function wrapText(text: string, maxWidth: number): string[] {
+  const lines: string[] = [];
+  for (const rawLine of text.split('\n')) {
+    const words = rawLine.split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      lines.push('');
+      continue;
+    }
+    let current = '';
+    for (const word of words) {
+      const next = current ? `${current} ${word}` : word;
+      if (next.length > maxWidth && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = next;
+      }
+    }
+    if (current) lines.push(current);
+  }
+  return lines;
+}
+
+/**
+ * Print findings in a compact format (optimized for Vitest logs).
+ */
+export function printFindingsVitest(findings: Finding[]): void {
+  const indent = '  ';
+  const subIndent = indent + '  ';
+
+  if (findings.length === 0) {
+    console.log(`${indent}${pc.green('✔')} No significant performance issues found.`);
+    return;
+  }
+
+  for (const finding of findings) {
+    const severity = SEVERITY_LABELS[finding.severity];
+    const categoryLabel = CATEGORY_LABELS[finding.category] ?? finding.category;
+
+    console.log(`${indent}${severity} [${categoryLabel}]: ${pc.bold(finding.title)}`);
+
+    if (finding.testFile) console.log(pc.dim(`${subIndent}Test file: ${finding.testFile}`));
+    if (finding.impactMs != null)
+      console.log(pc.dim(`${subIndent}Impact: ${finding.impactMs.toFixed(0)}ms`));
+    if (finding.resourceUrl) console.log(pc.dim(`${subIndent}Resource: ${finding.resourceUrl}`));
+    if (finding.hotFunction) {
+      const hf = finding.hotFunction;
+      console.log(
+        pc.dim(
+          `${subIndent}Function: ${hf.name} at ${hf.scriptUrl}:${hf.lineNumber} (selfTime: ${hf.selfTime.toFixed(
+            0,
+          )}ms, ${hf.selfPercent.toFixed(1)}%)`,
+        ),
+      );
+    }
+
+    for (const line of wrapText(finding.description, 100)) {
+      console.log(`${subIndent}${line}`);
+    }
+
+    if (finding.suggestedFix) {
+      console.log(pc.dim(`${subIndent}Suggested fix:`));
+      for (const line of finding.suggestedFix.split('\n')) {
+        console.log(`${subIndent}  ${line}`);
+      }
+    }
+
+    console.log();
+  }
+
+  const counts = {
+    critical: findings.filter((f) => f.severity === 'critical').length,
+    warning: findings.filter((f) => f.severity === 'warning').length,
+    info: findings.filter((f) => f.severity === 'info').length,
+  };
+  console.log(
+    `${indent}${pc.dim('Summary:')} ${pc.red(`${counts.critical} critical`)}, ${pc.yellow(
+      `${counts.warning} warning`,
+    )}, ${pc.green(`${counts.info} info`)}`,
   );
 }
 
@@ -134,7 +222,7 @@ export function printFindings(findings: Finding[]): void {
  */
 export function printCaptureInfo(heapSummary: HeapSummary, trace: TraceResult): void {
   console.log(
-    chalk.dim(
+    pc.dim(
       `Heap: ${formatBytes(heapSummary.metadata.totalSize)} | ` +
         `Nodes: ${heapSummary.metadata.nodeCount.toLocaleString()} | ` +
         `Requests: ${trace.networkRequests.length} | ` +
@@ -148,7 +236,7 @@ export function printCaptureInfo(heapSummary: HeapSummary, trace: TraceResult): 
  */
 export function printSnapshotInfo(summary: HeapSummary): void {
   console.log(
-    chalk.dim(
+    pc.dim(
       `Heap size: ${formatBytes(summary.metadata.totalSize)} | ` +
         `Nodes: ${summary.metadata.nodeCount.toLocaleString()} | ` +
         `Edges: ${summary.metadata.edgeCount.toLocaleString()}`,
@@ -161,7 +249,7 @@ export function printSnapshotInfo(summary: HeapSummary): void {
  */
 export function printError(err: unknown): void {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(chalk.red(`\n✖ Error: ${message}\n`));
+  console.error(pc.red(`\n✖ Error: ${message}\n`));
 }
 
 /**

@@ -29,6 +29,13 @@ describe('printFindings', () => {
   });
 });
 
+describe('printFindingsVitest', () => {
+  test('can be imported without errors', async () => {
+    const { printFindingsVitest } = await import('../../src/output/terminal');
+    expect(typeof printFindingsVitest).toBe('function');
+  });
+});
+
 describe('printHeader', () => {
   test('can be imported without errors', async () => {
     const { printHeader } = await import('../../src/output/terminal');

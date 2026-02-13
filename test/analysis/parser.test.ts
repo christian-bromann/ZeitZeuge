@@ -119,11 +119,11 @@ const STD_STRINGS = [
 // prettier-ignore
 const STD_NODES = [
   // type, name, id, self_size, edge_count, trace_node_id, detachedness
-  /* node 0 (root) */    0, 0, 1, 0,    3, 0, 0,
+  /* node 0 (root) */    0, 0, 1, 0, 3, 0, 0,
   /* node 1 (object) */  3, 1, 2, 1024, 1, 0, 0,
-  /* node 2 (string) */  2, 2, 3, 256,  0, 0, 0,
-  /* node 3 (closure) */ 5, 3, 4, 512,  0, 0, 0,
-  /* node 4 (native) */  8, 4, 5, 128,  0, 0, 1,  // detachedness = 1
+  /* node 2 (string) */  2, 2, 3, 256, 0, 0, 0,
+  /* node 3 (closure) */ 5, 3, 4, 512, 0, 0, 0,
+  /* node 4 (native) */  8, 4, 5, 128, 0, 0, 1,  // detachedness = 1
 ];
 
 // prettier-ignore
@@ -300,7 +300,7 @@ describe('parseSnapshot', () => {
       // Two nodes, but root has no edges → node 1 is unreachable
       // prettier-ignore
       const nodesArr = [
-        /* root */  0, 0, 1, 0,   0, 0, 0,
+        /* root */  0, 0, 1, 0, 0, 0, 0,
         /* obj  */  3, 1, 2, 500, 0, 0, 0,
       ];
 
@@ -328,7 +328,7 @@ describe('parseSnapshot', () => {
       // So node2 is unreachable and excluded.
       // prettier-ignore
       const nodesArr = [
-        /* root  */ 0, 0, 1, 0,   2, 0, 0,
+        /* root  */ 0, 0, 1, 0, 2, 0, 0,
         /* node1 */ 3, 1, 2, 100, 0, 0, 0,
         /* node2 */ 3, 2, 3, 200, 0, 0, 0,
       ];

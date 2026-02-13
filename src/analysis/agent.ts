@@ -1,17 +1,63 @@
-import { createDeepAgent, type BackendProtocol } from 'deepagents';
+import { createDeepAgent, type BackendProtocol, type DeepAgent, type DeepAgentTypeConfig } from 'deepagents';
 import { providerStrategy } from 'langchain';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import type { Ora } from 'ora';
 
 import { SYSTEM_PROMPT } from './prompts.js';
 import { VITEST_SYSTEM_PROMPT } from '../vitest/prompts.js';
 import { FindingsSchema } from '../schema.js';
+import { TodoProgressRenderer } from '../output/progress.js';
 import type { Finding } from '../types.js';
+
+/**
+ * Invoke the Deep Agent with todo streaming.
+ * @param agent - The Deep Agent to use.
+ * @param userMessage - The user message to send to the agent.
+ * @returns The last values from the stream.
+ * @throws If the agent does not return structured findings.
+ */
+async function invokeWithTodoStreaming<TTypes extends DeepAgentTypeConfig>(
+  agent: DeepAgent<TTypes>,
+  userMessage: string,
+  spinner: Ora,
+): Promise<ReturnType<typeof agent.invoke>> {
+  const renderer = new TodoProgressRenderer(spinner);
+
+  // Deep Agents are LangGraph graphs → we can stream state.
+  const stream = await agent.stream(
+    { messages: [{ role: 'user', content: userMessage }] } as any,
+    { streamMode: ['updates', 'values'] } as any,
+  );
+
+  let lastValues: unknown;
+
+  for await (const item of stream as AsyncIterable<unknown>) {
+    // When streamMode is an array, LangGraph yields tuples: [mode, chunk]
+    if (Array.isArray(item) && item.length === 2) {
+      const mode = item[0];
+      const chunk = item[1];
+      renderer.handleChunk(chunk);
+      if (mode === 'values') lastValues = chunk;
+      continue;
+    }
+
+    // Fallback if the runtime yields chunks directly (single streamMode).
+    renderer.handleChunk(item);
+    lastValues = item;
+  }
+
+  return lastValues as ReturnType<typeof agent.invoke>;
+}
 
 /**
  * Analyze performance data using a Deep Agent that explores
  * the workspace containing heap + trace data + source files.
  */
-export async function analyze(model: BaseChatModel, backend: BackendProtocol): Promise<Finding[]> {
+export async function analyze(
+  model: BaseChatModel,
+  backend: BackendProtocol,
+  spinner: Ora,
+): Promise<Finding[]> {
   const agent = createDeepAgent({
     model,
     systemPrompt: SYSTEM_PROMPT,
@@ -40,11 +86,13 @@ export async function analyze(model: BaseChatModel, backend: BackendProtocol): P
     'When you find a problem, read the actual source file to provide a specific, code-level fix.',
   ].join('\n');
 
-  const result = await agent.invoke({
-    messages: [{ role: 'user', content: userMessage }],
-  });
+  const result = await invokeWithTodoStreaming(agent, userMessage, spinner);
+  const findings = result.structuredResponse.findings;
+  if (!Array.isArray(findings)) {
+    throw new Error('Agent did not return structured findings.');
+  }
 
-  return result.structuredResponse.findings;
+  return findings;
 }
 
 /**
@@ -54,6 +102,7 @@ export async function analyze(model: BaseChatModel, backend: BackendProtocol): P
 export async function analyzeTestPerformance(
   model: BaseChatModel,
   backend: BackendProtocol,
+  spinner: Ora,
 ): Promise<Finding[]> {
   const agent = createDeepAgent({
     model,
@@ -79,11 +128,13 @@ export async function analyzeTestPerformance(
     'reduce how they call the dependency or choose an alternative.',
   ].join('\n');
 
-  const result = await agent.invoke({
-    messages: [{ role: 'user', content: userMessage }],
-  });
+  const result = await invokeWithTodoStreaming(agent, userMessage, spinner);
+  const findings = result.structuredResponse.findings;
+  if (!Array.isArray(findings)) {
+    throw new Error('Agent did not return structured findings.');
+  }
 
-  return result.structuredResponse.findings;
+  return findings;
 }
 
 /**

@@ -12,9 +12,8 @@ import ora from 'ora';
 import { parseCpuProfile } from './profile-parser.js';
 import { parseHeapProfile } from './heap-profile-parser.js';
 import { createVitestWorkspace } from './workspace.js';
-import { analyzeTestPerformance } from '../analysis/agent.js';
 import { initModel } from '../models/init.js';
-import { printFindings } from '../output/terminal.js';
+import { printFindingsVitest } from '../output/terminal.js';
 import { writeTestReport } from '../output/report.js';
 import { classifyScript } from './classify.js';
 import type {
@@ -106,7 +105,7 @@ export class ZeitZeugeReporter {
     if (profiles.length === 0) {
       spinner?.warn(
         'zeitzeuge: No .cpuprofile files found. ' +
-          'Try running with { verbose: true } for diagnostics.',
+        'Try running with { verbose: true } for diagnostics.',
       );
       return;
     }
@@ -140,24 +139,22 @@ export class ZeitZeugeReporter {
 
     // 6. Run Deep Agent analysis
     if (this.options.analyzeOnFinish) {
-      const agentSpinner = this.isCI
-        ? null
-        : ora({
-            text: 'zeitzeuge: Deep Agent analyzing test performance...',
-            color: 'cyan',
-          }).start();
+      const agentSpinner = ora({
+        text: 'zeitzeuge: Deep Agent analyzing test performance...',
+        color: 'cyan',
+        isEnabled: !this.isCI,
+      }).start();
 
       try {
         const model = initModel();
-        const findings = await analyzeTestPerformance(model, workspace.backend);
+        const { analyzeTestPerformance } = await import('../analysis/agent.js');
+        const findings = await analyzeTestPerformance(model, workspace.backend, agentSpinner);
 
-        agentSpinner?.succeed(`zeitzeuge: Analysis complete — ${findings.length} finding(s)`);
+        agentSpinner.succeed(`zeitzeuge: Analysis complete — ${findings.length} finding(s)`);
 
         // Print findings
-        console.log(
-          chalk.cyan(`\n${'─'.repeat(3)} zeitzeuge Performance Analysis ${'─'.repeat(3)}\n`),
-        );
-        printFindings(findings);
+        console.log(chalk.cyan(`\nzeitzeuge: Performance Analysis\n`));
+        printFindingsVitest(findings);
 
         // Write report
         const version = this.getVersion();
@@ -167,7 +164,7 @@ export class ZeitZeugeReporter {
           testTiming,
           profiles,
         });
-        console.log(`\n📄 Report written to ${reportPath}\n`);
+        console.log(chalk.dim(`\n  Report written to ${reportPath}\n`));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
 
@@ -177,11 +174,11 @@ export class ZeitZeugeReporter {
           message.includes('OPENAI_API_KEY') ||
           message.includes('ANTHROPIC_API_KEY')
         ) {
-          agentSpinner?.warn(
+          agentSpinner.warn(
             'zeitzeuge: No LLM API key found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY for AI-powered analysis.',
           );
         } else {
-          agentSpinner?.fail(`zeitzeuge: Analysis failed — ${message}`);
+          agentSpinner.fail(`zeitzeuge: Analysis failed — ${message}`);
           throw err;
         }
       } finally {
@@ -305,8 +302,8 @@ export class ZeitZeugeReporter {
       if (this.options.verbose) {
         console.log(
           `[zeitzeuge] No .cpuprofile files in ${profileDir}. ` +
-            `This usually means --cpu-prof wasn't passed to the worker process. ` +
-            `Check that pool is set to 'forks' and execArgv includes '--cpu-prof'.`,
+          `This usually means --cpu-prof wasn't passed to the worker process. ` +
+          `Check that pool is set to 'forks' and execArgv includes '--cpu-prof'.`,
         );
       }
       return [];

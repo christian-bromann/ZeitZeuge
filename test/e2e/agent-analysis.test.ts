@@ -28,6 +28,7 @@ import { analyzeTestPerformance } from "../../src/analysis/agent.js";
 import { initModel } from "../../src/models/init.js";
 import type { Finding } from "../../src/types.js";
 import type { CorrelatedProfile, TestFileTiming } from "../../src/vitest/types.js";
+import ora from "ora";
 
 const HAS_API_KEY = !!(
   process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY
@@ -114,7 +115,12 @@ async function runAgentAnalysis(): Promise<Finding[]> {
 
     try {
       const model = initModel();
-      return await analyzeTestPerformance(model, workspace.backend);
+      const spinner = ora({ text: "zeitzeuge: Deep Agent analyzing...", isEnabled: false }).start();
+      try {
+        return await analyzeTestPerformance(model, workspace.backend, spinner);
+      } finally {
+        spinner.stop();
+      }
     } finally {
       workspace.cleanup();
     }
