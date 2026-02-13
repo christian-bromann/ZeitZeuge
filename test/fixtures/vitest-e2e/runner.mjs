@@ -15,7 +15,7 @@ import {
   computeCorrelationMatrix,
   deduplicateRecords,
   normalizePayload,
-} from "./src/data-processing.mjs";
+} from './src/data-processing.mjs';
 
 // Keep references to prevent dead-code elimination
 const results = {};
@@ -37,5 +37,5 @@ console.log(
     correlation: typeof results.correlation,
     dedupedCount: results.deduped.length,
     normalizedIteration: results.normalized.iteration,
-  })
+  }),
 );

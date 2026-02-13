@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { FindingSchema } from "./schema"
+import { z } from 'zod';
+import { FindingSchema } from './schema';
 
 /**
  * Shared TypeScript types for zeitzeuge.

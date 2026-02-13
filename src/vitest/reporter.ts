@@ -105,7 +105,7 @@ export class ZeitZeugeReporter {
     if (profiles.length === 0) {
       spinner?.warn(
         'zeitzeuge: No .cpuprofile files found. ' +
-        'Try running with { verbose: true } for diagnostics.',
+          'Try running with { verbose: true } for diagnostics.',
       );
       return;
     }
@@ -140,7 +140,7 @@ export class ZeitZeugeReporter {
     // 6. Run Deep Agent analysis
     if (this.options.analyzeOnFinish) {
       const agentSpinner = ora({
-        text: 'zeitzeuge: Deep Agent analyzing test performance...',
+        text: 'zeitzeuge: Analyzing test performance...',
         color: 'cyan',
         isEnabled: !this.isCI,
       }).start();
@@ -302,8 +302,8 @@ export class ZeitZeugeReporter {
       if (this.options.verbose) {
         console.log(
           `[zeitzeuge] No .cpuprofile files in ${profileDir}. ` +
-          `This usually means --cpu-prof wasn't passed to the worker process. ` +
-          `Check that pool is set to 'forks' and execArgv includes '--cpu-prof'.`,
+            `This usually means --cpu-prof wasn't passed to the worker process. ` +
+            `Check that pool is set to 'forks' and execArgv includes '--cpu-prof'.`,
         );
       }
       return [];

@@ -10,12 +10,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import type {
-  CorrelatedProfile,
-  CorrelatedHeapProfile,
-  HotFunction,
-  VitestWorkspaceOptions,
-} from './types.js';
+import type { CorrelatedProfile, HotFunction, VitestWorkspaceOptions } from './types.js';
 
 export interface VitestWorkspaceResult {
   /** Backend for use with createDeepAgent */

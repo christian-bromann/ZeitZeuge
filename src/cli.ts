@@ -187,8 +187,8 @@ async function main(): Promise<void> {
       );
     }
 
-    // Step 6: Deep Agent explores the workspace
-    const agentSpinner = createSpinner('Deep Agent analyzing...');
+    // Step 6: Analyze the workspace
+    const agentSpinner = createSpinner('Analyzing...');
     let findings;
     try {
       findings = await analyze(model, workspace.backend, agentSpinner);

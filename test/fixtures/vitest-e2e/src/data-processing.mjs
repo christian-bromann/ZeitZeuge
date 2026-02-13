@@ -6,7 +6,7 @@
  * detectable via V8 CPU profiling.
  */
 
-import { EventEmitter } from "node:events";
+import { EventEmitter } from 'node:events';
 
 // ─── User index builder ──────────────────────────────────────
 // Builds an in-memory lookup index of user profile objects.
@@ -16,9 +16,9 @@ export function buildUserIndex(count) {
   const results = [];
   for (let i = 0; i < count; i++) {
     const entry = new Map([
-      ["id", i],
-      ["payload", JSON.stringify({ index: i, data: Array(20).fill(i) })],
-      ["tags", ["active", "verified", `tier-${i}`]],
+      ['id', i],
+      ['payload', JSON.stringify({ index: i, data: Array(20).fill(i) })],
+      ['tags', ['active', 'verified', `tier-${i}`]],
     ]);
     results.push(entry);
   }
@@ -34,16 +34,20 @@ export function setupMetricsCollector(count) {
   emitter.setMaxListeners(0);
 
   for (let i = 0; i < count; i++) {
-    emitter.on("data", (data) => {
+    emitter.on('data', (data) => {
       JSON.parse(JSON.stringify(data));
     });
   }
 
   for (let i = 0; i < 10; i++) {
-    emitter.emit("data", { metric: "latency", value: i, labels: { region: "us-east", service: "api" } });
+    emitter.emit('data', {
+      metric: 'latency',
+      value: i,
+      labels: { region: 'us-east', service: 'api' },
+    });
   }
 
-  return emitter.listenerCount("data");
+  return emitter.listenerCount('data');
 }
 
 // ─── Correlation matrix ──────────────────────────────────────
@@ -86,7 +90,7 @@ export function normalizePayload(iterations) {
       id: i,
       name: `user-${i}`,
       email: `user-${i}@example.com`,
-      metadata: { created: Date.now(), tags: ["a", "b", "c"] },
+      metadata: { created: Date.now(), tags: ['a', 'b', 'c'] },
     })),
   };
 

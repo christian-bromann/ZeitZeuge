@@ -77,7 +77,8 @@ export function parseHeapProfile(raw: V8HeapProfile, profilePath: string): HeapP
     .map(([scriptUrl, data]) => ({
       scriptUrl,
       selfBytes: data.selfBytes,
-      selfPercent: totalAllocatedBytes > 0 ? round((data.selfBytes / totalAllocatedBytes) * 100) : 0,
+      selfPercent:
+        totalAllocatedBytes > 0 ? round((data.selfBytes / totalAllocatedBytes) * 100) : 0,
       functionCount: data.functionIds.size,
     }))
     .sort((a, b) => b.selfBytes - a.selfBytes);
@@ -94,4 +95,3 @@ export function parseHeapProfile(raw: V8HeapProfile, profilePath: string): HeapP
 function round(n: number): number {
   return Math.round(n * 100) / 100;
 }
-

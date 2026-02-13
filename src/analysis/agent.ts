@@ -1,4 +1,9 @@
-import { createDeepAgent, type BackendProtocol, type DeepAgent, type DeepAgentTypeConfig } from 'deepagents';
+import {
+  createDeepAgent,
+  type BackendProtocol,
+  type DeepAgent,
+  type DeepAgentTypeConfig,
+} from 'deepagents';
 import { providerStrategy } from 'langchain';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { Ora } from 'ora';
@@ -22,8 +27,6 @@ async function invokeWithTodoStreaming<TTypes extends DeepAgentTypeConfig>(
   spinner: Ora,
 ): Promise<ReturnType<typeof agent.invoke>> {
   const renderer = new TodoProgressRenderer(spinner);
-
-  // Deep Agents are LangGraph graphs → we can stream state.
   const stream = await agent.stream(
     { messages: [{ role: 'user', content: userMessage }] } as any,
     { streamMode: ['updates', 'values'] } as any,
