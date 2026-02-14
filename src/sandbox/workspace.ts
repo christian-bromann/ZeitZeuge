@@ -1,7 +1,9 @@
-import { FilesystemBackend, type BackendProtocol } from 'deepagents';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+
+import { FilesystemBackend, type BackendProtocol } from 'deepagents';
+
 import type { HeapSummary, TraceResult, NetworkRequest } from '../types.js';
 
 export interface WorkspaceOptions {
@@ -181,12 +183,11 @@ export async function createWorkspace(options: WorkspaceOptions): Promise<Worksp
   });
 
   const cleanup = () => {
-    console.log(111, tempDir);
-    // try {
-    //   rmSync(tempDir, { recursive: true, force: true });
-    // } catch {
-    //   // Ignore cleanup errors
-    // }
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
   };
 
   return { backend, cleanup };
