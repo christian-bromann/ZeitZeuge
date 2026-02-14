@@ -161,9 +161,10 @@ export class ZeitZeugeReporter {
     try {
       await this.runAnalysis(scopedModules);
     } catch (err) {
-      const message = err instanceof Error ? err.message : JSON.stringify(err ?? 'Unknown error');
+      const message =
+        err instanceof Error ? err.message : (JSON.stringify(err, null, 2) ?? 'Unknown error');
       console.error(chalk.red(`\n[zeitzeuge] Analysis failed: ${message}\n`));
-      if (this.options.verbose && err instanceof Error) {
+      if (err instanceof Error && err.stack) {
         console.error(err.stack);
       }
     } finally {
@@ -265,7 +266,8 @@ export class ZeitZeugeReporter {
         });
         console.log(chalk.dim(`\n  Report written to ${reportPath}\n`));
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message =
+          err instanceof Error ? err.message : (JSON.stringify(err, null, 2) ?? 'Unknown error');
 
         // Check if it's a missing API key error
         if (
@@ -278,6 +280,9 @@ export class ZeitZeugeReporter {
           );
         } else {
           agentSpinner?.fail(`zeitzeuge: Analysis failed — ${message}`);
+          if (err instanceof Error && err.stack) {
+            console.error(err.stack);
+          }
           throw err;
         }
       } finally {
