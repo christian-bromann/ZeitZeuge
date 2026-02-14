@@ -1,6 +1,7 @@
 import pc from 'picocolors';
 import ora, { type Ora } from 'ora';
 import type { Finding, HeapSummary, TraceResult } from '../types.js';
+import type { PerformanceMetrics } from '../vitest/metrics.js';
 
 const SEVERITY_ICONS: Record<Finding['severity'], string> = {
   critical: pc.red('🔴 CRITICAL'),
@@ -215,6 +216,82 @@ export function printFindingsVitest(findings: Finding[]): void {
       `${counts.warning} warning`,
     )}, ${pc.green(`${counts.info} info`)}`,
   );
+}
+
+// ── Performance Metrics Output ───────────────────────────────
+
+/**
+ * Print a summary of the current run's performance metrics.
+ */
+export function printMetricsSummary(metrics: PerformanceMetrics): void {
+  const indent = '  ';
+  const s = metrics.suite;
+  const c = metrics.cpu;
+
+  // Suite overview
+  console.log(`${indent}${pc.bold('Suite')}`);
+  console.log(
+    `${indent}  Total: ${formatMs(s.totalDuration)} · ` +
+      `${s.totalTests} tests (${s.passCount} pass, ${s.failCount} fail) · ` +
+      `Setup: ${formatMs(s.totalSetupTime)}`,
+  );
+  console.log(
+    `${indent}  Avg: ${formatMs(s.averageTestDuration)} · ` +
+      `Median: ${formatMs(s.medianTestDuration)} · ` +
+      `P95: ${formatMs(s.p95TestDuration)} · ` +
+      `Slowest: ${formatMs(s.slowestTestDuration)}`,
+  );
+  if (s.slowestFile) {
+    console.log(`${indent}  Slowest file: ${s.slowestFile} (${formatMs(s.slowestFileDuration)})`);
+  }
+
+  // CPU breakdown
+  if (c.gcTime > 0 || c.applicationTime > 0) {
+    console.log('');
+    console.log(`${indent}${pc.bold('CPU Breakdown')}`);
+    console.log(
+      `${indent}  Application: ${formatMs(c.applicationTime)} (${c.applicationPercent}%) · ` +
+        `Dependencies: ${formatMs(c.dependencyTime)} (${c.dependencyPercent}%) · ` +
+        `Test/Framework: ${formatMs(c.testFrameworkTime)} (${c.testFrameworkPercent}%)`,
+    );
+    console.log(
+      `${indent}  GC: ${formatMs(c.gcTime)} (${c.gcPercentage}%) · ` +
+        `Idle: ${formatMs(c.idleTime)} (${c.idlePercentage}%)`,
+    );
+  }
+
+  // Top hot functions
+  if (metrics.hotFunctions.length > 0) {
+    console.log('');
+    console.log(`${indent}${pc.bold('Top Hot Functions')}`);
+    const top5 = metrics.hotFunctions.slice(0, 5);
+    for (const fn of top5) {
+      const category = fn.sourceCategory !== 'unknown' ? pc.dim(` [${fn.sourceCategory}]`) : '';
+      console.log(
+        `${indent}  ${formatMs(fn.selfTime)} (${fn.selfPercent}%) ${fn.functionName}${category}`,
+      );
+      if (fn.scriptUrl) {
+        console.log(pc.dim(`${indent}    ${fn.scriptUrl}:${fn.lineNumber}`));
+      }
+    }
+  }
+
+  // Heap
+  if (metrics.heap) {
+    console.log('');
+    console.log(
+      `${indent}${pc.bold('Heap')}: ${formatBytes(metrics.heap.totalAllocatedBytes)} allocated`,
+    );
+  }
+
+  console.log('');
+}
+
+/** Format milliseconds for display. */
+function formatMs(ms: number): string {
+  if (ms < 1) return `${(ms * 1000).toFixed(0)}µs`;
+  if (ms < 1000) return `${ms.toFixed(0)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
 }
 
 /**

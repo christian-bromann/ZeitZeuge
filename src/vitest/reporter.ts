@@ -13,9 +13,10 @@ import { parseCpuProfile } from './profile-parser.js';
 import { parseHeapProfile } from './heap-profile-parser.js';
 import { createVitestWorkspace } from './workspace.js';
 import { initModel } from '../models/init.js';
-import { printFindingsVitest } from '../output/terminal.js';
+import { printFindingsVitest, printMetricsSummary } from '../output/terminal.js';
 import { writeTestReport } from '../output/report.js';
 import { classifyScript } from './classify.js';
+import { computeMetrics } from './metrics.js';
 import type {
   TestFileTiming,
   CorrelatedProfile,
@@ -160,7 +161,7 @@ export class ZeitZeugeReporter {
     try {
       await this.runAnalysis(scopedModules);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : JSON.stringify(err ?? 'Unknown error');
       console.error(chalk.red(`\n[zeitzeuge] Analysis failed: ${message}\n`));
       if (this.options.verbose && err instanceof Error) {
         console.error(err.stack);
@@ -203,13 +204,20 @@ export class ZeitZeugeReporter {
       console.log(`[zeitzeuge] ${heapProfiles.length} heap profile(s) collected`);
     }
 
-    // 3. Read test source files
+    // 3. Compute performance metrics
+    const metrics = computeMetrics(testTiming, profiles, heapProfiles, this.options.projectRoot);
+
+    // 4. Print performance metrics summary
+    console.log(chalk.cyan(`\nzeitzeuge: Performance Metrics\n`));
+    printMetricsSummary(metrics);
+
+    // 5. Read test source files
     const testSources = this.readTestSources(testTiming);
 
-    // 4. Read source files referenced by hot functions
+    // 6. Read source files referenced by hot functions
     const sourcePaths = this.readHotFunctionSources(profiles);
 
-    // 5. Build workspace
+    // 7. Build workspace
     const wsSpinner = this.isCI
       ? null
       : createSafeSpinner({ text: 'zeitzeuge: Building analysis workspace...', color: 'cyan' });
@@ -221,11 +229,12 @@ export class ZeitZeugeReporter {
       testSources,
       sourcePaths,
       projectRoot: this.options.projectRoot,
+      metrics,
     });
 
     wsSpinner?.succeed('zeitzeuge: Workspace ready');
 
-    // 6. Run Deep Agent analysis
+    // 8. Run Deep Agent analysis
     if (this.options.analyzeOnFinish) {
       const agentSpinner = this.isCI
         ? null
@@ -252,6 +261,7 @@ export class ZeitZeugeReporter {
           findings,
           testTiming,
           profiles,
+          metrics,
         });
         console.log(chalk.dim(`\n  Report written to ${reportPath}\n`));
       } catch (err) {

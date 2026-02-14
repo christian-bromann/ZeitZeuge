@@ -32,7 +32,7 @@ const SLOW_TEST_THRESHOLD = 100;
 export async function createVitestWorkspace(
   options: VitestWorkspaceOptions,
 ): Promise<VitestWorkspaceResult> {
-  const { testTiming, profiles, heapProfiles, testSources, sourcePaths } = options;
+  const { testTiming, profiles, heapProfiles, testSources, sourcePaths, metrics } = options;
 
   const files: Record<string, string> = {};
 
@@ -188,6 +188,11 @@ export async function createVitestWorkspace(
     }))
     .sort((a, b) => b.selfTime - a.selfTime);
   files['/scripts/dependencies.json'] = JSON.stringify(depScriptSummary, null, 2);
+
+  // ── /metrics/current.json — computed performance metrics ──
+  if (metrics) {
+    files['/metrics/current.json'] = JSON.stringify(metrics, null, 2);
+  }
 
   // ── /tests/*.ts — test source files ──
   for (const [filePath, source] of testSources) {

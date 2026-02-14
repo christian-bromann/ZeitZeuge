@@ -265,4 +265,6 @@ export interface VitestWorkspaceOptions {
   sourcePaths?: Map<string, string>;
   /** Project root for resolving relative paths */
   projectRoot?: string;
+  /** Computed performance metrics for the current run. */
+  metrics?: import('./metrics.js').PerformanceMetrics;
 }

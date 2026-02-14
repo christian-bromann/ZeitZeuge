@@ -15,3 +15,12 @@
 
 export { zeitzeuge } from './plugin.js';
 export type { ZeitZeugeVitestOptions, SourceCategory } from './types.js';
+export type {
+  PerformanceMetrics,
+  SuiteMetrics,
+  CpuMetrics,
+  FileMetric,
+  TestMetric,
+  HotFunctionMetric,
+} from './metrics.js';
+export { computeMetrics } from './metrics.js';

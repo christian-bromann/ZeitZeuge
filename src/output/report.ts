@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import type { Finding, HeapSummary, TraceResult } from '../types.js';
 import type { TestFileTiming, CorrelatedProfile } from '../vitest/types.js';
+import type { PerformanceMetrics } from '../vitest/metrics.js';
 import { formatBytes } from './terminal.js';
 
 const SEVERITY_EMOJI: Record<Finding['severity'], string> = {
@@ -48,6 +49,7 @@ export interface TestReportOptions {
   findings: Finding[];
   testTiming: TestFileTiming[];
   profiles: CorrelatedProfile[];
+  metrics?: PerformanceMetrics;
 }
 
 /**
@@ -196,7 +198,7 @@ export function writeTestReport(outputPath: string, options: TestReportOptions):
  * Generate the full Markdown report string for Vitest test performance.
  */
 export function generateTestMarkdown(options: TestReportOptions): string {
-  const { version, findings, testTiming, profiles } = options;
+  const { version, findings, testTiming, profiles, metrics } = options;
   const now = new Date();
 
   const sections: string[] = [];
@@ -228,6 +230,62 @@ export function generateTestMarkdown(options: TestReportOptions): string {
       `**GC overhead** ${gcPercentage}% (${totalGcTime.toFixed(0)}ms)`,
   );
   sections.push('');
+
+  // ── Performance Metrics ──
+  if (metrics) {
+    sections.push(`## Performance Metrics`);
+    sections.push('');
+
+    // Suite metrics table
+    sections.push(`| Metric | Value |`);
+    sections.push(`|--------|-------|`);
+    sections.push(`| Total Duration | ${fmtMs(metrics.suite.totalDuration)} |`);
+    sections.push(
+      `| Tests | ${metrics.suite.totalTests} (${metrics.suite.passCount} pass, ${metrics.suite.failCount} fail) |`,
+    );
+    sections.push(`| Setup Time | ${fmtMs(metrics.suite.totalSetupTime)} |`);
+    sections.push(`| Avg Test Duration | ${fmtMs(metrics.suite.averageTestDuration)} |`);
+    sections.push(`| Median Test Duration | ${fmtMs(metrics.suite.medianTestDuration)} |`);
+    sections.push(`| P95 Test Duration | ${fmtMs(metrics.suite.p95TestDuration)} |`);
+    sections.push(
+      `| Slowest Test | ${fmtMs(metrics.suite.slowestTestDuration)} (\`${metrics.suite.slowestTestName}\`) |`,
+    );
+    sections.push('');
+
+    // CPU breakdown
+    if (metrics.cpu.applicationTime > 0 || metrics.cpu.gcTime > 0) {
+      sections.push(`### CPU Time Breakdown`);
+      sections.push('');
+      sections.push(`| Category | Time | % |`);
+      sections.push(`|----------|------|---|`);
+      sections.push(
+        `| Application Code | ${fmtMs(metrics.cpu.applicationTime)} | ${metrics.cpu.applicationPercent}% |`,
+      );
+      sections.push(
+        `| Dependencies | ${fmtMs(metrics.cpu.dependencyTime)} | ${metrics.cpu.dependencyPercent}% |`,
+      );
+      sections.push(
+        `| Test/Framework | ${fmtMs(metrics.cpu.testFrameworkTime)} | ${metrics.cpu.testFrameworkPercent}% |`,
+      );
+      sections.push(`| GC | ${fmtMs(metrics.cpu.gcTime)} | ${metrics.cpu.gcPercentage}% |`);
+      sections.push(`| Idle | ${fmtMs(metrics.cpu.idleTime)} | ${metrics.cpu.idlePercentage}% |`);
+      sections.push('');
+    }
+
+    // Hot functions
+    if (metrics.hotFunctions.length > 0) {
+      sections.push(`### Top Hot Functions`);
+      sections.push('');
+      sections.push(`| Function | Self Time | % | Category |`);
+      sections.push(`|----------|-----------|---|----------|`);
+      for (const fn of metrics.hotFunctions.slice(0, 10)) {
+        sections.push(
+          `| \`${fn.functionName}\` | ${fmtMs(fn.selfTime)} | ${fn.selfPercent}% | ${fn.sourceCategory} |`,
+        );
+      }
+      sections.push('');
+    }
+  }
 
   // ── Summary ──
   const counts = {
@@ -309,4 +367,12 @@ export function generateTestMarkdown(options: TestReportOptions): string {
   sections.push('');
 
   return sections.join('\n');
+}
+
+// ── Markdown helpers ─────────────────────────────────────────
+
+function fmtMs(ms: number): string {
+  if (ms < 1) return `${(ms * 1000).toFixed(0)}µs`;
+  if (ms < 1000) return `${ms.toFixed(0)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
 }
