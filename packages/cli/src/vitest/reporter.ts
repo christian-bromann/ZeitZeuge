@@ -33,7 +33,7 @@ import type {
   V8HeapProfile,
 } from './types.js';
 
-import pkg from '../../package.json';
+import pkg from '../../../../package.json';
 
 export interface ReporterOptions {
   output: string;
