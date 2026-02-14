@@ -14,6 +14,7 @@ import { parseHeapProfile } from './heap-profile-parser.js';
 import { createVitestWorkspace } from './workspace.js';
 import { initModel } from '../models/init.js';
 import { printFindingsVitest, printMetricsSummary } from '../output/terminal.js';
+import { analyzeTestPerformance } from '../analysis/agent.js';
 import { writeTestReport } from '../output/report.js';
 import { classifyScript } from './classify.js';
 import { computeMetrics } from './metrics.js';
@@ -270,7 +271,6 @@ export class ZeitZeugeReporter {
 
       try {
         const model = initModel();
-        const { analyzeTestPerformance } = await import('../analysis/agent.js');
         const findings = await analyzeTestPerformance(model, workspace.backend, spinnerForAgent, {
           metrics,
           hasHeapProfiles: heapProfiles.length > 0,

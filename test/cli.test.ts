@@ -1,4 +1,5 @@
 import { test, expect, describe } from 'bun:test';
+import { readFileSync } from 'node:fs';
 
 /**
  * Tests for CLI argument validation logic.
@@ -50,8 +51,7 @@ describe('URL validation', () => {
 describe('CLI module', () => {
   test('src/cli.ts exists and exports are valid', async () => {
     // Just verify the file can be parsed (don't execute main())
-    const fs = await import('node:fs');
-    const cliContent = fs.readFileSync(new URL('../src/cli.ts', import.meta.url), 'utf-8');
+    const cliContent = readFileSync(new URL('../src/cli.ts', import.meta.url), 'utf-8');
     // Verify unified pipeline imports
     expect(cliContent).toContain('yargs');
     expect(cliContent).toContain('initModel');

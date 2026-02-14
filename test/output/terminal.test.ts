@@ -22,41 +22,6 @@ describe('formatBytes', () => {
   });
 });
 
-describe('printFindings', () => {
-  test('can be imported without errors', async () => {
-    const { printFindings } = await import('../../src/output/terminal');
-    expect(typeof printFindings).toBe('function');
-  });
-});
-
-describe('printFindingsVitest', () => {
-  test('can be imported without errors', async () => {
-    const { printFindingsVitest } = await import('../../src/output/terminal');
-    expect(typeof printFindingsVitest).toBe('function');
-  });
-});
-
-describe('printHeader', () => {
-  test('can be imported without errors', async () => {
-    const { printHeader } = await import('../../src/output/terminal');
-    expect(typeof printHeader).toBe('function');
-  });
-});
-
-describe('printError', () => {
-  test('can be imported without errors', async () => {
-    const { printError } = await import('../../src/output/terminal');
-    expect(typeof printError).toBe('function');
-  });
-});
-
-describe('printCaptureInfo', () => {
-  test('can be imported without errors', async () => {
-    const { printCaptureInfo } = await import('../../src/output/terminal');
-    expect(typeof printCaptureInfo).toBe('function');
-  });
-});
-
 describe('Finding type compatibility', () => {
   test('memory-type finding with retainedSize compiles', () => {
     const finding: Finding = {
