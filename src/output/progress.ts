@@ -15,12 +15,21 @@ interface ToolCallInfo {
   args: Record<string, unknown>;
 }
 
+/** Options passed alongside a chunk to provide context about its origin. */
+export interface ChunkMeta {
+  /** True when the chunk originates from a subagent (subgraph). */
+  isSubagent?: boolean;
+}
+
 export class TodoProgressRenderer {
   private lastStatusByKey = new Map<string, string>();
   private lastInProgressKey: string | undefined;
   private baseSpinnerText: string | undefined;
   private printedHeader = false;
+  /** Last tool call name for the main agent (dedup). */
   private lastToolCallName: string | undefined;
+  /** Last tool call name for subagents (separate dedup). */
+  private lastSubagentToolCallName: string | undefined;
   private currentInProgressContent: string | undefined;
   private totalTodos = 0;
   private completedTodos = 0;
@@ -64,25 +73,39 @@ export class TodoProgressRenderer {
     this.spinner.text = `${prefix}${base}${ctx}`;
   }
 
-  handleChunk(chunk: unknown): void {
+  handleChunk(chunk: unknown, meta?: ChunkMeta): void {
+    const isSubagent = meta?.isSubagent === true;
+
     // --- Handle tool calls ---
     const toolCalls = extractToolCallsFromStreamChunk(chunk);
     if (toolCalls && toolCalls.length > 0) {
       for (const tc of toolCalls) {
-        // Avoid repeating the same tool call name back-to-back
         const signature = formatToolCall(tc);
-        if (tc.name !== this.lastToolCallName) {
-          this.lastToolCallName = tc.name;
+
+        // Main agent and subagent have independent dedup tracking
+        const lastName = isSubagent ? this.lastSubagentToolCallName : this.lastToolCallName;
+        if (tc.name !== lastName) {
+          if (isSubagent) this.lastSubagentToolCallName = tc.name;
+          else this.lastToolCallName = tc.name;
+
           this.printHeaderOnce();
+
+          // Subagent tool calls get extra indentation + label
+          const label = isSubagent
+            ? `      ↳ ${pc.cyan('[subagent]')} ${signature}`
+            : `  ↳ ${signature}`;
           this.spinner.stopAndPersist({
             symbol: ' ',
-            text: pc.dim(`  ↳ ${signature}`),
+            text: pc.dim(label),
           });
           this.spinner.start();
           this.updateSpinnerText(this.currentInProgressContent);
         }
       }
     }
+
+    // Subagent chunks don't carry the main agent's todo state — skip todos.
+    if (isSubagent) return;
 
     // --- Handle todos ---
     const todos = extractTodosFromStreamChunk(chunk);
@@ -106,6 +129,7 @@ export class TodoProgressRenderer {
           this.spinner.start();
           // Reset tool call tracking when moving to a new todo
           this.lastToolCallName = undefined;
+          this.lastSubagentToolCallName = undefined;
         }
 
         if (nextStatus === 'in_progress' && this.lastInProgressKey !== key) {
@@ -115,6 +139,7 @@ export class TodoProgressRenderer {
           this.updateSpinnerText(todo.content);
           // Reset tool call tracking for the new task
           this.lastToolCallName = undefined;
+          this.lastSubagentToolCallName = undefined;
         }
       }
     }

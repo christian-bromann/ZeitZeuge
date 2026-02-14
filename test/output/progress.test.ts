@@ -13,7 +13,8 @@ import { AIMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
-import { FilesystemBackend } from 'deepagents';
+import { createDeepAgent, FilesystemBackend, type SubAgent } from 'deepagents';
+import { toolStrategy } from 'langchain';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -22,16 +23,12 @@ import type { Ora } from 'ora';
 import { TodoProgressRenderer } from '../../src/output/progress';
 import { analyzeTestPerformance } from '../../src/analysis/agent';
 
-// ── Helpers ─────────────────────────────────────────────────
-
 /** Strip ANSI escape codes for clean assertions. */
 function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
   const ANSI_RE = new RegExp('\x1B' + '\\[[0-9;]*m', 'g');
   return str.replace(ANSI_RE, '');
 }
-
-// ── Mock Spinner ────────────────────────────────────────────
 
 interface PersistedEntry {
   symbol?: string;
@@ -803,6 +800,192 @@ describe('TodoProgressRenderer', () => {
     });
   });
 
+  // ── Subagent tool calls ──────────────────────────────────
+
+  describe('subagent tool calls', () => {
+    test('renders subagent tool calls with [subagent] label and extra indentation', () => {
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/a.json' } }]),
+        ),
+      );
+      // Subagent chunk — same tool name but should NOT be deduped
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/sub/b.json' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      // Main agent line (no [subagent] label)
+      const mainLine = texts.find((t) => t.includes('read_file') && !t.includes('[subagent]'));
+      expect(mainLine).toBeDefined();
+      // Subagent line (has [subagent] label)
+      const subLine = texts.find((t) => t.includes('[subagent]') && t.includes('read_file'));
+      expect(subLine).toBeDefined();
+      expect(subLine).toContain('/sub/b.json');
+    });
+
+    test('deduplicates subagent tool calls independently from main agent', () => {
+      // Main agent calls read_file
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/a.json' } }]),
+        ),
+      );
+      // Subagent calls read_file twice in a row — second should be deduped
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/x.json' } }]),
+        ),
+        { isSubagent: true },
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/y.json' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      const subLines = texts.filter((t) => t.includes('[subagent]'));
+      // Only 1 subagent line because second read_file was deduped
+      expect(subLines.length).toBe(1);
+    });
+
+    test('subagent chunks do not affect main agent todo tracking', () => {
+      // Set up main agent todos
+      renderer.handleChunk(
+        todoChunk([
+          { id: '1', content: 'Main task', status: 'in_progress' },
+          { id: '2', content: 'Second task', status: 'pending' },
+        ]),
+      );
+
+      // Subagent chunk with todos field — should be ignored
+      renderer.handleChunk(
+        { agent: { todos: [{ id: 'sub-1', content: 'Sub task', status: 'in_progress' }] } },
+        { isSubagent: true },
+      );
+
+      // Main task completes
+      renderer.handleChunk(todoChunk([{ id: '1', content: 'Main task', status: 'completed' }]));
+
+      const texts = spinner.persistedTexts();
+      // Only main todo should have progress prefix [1/2]
+      const mainCompleted = texts.find((t) => t.includes('Main task') && t.includes('✓'));
+      expect(mainCompleted).toBeDefined();
+      expect(mainCompleted).toContain('[1/2]');
+      // Sub task should NOT appear as a completed line
+      expect(texts.some((t) => t.includes('Sub task') && t.includes('✓'))).toBe(false);
+    });
+
+    test('resets both main and subagent dedup on todo transition', () => {
+      // Subagent calls read_file
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/sub/a.json' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      // Todo transition resets all tracking
+      renderer.handleChunk(todoChunk([{ id: '1', content: 'Step 1', status: 'in_progress' }]));
+
+      // Same tool name again — should be shown (dedup was reset)
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/sub/b.json' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      const subLines = texts.filter((t) => t.includes('[subagent]'));
+      expect(subLines.length).toBe(2);
+    });
+
+    test('shows different subagent tool names consecutively', () => {
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/x.ts' } }]),
+        ),
+        { isSubagent: true },
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(aiMessageWithToolCalls([{ name: 'grep', args: { pattern: 'TODO' } }])),
+        { isSubagent: true },
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(aiMessageWithToolCalls([{ name: 'glob', args: { pattern: '*.ts' } }])),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      const subLines = texts.filter((t) => t.includes('[subagent]'));
+      expect(subLines.length).toBe(3);
+      expect(subLines.some((t) => t.includes('read_file'))).toBe(true);
+      expect(subLines.some((t) => t.includes('grep'))).toBe(true);
+      expect(subLines.some((t) => t.includes('glob'))).toBe(true);
+    });
+
+    test('interleaves main agent task tool with subagent file reads', () => {
+      // Simulates: main agent calls task() → subagent runs read_file/grep → returns
+      renderer.handleChunk(todoChunk([{ id: '1', content: 'Read source', status: 'in_progress' }]));
+
+      // Main agent calls task tool to spawn subagent
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([
+            {
+              name: 'task',
+              args: { subagent_type: 'general-purpose', description: 'Read runner.ts' },
+            },
+          ]),
+        ),
+      );
+
+      // Subagent reads files
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/src/runner.ts' } }]),
+        ),
+        { isSubagent: true },
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([
+            { name: 'read_file', args: { file_path: '/src/runner.ts', offset: 100, limit: 80 } },
+          ]),
+        ),
+        { isSubagent: true },
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'grep', args: { pattern: 'async', path: '/src' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      // Main agent continues after subagent completes
+      renderer.handleChunk(todoChunk([{ id: '1', content: 'Read source', status: 'completed' }]));
+
+      const texts = spinner.persistedTexts();
+
+      // Main agent tool call (task)
+      expect(texts.some((t) => t.includes('task(') && !t.includes('[subagent]'))).toBe(true);
+
+      // Subagent tool calls
+      const subLines = texts.filter((t) => t.includes('[subagent]'));
+      expect(subLines.some((t) => t.includes('read_file'))).toBe(true);
+      expect(subLines.some((t) => t.includes('grep'))).toBe(true);
+
+      // Todo completed with progress
+      expect(texts.some((t) => t.includes('✓') && t.includes('Read source'))).toBe(true);
+    });
+  });
+
   // ── Integration with analyzeTestPerformance ─────────────
 
   describe('integration with analyzeTestPerformance + FakeToolCallingModel', () => {
@@ -1000,6 +1183,246 @@ describe('TodoProgressRenderer', () => {
 
         // write_todos calls should appear
         expect(texts.some((t) => t.includes('write_todos'))).toBe(true);
+      } finally {
+        rmSync(workDir, { recursive: true, force: true });
+      }
+    }, 30_000);
+
+    test('renders subagent tool calls from a DeepAgent with 2 FakeToolCallingModels', async () => {
+      const workDir = mkdtempSync(join(tmpdir(), 'zeitzeuge-subagent-int-'));
+
+      try {
+        mkdirSync(join(workDir, 'hot-functions'), { recursive: true });
+        mkdirSync(join(workDir, 'src'), { recursive: true });
+
+        writeFileSync(
+          join(workDir, 'hot-functions', 'application.json'),
+          JSON.stringify([
+            {
+              functionName: 'processRecords',
+              scriptUrl: '/src/data.ts',
+              lineNumber: 42,
+              selfTime: 320,
+              selfPercent: 18.5,
+              sourceCategory: 'application',
+            },
+          ]),
+        );
+
+        writeFileSync(
+          join(workDir, 'src', 'data.ts'),
+          [
+            'export function processRecords(records: any[]) {',
+            '  const result = [];',
+            '  for (const r of records) {',
+            '    result.push(JSON.parse(JSON.stringify(r)));',
+            '  }',
+            '  return result;',
+            '}',
+          ].join('\n'),
+        );
+
+        const backend = new FilesystemBackend({ rootDir: workDir });
+
+        // ── Subagent model: reads source files and returns ──
+        const subagentModel = new FakeToolCallingModel([
+          new AIMessage({
+            content: '',
+            tool_calls: [
+              {
+                id: 'sub_01',
+                name: 'read_file',
+                args: { file_path: '/src/data.ts' },
+              },
+            ],
+          }),
+          new AIMessage({
+            content: '',
+            tool_calls: [
+              {
+                id: 'sub_02',
+                name: 'grep',
+                args: { pattern: 'JSON.parse', path: '/src' },
+              },
+            ],
+          }),
+          // No tool_calls → terminates subagent
+          new AIMessage({
+            content:
+              'Found: processRecords at line 4 uses JSON.parse(JSON.stringify(r)) for deep cloning.',
+          }),
+        ]);
+
+        // ── Main agent model: creates plan, spawns subagent, returns findings ──
+        const mainModel = new FakeToolCallingModel((boundToolNames) => {
+          const structTool = boundToolNames.find((n) => n.startsWith('extract-')) ?? 'extract-1';
+
+          return [
+            // Step 1: Plan
+            new AIMessage({
+              content: '',
+              tool_calls: [
+                {
+                  id: 'main_01',
+                  name: 'write_todos',
+                  args: {
+                    todos: [
+                      { content: 'Review hot functions', status: 'in_progress' },
+                      { content: 'Verify in source code', status: 'pending' },
+                      { content: 'Produce findings', status: 'pending' },
+                    ],
+                  },
+                },
+              ],
+            }),
+            // Step 2: Read hot functions
+            new AIMessage({
+              content: '',
+              tool_calls: [
+                {
+                  id: 'main_02',
+                  name: 'read_file',
+                  args: { file_path: '/hot-functions/application.json' },
+                },
+              ],
+            }),
+            // Step 3: Spawn subagent to read source
+            new AIMessage({
+              content: '',
+              tool_calls: [
+                {
+                  id: 'main_03',
+                  name: 'task',
+                  args: {
+                    subagent_type: 'source-reader',
+                    description: 'Read /src/data.ts and verify the processRecords bottleneck',
+                  },
+                },
+              ],
+            }),
+            // Step 4: Mark progress after subagent returns
+            new AIMessage({
+              content: '',
+              tool_calls: [
+                {
+                  id: 'main_04',
+                  name: 'write_todos',
+                  args: {
+                    todos: [
+                      { content: 'Review hot functions', status: 'completed' },
+                      { content: 'Verify in source code', status: 'completed' },
+                      { content: 'Produce findings', status: 'in_progress' },
+                    ],
+                  },
+                },
+              ],
+            }),
+            // Step 5: Submit findings
+            new AIMessage({
+              content: '',
+              tool_calls: [
+                {
+                  id: 'main_05',
+                  name: structTool,
+                  args: {
+                    findings: [
+                      {
+                        severity: 'warning',
+                        title: 'Deep-clone via JSON round-trip in processRecords',
+                        description:
+                          'processRecords() uses JSON.parse(JSON.stringify(r)) per item.',
+                        category: 'hot-function',
+                        sourceFile: '/src/data.ts',
+                        lineNumber: 4,
+                        impactMs: 320,
+                        suggestedFix: 'Use structuredClone(r) instead.',
+                        hotFunction: {
+                          name: 'processRecords',
+                          scriptUrl: '/src/data.ts',
+                          lineNumber: 42,
+                          selfTime: 320,
+                          selfPercent: 18.5,
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+          ];
+        });
+
+        // ── Define the custom subagent ──
+        const sourceReader: SubAgent = {
+          name: 'source-reader',
+          description: 'Reads source code files to verify performance bottlenecks',
+          systemPrompt: 'You are a source code reader. Read files and report your findings.',
+          model: subagentModel as any,
+        };
+
+        // ── Create the agent with subagent support ──
+        const { FindingsSchema } = await import('../../src/schema');
+        const agent = createDeepAgent({
+          model: mainModel as any,
+          backend,
+          subagents: [sourceReader],
+          responseFormat: toolStrategy(FindingsSchema),
+        });
+
+        // ── Stream with subgraphs: true and feed to renderer ──
+        const testSpinner = createMockSpinner('zeitzeuge: Analyzing...');
+        const testRenderer = new TodoProgressRenderer(testSpinner as unknown as Ora);
+
+        const stream = await agent.stream(
+          { messages: [{ role: 'user', content: 'Analyze the test performance.' }] } as any,
+          { streamMode: ['updates', 'values'], subgraphs: true } as any,
+        );
+
+        let lastValues: unknown;
+        for await (const item of stream as AsyncIterable<unknown>) {
+          if (!Array.isArray(item)) {
+            testRenderer.handleChunk(item);
+            lastValues = item;
+            continue;
+          }
+
+          if (item.length === 3) {
+            const [ns, mode, chunk] = item;
+            const isSubagent =
+              typeof ns === 'string'
+                ? ns.includes('tools:')
+                : Array.isArray(ns) && ns.some((s: string) => s.includes('tools:'));
+            testRenderer.handleChunk(chunk, { isSubagent });
+            if (!isSubagent && mode === 'values') lastValues = chunk;
+          } else if (item.length === 2) {
+            const [mode, chunk] = item;
+            testRenderer.handleChunk(chunk);
+            if (mode === 'values') lastValues = chunk;
+          }
+        }
+
+        // ── Assertions ──
+        const texts = testSpinner.persistedTexts();
+
+        // Header
+        expect(texts[0]).toBe('Performance analysis progress:');
+
+        // Main agent tool calls
+        expect(texts.some((t) => t.includes('read_file') && !t.includes('[subagent]'))).toBe(true);
+        expect(texts.some((t) => t.includes('task(') && !t.includes('[subagent]'))).toBe(true);
+
+        // Subagent tool calls should appear with [subagent] label
+        const subLines = texts.filter((t) => t.includes('[subagent]'));
+        expect(subLines.length).toBeGreaterThanOrEqual(1);
+        // Subagent should have called read_file and/or grep
+        expect(subLines.some((t) => t.includes('read_file') || t.includes('grep'))).toBe(true);
+
+        // Todo progress
+        const completedLines = texts.filter((t) => t.includes('✓'));
+        expect(completedLines.length).toBeGreaterThanOrEqual(2);
+
+        // Agent ran to completion
+        expect(lastValues).toBeDefined();
       } finally {
         rmSync(workDir, { recursive: true, force: true });
       }
