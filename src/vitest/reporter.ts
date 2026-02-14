@@ -271,7 +271,11 @@ export class ZeitZeugeReporter {
       try {
         const model = initModel();
         const { analyzeTestPerformance } = await import('../analysis/agent.js');
-        const findings = await analyzeTestPerformance(model, workspace.backend, spinnerForAgent);
+        const findings = await analyzeTestPerformance(model, workspace.backend, spinnerForAgent, {
+          metrics,
+          hasHeapProfiles: heapProfiles.length > 0,
+          hasListenerTracking: !!listenerTracking,
+        });
 
         agentSpinner?.succeed(`zeitzeuge: Analysis complete — ${findings.length} finding(s)`);
 

@@ -167,6 +167,13 @@ export interface CpuProfileSummary {
   scriptBreakdown: ScriptTimeSummary[];
 }
 
+/** A frame in a caller chain. */
+export interface CallerFrame {
+  functionName: string;
+  scriptUrl: string;
+  lineNumber: number;
+}
+
 /** A function consuming significant CPU self time. */
 export interface HotFunction {
   functionName: string;
@@ -183,6 +190,14 @@ export interface HotFunction {
   selfPercent: number;
   /** Classification of the function's source file */
   sourceCategory?: SourceCategory;
+  /**
+   * Chain of callers from this function up toward the call tree root.
+   * The first entry is the direct caller, the last is the outermost
+   * ancestor with meaningful time. Useful for understanding WHY a
+   * function is hot (what application entry point triggers it).
+   * Limited to the 10 nearest callers.
+   */
+  callerChain?: CallerFrame[];
 }
 
 /** A node in the call tree with inclusive timing. */

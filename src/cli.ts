@@ -191,7 +191,11 @@ async function main(): Promise<void> {
     const agentSpinner = createSpinner('Analyzing...');
     let findings;
     try {
-      findings = await analyze(model, workspace.backend, agentSpinner);
+      findings = await analyze(model, workspace.backend, agentSpinner, {
+        url,
+        heapSummary,
+        traceResult: captureResult.trace,
+      });
       agentSpinner.succeed(`Analysis complete — ${findings.length} findings`);
     } catch (err) {
       agentSpinner.fail(`Analysis failed: ${err instanceof Error ? err.message : 'Unknown error'}`);

@@ -45,7 +45,9 @@ Every hot function and script in the workspace has a \`sourceCategory\` field:
 - /heap-profiles/index.json — (optional) Manifest mapping test files to heap profiles
 - /heap-profiles/<file>.json — (optional) Heap profile summary: allocation hotspots,
   per-script allocated bytes (with sourceCategory)
-- /hot-functions/application.json — **START HERE**: Hot functions from application code only
+- /hot-functions/application.json — **START HERE**: Hot functions from application code only.
+  Each entry includes a \`sourceSnippet\` (lines around the hot line) and \`workspacePath\`
+  (path to the full source file in the workspace) when source code is available.
 - /hot-functions/dependencies.json — Hot functions from third-party dependencies
 - /hot-functions/global.json — All hot functions across all categories
 - /scripts/application.json — Per-script time breakdown for application code
@@ -53,8 +55,11 @@ Every hot function and script in the workspace has a \`sourceCategory\` field:
 - /listener-tracking.json — (optional) Event listener tracking data captured from
   worker processes. Contains per-event-type add/remove counts for EventTarget and
   EventEmitter, plus exceedances where listener counts exceeded maxListeners.
-- /tests/*.ts — Test source files
-- /src/*.ts — Application and dependency source files referenced by hot functions
+- /src/index.json — Mapping of source files to their hot functions (quick overview
+  of which files matter and what bottlenecks they contain)
+- /tests/<relative-path> — Test source files (directory structure preserved)
+- /src/<relative-path> — Application and dependency source files referenced by
+  hot functions (directory structure preserved from the project root)
 
 ## Your workflow
 
@@ -99,6 +104,9 @@ Every hot function and script in the workspace has a \`sourceCategory\` field:
 - When allocation hotspots match CPU hotspots, prioritize fixes there first
 
 ### Call chain analysis
+- Each hot function includes a \`callerChain\` field — the chain of callers
+  from the hot function up toward the entry point. Use this to understand
+  WHY a function is hot and which application-level call triggers it.
 - Trace expensive call trees to find which APPLICATION function triggers them
 - Follow the call tree from application entry points down to the hot leaf functions
 - Identify which application-level design decisions lead to the bottleneck
@@ -148,6 +156,63 @@ Each finding MUST use one of these exact category values:
 Prefer more specific categories (algorithm, serialization, allocation, event-handling)
 over generic ones (hot-function, other) when the root cause is clear.
 
+## Severity classification
+
+Assign severity based on measured impact — do NOT guess:
+
+- **critical** — A single function consuming >15% self-time, listener exceedances
+  (count exceeding maxListeners), or GC overhead >10% of total profile duration
+- **warning** — A function consuming 5–15% self-time, listener add/remove imbalance
+  where addCount > 2× removeCount, or GC overhead between 5–10%
+- **info** — A function consuming <5% self-time, minor inefficiencies,
+  dependency observations, or small optimisation opportunities
+
+Always base severity on the actual numbers from the profiling data — never inflate.
+
+## Verification rules
+
+These rules are mandatory for every finding:
+
+1. **ALWAYS read the source file** in /src/ or /tests/ and verify the code
+   BEFORE suggesting a fix. Never suggest a fix for code you have not read.
+2. **Never guess at line numbers** — confirm by reading the file. If the profile
+   reports line 42 but the source at line 42 doesn't match, say so.
+3. Each \`suggestedFix\` MUST reference the actual current code and describe
+   what to change. Include a before/after snippet from the real source.
+4. If /hot-functions/application.json is empty or every function is <1%
+   self-time, state that the application code is efficient — do NOT
+   manufacture findings.
+5. Never report a finding based solely on a function name — always read the
+   implementation to confirm the issue exists.
+
+## Cross-referencing data
+
+- When a function appears in BOTH /hot-functions/ (CPU hotspot) AND
+  /heap-profiles/ (allocation hotspot), prioritise it and mention both
+  dimensions in the finding.
+- Cross-reference /hot-functions/ data with /heap-profiles/ when both are
+  present to find functions that are expensive in both CPU and memory.
+- Check whether hot dependency calls originate from application code by
+  tracing the call tree in /profiles/.
+- When /listener-tracking.json is present, cross-reference exceedance stack
+  traces with the source code in /src/ to pinpoint the registration site.
+- /metrics/current.json contains pre-computed aggregate metrics (suite totals,
+  CPU category breakdown, top hot functions). Use it for the big-picture
+  numbers when sizing impact.
+
+## Estimating impactMs
+
+Every finding should include an \`impactMs\` estimate when possible:
+
+- Use the hot function's \`selfTime\` as the baseline cost.
+- Estimate what fraction of that cost the fix would eliminate
+  (e.g. an O(n²) → O(n) fix on data of size 1000 might eliminate ~99%).
+- impactMs = selfTime × estimated fraction eliminated.
+- Example: a function with selfTime 200ms in a 1000ms run, where an
+  algorithm fix would remove ~80% of the work → impactMs ≈ 160.
+- If you cannot reasonably estimate the savings, omit impactMs rather than
+  guessing.
+
 ## Output guidelines
 
 - Report 3–7 findings, ordered by impact ON THE APPLICATION CODE
@@ -158,4 +223,25 @@ over generic ones (hot-function, other) when the root cause is clear.
 - When reporting a dependency bottleneck, explain what application code is
   calling it and how the developer can reduce that cost
 - If the application code is already efficient, say so — don't force findings
-  about test infrastructure just to fill the report`;
+  about test infrastructure just to fill the report
+
+## Structured output fields
+
+For each finding, fill in as many fields as applicable:
+
+- \`sourceFile\` — the workspace path (e.g. /src/utils/parser.ts) or original
+  file path where the issue occurs. Always set this when you can identify
+  the file.
+- \`lineNumber\` — the 1-based line number in the source file. Only set after
+  verifying by reading the file.
+- \`confidence\` — \`high\` if you read the source and confirmed the issue,
+  \`medium\` if the profiling data strongly suggests it but you couldn't fully
+  verify, \`low\` if inferred from patterns.
+- \`estimatedSavingsMs\` — your estimate of time saved if the fix is applied.
+- \`beforeCode\` — a snippet of the CURRENT problematic code, copied from the
+  source file you read. Keep it focused (5–15 lines).
+- \`afterCode\` — the IMPROVED code snippet showing the fix. Must be a drop-in
+  replacement for \`beforeCode\`.
+- \`affectedTests\` — list of test names that exercise this code path and would
+  benefit from the fix.
+- \`impactMs\` — the current measured cost (e.g. selfTime of the hot function).`;

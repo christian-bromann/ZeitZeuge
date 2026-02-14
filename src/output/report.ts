@@ -134,8 +134,13 @@ export function generateMarkdown(options: ReportOptions): string {
 
       // One-line context: category + key metric
       const context: string[] = [`**${categoryLabel}**`];
+      if (f.confidence) context.push(`confidence: ${f.confidence}`);
       if (f.impactMs != null) context.push(`${f.impactMs.toFixed(0)}ms impact`);
+      if (f.estimatedSavingsMs != null)
+        context.push(`~${f.estimatedSavingsMs.toFixed(0)}ms savings`);
       if (f.retainedSize != null) context.push(`${formatBytes(f.retainedSize)} retained`);
+      if (f.sourceFile)
+        context.push(`\`${f.sourceFile}${f.lineNumber != null ? `:${f.lineNumber}` : ''}\``);
       if (f.resourceUrl) context.push(`\`${f.resourceUrl}\``);
       sections.push(context.join(' · '));
       sections.push('');
@@ -144,7 +149,27 @@ export function generateMarkdown(options: ReportOptions): string {
       sections.push(f.description);
       sections.push('');
 
-      // How to fix it
+      // Before/after code snippets (structured)
+      if (f.beforeCode || f.afterCode) {
+        if (f.beforeCode) {
+          sections.push(`### Before`);
+          sections.push('');
+          sections.push('```js');
+          sections.push(f.beforeCode);
+          sections.push('```');
+          sections.push('');
+        }
+        if (f.afterCode) {
+          sections.push(`### After`);
+          sections.push('');
+          sections.push('```js');
+          sections.push(f.afterCode);
+          sections.push('```');
+          sections.push('');
+        }
+      }
+
+      // How to fix it (freeform)
       if (f.suggestedFix) {
         sections.push(`### How to fix`);
         sections.push('');
@@ -367,22 +392,53 @@ export function generateTestMarkdown(options: TestReportOptions): string {
 
       // Context line
       const context: string[] = [`**${categoryLabel}**`];
+      if (f.confidence) context.push(`confidence: ${f.confidence}`);
       if (f.impactMs != null) context.push(`${f.impactMs.toFixed(0)}ms impact`);
+      if (f.estimatedSavingsMs != null)
+        context.push(`~${f.estimatedSavingsMs.toFixed(0)}ms savings`);
       if (f.testFile) context.push(`\`${f.testFile}\``);
       if (f.hotFunction) {
         context.push(
           `\`${f.hotFunction.name}\` (${f.hotFunction.selfTime.toFixed(0)}ms, ${f.hotFunction.selfPercent.toFixed(1)}%)`,
         );
       }
+      if (f.sourceFile)
+        context.push(`\`${f.sourceFile}${f.lineNumber != null ? `:${f.lineNumber}` : ''}\``);
       if (f.resourceUrl) context.push(`\`${f.resourceUrl}\``);
       sections.push(context.join(' · '));
       sections.push('');
+
+      // Affected tests
+      if (f.affectedTests && f.affectedTests.length > 0) {
+        sections.push(`**Affected tests:** ${f.affectedTests.map((t) => `\`${t}\``).join(', ')}`);
+        sections.push('');
+      }
 
       // Description
       sections.push(f.description);
       sections.push('');
 
-      // How to fix
+      // Before/after code snippets (structured)
+      if (f.beforeCode || f.afterCode) {
+        if (f.beforeCode) {
+          sections.push(`### Before`);
+          sections.push('');
+          sections.push('```ts');
+          sections.push(f.beforeCode);
+          sections.push('```');
+          sections.push('');
+        }
+        if (f.afterCode) {
+          sections.push(`### After`);
+          sections.push('');
+          sections.push('```ts');
+          sections.push(f.afterCode);
+          sections.push('```');
+          sections.push('');
+        }
+      }
+
+      // How to fix (freeform)
       if (f.suggestedFix) {
         sections.push(`### How to fix`);
         sections.push('');

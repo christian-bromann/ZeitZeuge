@@ -12,6 +12,9 @@ import { tmpdir } from 'node:os';
 
 import type { CorrelatedProfile, HotFunction, VitestWorkspaceOptions } from './types.js';
 
+/** Number of context lines to include above and below a hot function's line. */
+const SOURCE_SNIPPET_CONTEXT = 5;
+
 export interface VitestWorkspaceResult {
   /** Backend for use with createDeepAgent */
   backend: BackendProtocol;
@@ -208,13 +211,16 @@ export async function createVitestWorkspace(
   }
 
   // ── /tests/*.ts — test source files ──
+  // Preserve directory structure relative to project root
   for (const [filePath, source] of testSources) {
-    const filename = filePath.split('/').pop() ?? filePath;
-    files[`/tests/${filename}`] = source;
+    const relPath = relativizePath(filePath, options.projectRoot);
+    files[`/tests/${relPath}`] = source;
   }
 
   // ── /src/*.ts — application source files referenced by hot functions ──
   // Application code uses a lower threshold than dependencies
+  // Maps scriptUrl → workspace path for source snippet lookup
+  const scriptUrlToWorkspacePath = new Map<string, string>();
   if (sourcePaths) {
     const hotScriptUrls = new Set<string>();
     for (const profile of profiles) {
@@ -232,9 +238,71 @@ export async function createVitestWorkspace(
 
     for (const [scriptUrl, source] of sourcePaths) {
       if (!hotScriptUrls.has(scriptUrl)) continue;
-      const filename = scriptUrl.split('/').pop() ?? scriptUrl;
-      files[`/src/${filename}`] = source;
+      const relPath = relativizePath(scriptUrl, options.projectRoot);
+      const wsPath = `/src/${relPath}`;
+      files[wsPath] = source;
+      scriptUrlToWorkspacePath.set(scriptUrl, wsPath);
     }
+  }
+
+  // ── Embed source snippets into hot function data ──
+  // Re-generate hot function files with sourceSnippet and workspacePath fields
+  if (sourcePaths && sourcePaths.size > 0) {
+    const enrichHotFunction = (fn: HotFunction) => {
+      const source = sourcePaths.get(fn.scriptUrl);
+      const wsPath = scriptUrlToWorkspacePath.get(fn.scriptUrl);
+      if (!source || fn.lineNumber < 0) return { ...fn, workspacePath: wsPath };
+
+      const sourceLines = source.split('\n');
+      // V8 line numbers are 0-based; convert to 1-based for display
+      const targetLine = fn.lineNumber;
+      const start = Math.max(0, targetLine - SOURCE_SNIPPET_CONTEXT);
+      const end = Math.min(sourceLines.length, targetLine + SOURCE_SNIPPET_CONTEXT + 1);
+      const snippet = sourceLines
+        .slice(start, end)
+        .map((line, i) => {
+          const lineNum = start + i + 1;
+          const marker = lineNum === targetLine + 1 ? '>' : ' ';
+          return `${marker} ${String(lineNum).padStart(4)} | ${line}`;
+        })
+        .join('\n');
+
+      return { ...fn, sourceSnippet: snippet, workspacePath: wsPath };
+    };
+
+    // Re-write hot function files with embedded snippets
+    const enrichedAll = mergedHotFunctions.map(enrichHotFunction);
+    files['/hot-functions/global.json'] = JSON.stringify(enrichedAll, null, 2);
+    files['/hot-functions/application.json'] = JSON.stringify(
+      enrichedAll.filter((fn) => fn.sourceCategory === 'application'),
+      null,
+      2,
+    );
+    files['/hot-functions/dependencies.json'] = JSON.stringify(
+      enrichedAll.filter((fn) => fn.sourceCategory === 'dependency'),
+      null,
+      2,
+    );
+  }
+
+  // ── /src/index.json — file-to-hotfunctions mapping ──
+  const fileIndex: Record<
+    string,
+    Array<{ functionName: string; lineNumber: number; selfTime: number; selfPercent: number }>
+  > = {};
+  for (const fn of mergedHotFunctions) {
+    const wsPath = scriptUrlToWorkspacePath.get(fn.scriptUrl);
+    if (!wsPath) continue;
+    if (!fileIndex[wsPath]) fileIndex[wsPath] = [];
+    fileIndex[wsPath]?.push({
+      functionName: fn.functionName,
+      lineNumber: fn.lineNumber,
+      selfTime: fn.selfTime,
+      selfPercent: fn.selfPercent,
+    });
+  }
+  if (Object.keys(fileIndex).length > 0) {
+    files['/src/index.json'] = JSON.stringify(fileIndex, null, 2);
   }
 
   // ── Write all files to a temp directory ──
@@ -312,4 +380,35 @@ function sanitizeFilename(filePath: string): string {
 
 function round(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/**
+ * Relativize a file path against the project root, preserving directory
+ * structure. Falls back to the filename if no project root is provided
+ * or the path is not under the project root.
+ */
+function relativizePath(filePath: string, projectRoot?: string): string {
+  // Strip file:// prefix if present
+  let normalized = filePath;
+  if (normalized.startsWith('file://')) {
+    try {
+      normalized = new URL(normalized).pathname;
+    } catch {
+      // keep as-is
+    }
+  }
+
+  if (projectRoot && normalized.startsWith(projectRoot)) {
+    let rel = normalized.slice(projectRoot.length);
+    if (rel.startsWith('/')) rel = rel.slice(1);
+    return rel || normalized.split('/').pop() || normalized;
+  }
+
+  // For node_modules paths, keep from node_modules/ onward
+  const nmIdx = normalized.indexOf('node_modules/');
+  if (nmIdx >= 0) {
+    return normalized.slice(nmIdx);
+  }
+
+  return normalized.split('/').pop() || normalized;
 }

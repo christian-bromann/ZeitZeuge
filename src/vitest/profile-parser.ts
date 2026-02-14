@@ -8,6 +8,7 @@ import type {
   V8CpuProfileNode,
   CpuProfileSummary,
   HotFunction,
+  CallerFrame,
   CallTreeNode,
   ScriptTimeSummary,
 } from './types.js';
@@ -19,7 +20,10 @@ const MAX_HOT_FUNCTIONS = 50;
 const MAX_CALL_TREES = 10;
 
 /** Minimum percentage of total time for a call tree branch to be included. */
-const CALL_TREE_PRUNE_THRESHOLD = 0.01; // 1%
+const CALL_TREE_PRUNE_THRESHOLD = 0.005; // 0.5%
+
+/** Maximum depth of caller chain to include per hot function. */
+const MAX_CALLER_CHAIN_DEPTH = 10;
 
 // ── Internal bookkeeping per node ──
 
@@ -168,18 +172,74 @@ function computeTotalTime(profile: V8CpuProfile, statsMap: Map<number, NodeStats
 
 // ── Step 4: Extract hot functions ─────────────────────────────
 
+/** Internal meta-function names that should be excluded from caller chains. */
+const META_FUNCTIONS = new Set(['(root)', '(idle)', '(program)']);
+
+/**
+ * Build a caller chain from a node up through its parents.
+ * Skips meta-nodes ((root), (idle), (program)) and stops at MAX_CALLER_CHAIN_DEPTH.
+ * For nodes with multiple parents (shared call frames), picks the parent with
+ * the highest totalTime to follow the most likely call path.
+ */
+function buildCallerChain(nodeId: number, statsMap: Map<number, NodeStats>): CallerFrame[] {
+  const chain: CallerFrame[] = [];
+  const visited = new Set<number>();
+  let currentId = nodeId;
+
+  for (let depth = 0; depth < MAX_CALLER_CHAIN_DEPTH; depth++) {
+    const stats = statsMap.get(currentId);
+    if (!stats || stats.parentIds.size === 0) break;
+
+    // Pick the parent with the highest totalTime (most likely hot path)
+    let bestParentId: number | null = null;
+    let bestTotalTime = -1;
+    for (const pid of stats.parentIds) {
+      if (visited.has(pid)) continue;
+      const parentStats = statsMap.get(pid);
+      if (parentStats && parentStats.totalTime > bestTotalTime) {
+        bestTotalTime = parentStats.totalTime;
+        bestParentId = pid;
+      }
+    }
+
+    if (bestParentId === null) break;
+
+    visited.add(bestParentId);
+    const parentStats = statsMap.get(bestParentId)!;
+    const parentFn = parentStats.node.callFrame.functionName;
+
+    // Skip meta-nodes but continue walking up
+    if (META_FUNCTIONS.has(parentFn)) break;
+
+    // Only include frames with a script URL (skip V8 internals without URL)
+    if (parentStats.node.callFrame.url) {
+      chain.push({
+        functionName: parentFn || '(anonymous)',
+        scriptUrl: parentStats.node.callFrame.url,
+        lineNumber: parentStats.node.callFrame.lineNumber,
+      });
+    }
+
+    currentId = bestParentId;
+  }
+
+  return chain;
+}
+
 function extractHotFunctions(
   statsMap: Map<number, NodeStats>,
   totalDurationUs: number,
 ): HotFunction[] {
   const results: HotFunction[] = [];
 
-  for (const stats of statsMap.values()) {
+  for (const [nodeId, stats] of statsMap.entries()) {
     if (stats.selfTime <= 0) continue;
 
     // Skip internal/meta nodes
     const fn = stats.node.callFrame.functionName;
-    if (fn === '(root)' || fn === '(idle)' || fn === '(program)') continue;
+    if (META_FUNCTIONS.has(fn)) continue;
+
+    const callerChain = buildCallerChain(nodeId, statsMap);
 
     results.push({
       functionName: stats.node.callFrame.functionName || '(anonymous)',
@@ -190,6 +250,7 @@ function extractHotFunctions(
       totalTime: round(stats.totalTime / 1000),
       hitCount: stats.node.hitCount,
       selfPercent: totalDurationUs > 0 ? round((stats.selfTime / totalDurationUs) * 100) : 0,
+      ...(callerChain.length > 0 ? { callerChain } : {}),
     });
   }
 
