@@ -4,7 +4,7 @@ import {
   type DeepAgent,
   type DeepAgentTypeConfig,
 } from 'deepagents';
-import { providerStrategy } from 'langchain';
+import { toolStrategy } from 'langchain';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { Ora } from 'ora';
 
@@ -133,7 +133,7 @@ export async function analyze(
     model,
     systemPrompt: SYSTEM_PROMPT,
     backend,
-    responseFormat: providerStrategy(FindingsSchema),
+    responseFormat: toolStrategy(FindingsSchema),
   });
 
   const userMessage = context
@@ -223,7 +223,7 @@ export async function analyzeTestPerformance(
     model,
     systemPrompt: VITEST_SYSTEM_PROMPT,
     backend,
-    responseFormat: providerStrategy(FindingsSchema),
+    responseFormat: toolStrategy(FindingsSchema),
   });
 
   const userMessage = context
