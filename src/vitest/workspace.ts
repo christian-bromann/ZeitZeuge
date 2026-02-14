@@ -32,7 +32,15 @@ const SLOW_TEST_THRESHOLD = 100;
 export async function createVitestWorkspace(
   options: VitestWorkspaceOptions,
 ): Promise<VitestWorkspaceResult> {
-  const { testTiming, profiles, heapProfiles, testSources, sourcePaths, metrics } = options;
+  const {
+    testTiming,
+    profiles,
+    heapProfiles,
+    testSources,
+    sourcePaths,
+    metrics,
+    listenerTracking,
+  } = options;
 
   const files: Record<string, string> = {};
 
@@ -192,6 +200,11 @@ export async function createVitestWorkspace(
   // ── /metrics/current.json — computed performance metrics ──
   if (metrics) {
     files['/metrics/current.json'] = JSON.stringify(metrics, null, 2);
+  }
+
+  // ── /listener-tracking.json — EventTarget/EventEmitter listener patterns ──
+  if (listenerTracking) {
+    files['/listener-tracking.json'] = JSON.stringify(listenerTracking, null, 2);
   }
 
   // ── /tests/*.ts — test source files ──

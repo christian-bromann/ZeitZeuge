@@ -12,7 +12,7 @@
 
 import { test, expect, describe } from 'bun:test';
 import { execSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -21,6 +21,12 @@ import { classifyScript } from '../../src/vitest/classify.js';
 import { createVitestWorkspace } from '../../src/vitest/workspace.js';
 import { analyzeTestPerformance } from '../../src/analysis/agent.js';
 import { initModel } from '../../src/models/init.js';
+import {
+  generateListenerTrackerScript,
+  aggregateListenerTracking,
+  type RawListenerTrackingData,
+  type EventListenerTracking,
+} from '../../src/vitest/listener-tracker.js';
 import type { Finding } from '../../src/types.js';
 import type { CorrelatedProfile, TestFileTiming } from '../../src/vitest/types.js';
 import ora from 'ora';
@@ -41,18 +47,32 @@ const KNOWN_FUNCTIONS = [
   'normalizePayload',
 ];
 
+interface AnalysisResult {
+  findings: Finding[];
+  listenerTracking: EventListenerTracking | undefined;
+}
+
 /**
- * Build a workspace from a fresh CPU profile, run the agent, return findings.
+ * Build a workspace from a fresh CPU profile + listener tracking data,
+ * run the agent, return findings and the raw tracking data.
  */
-async function runAgentAnalysis(): Promise<Finding[]> {
-  // 1. Generate CPU profile
+async function runAgentAnalysis(): Promise<AnalysisResult> {
+  // 1. Generate CPU profile + listener tracking data
   const profileDir = mkdtempSync(join(tmpdir(), 'zeitzeuge-agent-e2e-'));
   try {
-    execSync(`node --cpu-prof --cpu-prof-dir="${profileDir}" "${RUNNER_PATH}"`, {
-      cwd: FIXTURE_DIR,
-      timeout: 30_000,
-      stdio: 'pipe',
-    });
+    // Write the listener tracker preload script into the profile directory
+    const trackerScript = generateListenerTrackerScript(profileDir);
+    const trackerPath = join(profileDir, '_listener-tracker.mjs');
+    writeFileSync(trackerPath, trackerScript);
+
+    execSync(
+      `node --cpu-prof --cpu-prof-dir="${profileDir}" --import="${trackerPath}" "${RUNNER_PATH}"`,
+      {
+        cwd: FIXTURE_DIR,
+        timeout: 30_000,
+        stdio: 'pipe',
+      },
+    );
 
     const profileFile = readdirSync(profileDir).find((f) => f.endsWith('.cpuprofile'))!;
     const profilePath = join(profileDir, profileFile);
@@ -95,11 +115,22 @@ async function runAgentAnalysis(): Promise<Finding[]> {
       sourcePaths.set(appUrl, readFileSync(APP_SOURCE, 'utf-8'));
     }
 
+    // 4. Collect listener tracking data from the preload script
+    const trackingFiles = readdirSync(profileDir).filter((f) => f.startsWith('listener-tracking-'));
+    let listenerTracking: EventListenerTracking | undefined;
+    if (trackingFiles.length > 0) {
+      const entries: RawListenerTrackingData[] = trackingFiles.map((f) =>
+        JSON.parse(readFileSync(join(profileDir, f), 'utf-8')),
+      );
+      listenerTracking = aggregateListenerTracking(entries);
+    }
+
     const workspace = await createVitestWorkspace({
       testTiming,
       profiles,
       testSources: new Map([['data-processing.test.ts', '// test source']]),
       sourcePaths,
+      listenerTracking,
       projectRoot: PROJECT_ROOT,
     });
 
@@ -107,7 +138,8 @@ async function runAgentAnalysis(): Promise<Finding[]> {
       const model = initModel();
       const spinner = ora({ text: 'zeitzeuge: Analyzing...', isEnabled: false }).start();
       try {
-        return await analyzeTestPerformance(model, workspace.backend, spinner);
+        const findings = await analyzeTestPerformance(model, workspace.backend, spinner);
+        return { findings, listenerTracking };
       } finally {
         spinner.stop();
       }
@@ -123,7 +155,7 @@ describe.skipIf(!HAS_API_KEY)('e2e: agent analysis', () => {
   // Run the full pipeline once — all assertions share the same findings.
   // Using a single test avoids `beforeAll` timing quirks in bun test.
   test('agent produces meaningful, actionable findings for application code', async () => {
-    const findings = await runAgentAnalysis();
+    const { findings, listenerTracking } = await runAgentAnalysis();
 
     // ── Returns findings ──
     expect(findings.length).toBeGreaterThanOrEqual(3);
@@ -172,5 +204,34 @@ describe.skipIf(!HAS_API_KEY)('e2e: agent analysis', () => {
       );
     });
     expect(hasCodeFix).toBe(true);
+
+    // ── Listener tracking data was collected from the fixture ──
+    // The fixture's setupMetricsCollector adds 2,000 listeners on "data"
+    // without removal — the tracker should capture this imbalance.
+    expect(listenerTracking).toBeDefined();
+    expect(listenerTracking!.emitterCounts).toBeDefined();
+    const dataCounts = listenerTracking!.emitterCounts['data'];
+    expect(dataCounts).toBeDefined();
+    expect(dataCounts!.addCount).toBeGreaterThanOrEqual(2_000);
+    expect(dataCounts!.removeCount).toBe(0);
+
+    // ── Agent detects listener-related issues ──
+    // With 2,000 listener adds and 0 removes included in the workspace,
+    // the agent should produce at least one finding about event listeners.
+    const LISTENER_TERMS = [
+      'listener',
+      'event',
+      'emitter',
+      'setupMetricsCollector',
+      'cleanup',
+      'removeListener',
+      'leak',
+      'accumul',
+    ];
+    const hasListenerFinding = findings.some((f) => {
+      const text = [f.title, f.description, f.suggestedFix].join(' ').toLowerCase();
+      return LISTENER_TERMS.some((term) => text.includes(term));
+    });
+    expect(hasListenerFinding).toBe(true);
   }, 180_000); // 3 minute timeout for LLM round-trip
 });

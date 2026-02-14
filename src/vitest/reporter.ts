@@ -17,6 +17,12 @@ import { printFindingsVitest, printMetricsSummary } from '../output/terminal.js'
 import { writeTestReport } from '../output/report.js';
 import { classifyScript } from './classify.js';
 import { computeMetrics } from './metrics.js';
+import {
+  aggregateListenerTracking,
+  getListenerImbalances,
+  type RawListenerTrackingData,
+  type EventListenerTracking,
+} from './listener-tracker.js';
 import type {
   TestFileTiming,
   CorrelatedProfile,
@@ -205,20 +211,37 @@ export class ZeitZeugeReporter {
       console.log(`[zeitzeuge] ${heapProfiles.length} heap profile(s) collected`);
     }
 
-    // 3. Compute performance metrics
-    const metrics = computeMetrics(testTiming, profiles, heapProfiles, this.options.projectRoot);
+    // 3. Collect event listener tracking data from worker processes
+    const listenerTracking = this.collectListenerTracking();
+    if (this.options.verbose && listenerTracking) {
+      const excCount = listenerTracking.exceedances.length;
+      const etCount = Object.keys(listenerTracking.eventTargetCounts).length;
+      console.log(
+        `[zeitzeuge] Listener tracking: ${etCount} EventTarget event type(s), ` +
+          `${excCount} exceedance(s)`,
+      );
+    }
 
-    // 4. Print performance metrics summary
+    // 4. Compute performance metrics
+    const metrics = computeMetrics(
+      testTiming,
+      profiles,
+      heapProfiles,
+      this.options.projectRoot,
+      listenerTracking,
+    );
+
+    // 5. Print performance metrics summary
     console.log(chalk.cyan(`\nzeitzeuge: Performance Metrics\n`));
     printMetricsSummary(metrics);
 
-    // 5. Read test source files
+    // 6. Read test source files
     const testSources = this.readTestSources(testTiming);
 
-    // 6. Read source files referenced by hot functions
+    // 7. Read source files referenced by hot functions
     const sourcePaths = this.readHotFunctionSources(profiles);
 
-    // 7. Build workspace
+    // 8. Build workspace
     const wsSpinner = this.isCI
       ? null
       : createSafeSpinner({ text: 'zeitzeuge: Building analysis workspace...', color: 'cyan' });
@@ -231,11 +254,12 @@ export class ZeitZeugeReporter {
       sourcePaths,
       projectRoot: this.options.projectRoot,
       metrics,
+      listenerTracking,
     });
 
     wsSpinner?.succeed('zeitzeuge: Workspace ready');
 
-    // 8. Run Deep Agent analysis
+    // 9. Run Deep Agent analysis
     if (this.options.analyzeOnFinish) {
       const agentSpinner = this.isCI
         ? null
@@ -533,6 +557,61 @@ export class ZeitZeugeReporter {
 
     // Keep at most 10 (mirrors CPU profile cap)
     return results.slice(0, 10);
+  }
+
+  /**
+   * Collect and aggregate event listener tracking data written by the
+   * preload script in each worker process.
+   *
+   * Each worker writes a `listener-tracking-<pid>.json` file to the profile
+   * directory on exit. This method reads all such files, parses them, and
+   * aggregates the data into a single summary.
+   */
+  private collectListenerTracking(): EventListenerTracking | undefined {
+    const { profileDir } = this.options;
+
+    if (!existsSync(profileDir)) {
+      return undefined;
+    }
+
+    const allFiles = readdirSync(profileDir);
+    const trackingFiles = allFiles.filter((f) => f.startsWith('listener-tracking-'));
+
+    if (trackingFiles.length === 0) {
+      return undefined;
+    }
+
+    const entries: RawListenerTrackingData[] = [];
+
+    for (const file of trackingFiles) {
+      try {
+        const content = readFileSync(join(profileDir, file), 'utf-8');
+        const data: RawListenerTrackingData = JSON.parse(content);
+        entries.push(data);
+      } catch (err) {
+        if (this.options.verbose) {
+          console.warn(
+            `[zeitzeuge] Failed to parse listener tracking ${file}: ${err instanceof Error ? err.message : err}`,
+          );
+        }
+      }
+    }
+
+    if (entries.length === 0) {
+      return undefined;
+    }
+
+    const aggregated = aggregateListenerTracking(entries);
+
+    // Only return if there's meaningful data (exceedances or notable imbalances)
+    const hasExceedances = aggregated.exceedances.length > 0;
+    const hasImbalances = getListenerImbalances(aggregated).length > 0;
+
+    if (!hasExceedances && !hasImbalances) {
+      return undefined;
+    }
+
+    return aggregated;
   }
 
   /**

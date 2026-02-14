@@ -50,6 +50,9 @@ Every hot function and script in the workspace has a \`sourceCategory\` field:
 - /hot-functions/global.json — All hot functions across all categories
 - /scripts/application.json — Per-script time breakdown for application code
 - /scripts/dependencies.json — Per-script time breakdown for dependencies
+- /listener-tracking.json — (optional) Event listener tracking data captured from
+  worker processes. Contains per-event-type add/remove counts for EventTarget and
+  EventEmitter, plus exceedances where listener counts exceeded maxListeners.
 - /tests/*.ts — Test source files
 - /src/*.ts — Application and dependency source files referenced by hot functions
 
@@ -61,10 +64,12 @@ Every hot function and script in the workspace has a \`sourceCategory\` field:
 3. Read /hot-functions/dependencies.json for costly dependency calls
 4. If present, read /heap-profiles/index.json and /heap-profiles/<file>.json to identify
    allocation hotspots (functions/scripts allocating lots of bytes)
-5. Read /summary.json and /timing/overview.json for the big picture
-6. Read CPU profiles in /profiles/ for detailed call trees of the slowest tests
-7. Read the actual source code in /src/ and /tests/ to understand root causes
-8. Provide specific, actionable fixes targeting the application code
+5. If present, read /listener-tracking.json for event listener add/remove patterns
+   and listener exceedances (too many listeners on a single target)
+6. Read /summary.json and /timing/overview.json for the big picture
+7. Read CPU profiles in /profiles/ for detailed call trees of the slowest tests
+8. Read the actual source code in /src/ and /tests/ to understand root causes
+9. Provide specific, actionable fixes targeting the application code
 
 ## What to look for
 
@@ -97,6 +102,24 @@ Every hot function and script in the workspace has a \`sourceCategory\` field:
 - Trace expensive call trees to find which APPLICATION function triggers them
 - Follow the call tree from application entry points down to the hot leaf functions
 - Identify which application-level design decisions lead to the bottleneck
+
+### Event listener tracking (from /listener-tracking.json, if present)
+- **Exceedances** — when a single EventTarget or EventEmitter accumulates more
+  listeners than its maxListeners threshold (default 10), this is a strong
+  signal of a listener leak. The exceedance data includes the target type
+  (e.g. AbortSignal), event name, listener count, and a stack trace snippet
+  pointing to the code that registered the excess listener.
+- **Add/remove imbalances** — when \`addCount\` significantly exceeds
+  \`removeCount\` for a given event type, listeners are being registered but
+  not cleaned up. This causes memory growth and eventually GC pressure.
+  Look for patterns like:
+  - AbortSignal abort listeners not cleaned up (common with fetch/streams)
+  - EventEmitter listeners added in loops without corresponding removal
+  - Missing \`{ once: true }\` option or \`AbortController\` cleanup
+- When exceedances or imbalances are found, read the source code to identify
+  the root cause and suggest specific fixes (e.g. using \`AbortController\`,
+  \`removeEventListener\`, \`{ once: true }\`, or restructuring listener
+  registration to avoid accumulation).
 
 ### Test infrastructure (SECONDARY — only if impactful)
 - Test setup creating artificial overhead that dwarfs application execution

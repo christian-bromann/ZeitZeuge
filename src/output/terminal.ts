@@ -2,6 +2,7 @@ import pc from 'picocolors';
 import ora, { type Ora } from 'ora';
 import type { Finding, HeapSummary, TraceResult } from '../types.js';
 import type { PerformanceMetrics } from '../vitest/metrics.js';
+import { getListenerImbalances } from '../vitest/listener-tracker.js';
 
 const SEVERITY_ICONS: Record<Finding['severity'], string> = {
   critical: pc.red('🔴 CRITICAL'),
@@ -282,6 +283,41 @@ export function printMetricsSummary(metrics: PerformanceMetrics): void {
     console.log(
       `${indent}${pc.bold('Heap')}: ${formatBytes(metrics.heap.totalAllocatedBytes)} allocated`,
     );
+  }
+
+  // Listener Tracking
+  if (metrics.listenerTracking) {
+    const lt = metrics.listenerTracking;
+    console.log('');
+    console.log(`${indent}${pc.bold('Event Listener Tracking')}`);
+
+    // Show exceedances (most important)
+    if (lt.exceedances.length > 0) {
+      for (const exc of lt.exceedances) {
+        console.log(
+          `${indent}  ${pc.red('⚠')} ${pc.red(`${exc.targetType}.${exc.eventType}`)}: ` +
+            `${exc.listenerCount} listeners (max: ${exc.threshold})`,
+        );
+        if (exc.stack) {
+          for (const line of exc.stack.split('\n').slice(0, 2)) {
+            console.log(pc.dim(`${indent}    ${line}`));
+          }
+        }
+      }
+    }
+
+    // Show listener imbalances (adds >> removes) for both EventTarget and EventEmitter
+    const allImbalances = getListenerImbalances(lt);
+    if (allImbalances.length > 0) {
+      for (const entry of allImbalances.slice(0, 5)) {
+        const leaked = entry.addCount - entry.removeCount;
+        console.log(
+          `${indent}  ${pc.yellow('⚠')} ${entry.api} "${entry.type}": ` +
+            `${entry.addCount} adds, ${entry.removeCount} removes ` +
+            pc.yellow(`(${leaked} not cleaned up)`),
+        );
+      }
+    }
   }
 
   console.log('');

@@ -4,8 +4,9 @@
  */
 
 import { join, parse, resolve } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { ZeitZeugeReporter } from './reporter.js';
+import { generateListenerTrackerScript } from './listener-tracker.js';
 import type { ZeitZeugeVitestOptions } from './types.js';
 
 function uniq(values: string[]): string[] {
@@ -76,22 +77,33 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
         // ignore — if we can't create it, profiling just won't work
       }
 
+      // 2. Write the event listener tracker preload script.
+      //    This ESM module is loaded in each worker via --import and patches
+      //    EventTarget/EventEmitter to track listener add/remove patterns.
+      const trackerPath = join(resolvedProfileDir, '_listener-tracker.mjs');
+      try {
+        writeFileSync(trackerPath, generateListenerTrackerScript(resolvedProfileDir));
+      } catch {
+        // Non-fatal: listener tracking simply won't be available
+      }
+
       // Mutate the PROJECT config so worker processes inherit execArgv.
       // In Vitest workspaces, each project has its own resolved config and
       // is serialized separately for its workers.
       const targetConfig = project?.config ?? vitest.config;
 
-      // 2. Inject CPU profiling flags into worker execArgv.
+      // 3. Inject CPU profiling flags and listener tracker into worker execArgv.
       //    Set both top-level execArgv AND poolOptions.forks.execArgv
       //    to ensure the flags reach the actual worker processes.
       const cpuProfArgs = ['--cpu-prof', `--cpu-prof-dir=${resolvedProfileDir}`];
       const heapProfArgs = heapProf ? ['--heap-prof', `--heap-prof-dir=${resolvedProfileDir}`] : [];
-      const profilingArgs = [...cpuProfArgs, ...heapProfArgs];
+      const trackerArgs = [`--import=${trackerPath}`];
+      const profilingArgs = [...trackerArgs, ...cpuProfArgs, ...heapProfArgs];
 
       const existingArgv: string[] = targetConfig.execArgv ?? [];
       targetConfig.execArgv = uniq([...existingArgv, ...profilingArgs]);
 
-      // 3. Force pool: 'forks' — --cpu-prof via execArgv is only reliably
+      // 4. Force pool: 'forks' — --cpu-prof via execArgv is only reliably
       //    passed to forked child processes (not worker_threads).
       targetConfig.pool = 'forks';
 
@@ -105,10 +117,10 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
       const existingForksArgv: string[] = targetConfig.poolOptions.forks.execArgv ?? [];
       targetConfig.poolOptions.forks.execArgv = uniq([...existingForksArgv, ...profilingArgs]);
 
-      // 4. Disable file parallelism for deterministic, per-file profiles
+      // 5. Disable file parallelism for deterministic, per-file profiles
       targetConfig.fileParallelism = false;
 
-      // 5. Attach our reporter
+      // 6. Attach our reporter
       const reporter = new ZeitZeugeReporter({
         output: resolvedOutput,
         profileDir: resolvedProfileDir,

@@ -267,4 +267,6 @@ export interface VitestWorkspaceOptions {
   projectRoot?: string;
   /** Computed performance metrics for the current run. */
   metrics?: import('./metrics.js').PerformanceMetrics;
+  /** Aggregated event listener tracking from worker processes. */
+  listenerTracking?: import('./listener-tracker.js').EventListenerTracking;
 }

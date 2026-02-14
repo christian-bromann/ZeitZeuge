@@ -6,6 +6,7 @@
  */
 
 import type { TestFileTiming, CorrelatedProfile, CorrelatedHeapProfile } from './types.js';
+import type { EventListenerTracking } from './listener-tracker.js';
 import { mergeHotFunctions } from './workspace.js';
 
 // ── Metric types ─────────────────────────────────────────────
@@ -87,6 +88,15 @@ export interface PerformanceMetrics {
   heap?: {
     totalAllocatedBytes: number;
   };
+
+  /**
+   * Event listener tracking data from worker processes.
+   *
+   * Captures EventTarget and EventEmitter add/remove patterns and detects
+   * listener exceedances (e.g. too many abort listeners on AbortSignal).
+   * Only present when notable listener patterns were detected.
+   */
+  listenerTracking?: EventListenerTracking;
 }
 
 // ── Metric computation ───────────────────────────────────────
@@ -99,6 +109,7 @@ export function computeMetrics(
   profiles: CorrelatedProfile[],
   heapProfiles?: CorrelatedHeapProfile[],
   projectRoot?: string,
+  listenerTracking?: EventListenerTracking,
 ): PerformanceMetrics {
   // ── Suite metrics ──
   const allTestDurations = testTiming
@@ -201,6 +212,7 @@ export function computeMetrics(
     tests,
     hotFunctions,
     heap,
+    listenerTracking,
   };
 }
 

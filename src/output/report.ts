@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 import type { Finding, HeapSummary, TraceResult } from '../types.js';
 import type { TestFileTiming, CorrelatedProfile } from '../vitest/types.js';
 import type { PerformanceMetrics } from '../vitest/metrics.js';
+import { getListenerImbalances } from '../vitest/listener-tracker.js';
 import { formatBytes } from './terminal.js';
 
 const SEVERITY_EMOJI: Record<Finding['severity'], string> = {
@@ -148,12 +149,14 @@ export function generateMarkdown(options: ReportOptions): string {
         sections.push(`### How to fix`);
         sections.push('');
 
+        const alreadyFenced = f.suggestedFix.includes('```');
         const looksLikeCode =
-          f.suggestedFix.includes('{') ||
-          f.suggestedFix.includes(';') ||
-          f.suggestedFix.includes('=>') ||
-          f.suggestedFix.includes('import ') ||
-          f.suggestedFix.includes('function ');
+          !alreadyFenced &&
+          (f.suggestedFix.includes('{') ||
+            f.suggestedFix.includes(';') ||
+            f.suggestedFix.includes('=>') ||
+            f.suggestedFix.includes('import ') ||
+            f.suggestedFix.includes('function '));
 
         if (looksLikeCode) {
           sections.push('```js');
@@ -285,6 +288,49 @@ export function generateTestMarkdown(options: TestReportOptions): string {
       }
       sections.push('');
     }
+
+    // Event Listener Tracking
+    if (metrics.listenerTracking) {
+      const lt = metrics.listenerTracking;
+      const hasExceedances = lt.exceedances.length > 0;
+      const allImbalances = getListenerImbalances(lt);
+
+      if (hasExceedances || allImbalances.length > 0) {
+        sections.push(`### Event Listener Tracking`);
+        sections.push('');
+
+        if (hasExceedances) {
+          sections.push(
+            `**Listener exceedances detected** — one or more EventTarget/EventEmitter ` +
+              `instances accumulated more listeners than their \`maxListeners\` threshold. ` +
+              `This is a strong signal of a listener leak that can cause memory growth.`,
+          );
+          sections.push('');
+          sections.push(`| Target | Event | Listeners | Threshold |`);
+          sections.push(`|--------|-------|-----------|-----------|`);
+          for (const exc of lt.exceedances) {
+            sections.push(
+              `| \`${exc.targetType}\` | \`${exc.eventType}\` | ${exc.listenerCount} | ${exc.threshold} |`,
+            );
+          }
+          sections.push('');
+        }
+
+        if (allImbalances.length > 0) {
+          sections.push(`**Listener imbalances:**`);
+          sections.push('');
+          sections.push(`| API | Event | Adds | Removes | Not Cleaned Up |`);
+          sections.push(`|-----|-------|------|---------|----------------|`);
+          for (const entry of allImbalances) {
+            const leaked = entry.addCount - entry.removeCount;
+            sections.push(
+              `| ${entry.api} | \`${entry.type}\` | ${entry.addCount} | ${entry.removeCount} | ${leaked} |`,
+            );
+          }
+          sections.push('');
+        }
+      }
+    }
   }
 
   // ── Summary ──
@@ -341,12 +387,14 @@ export function generateTestMarkdown(options: TestReportOptions): string {
         sections.push(`### How to fix`);
         sections.push('');
 
+        const alreadyFenced = f.suggestedFix.includes('```');
         const looksLikeCode =
-          f.suggestedFix.includes('{') ||
-          f.suggestedFix.includes(';') ||
-          f.suggestedFix.includes('=>') ||
-          f.suggestedFix.includes('import ') ||
-          f.suggestedFix.includes('function ');
+          !alreadyFenced &&
+          (f.suggestedFix.includes('{') ||
+            f.suggestedFix.includes(';') ||
+            f.suggestedFix.includes('=>') ||
+            f.suggestedFix.includes('import ') ||
+            f.suggestedFix.includes('function '));
 
         if (looksLikeCode) {
           sections.push('```ts');
