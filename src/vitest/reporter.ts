@@ -345,15 +345,13 @@ export class ZeitZeugeReporter {
       if (child.type === 'test' || child.type === 'case') {
         const diagnostic =
           typeof child.diagnostic === 'function' ? child.diagnostic() : child.diagnostic;
+        // In Vitest 3.x+, result() is a method; in older versions it may be a property.
+        const result = typeof child.result === 'function' ? child.result() : child.result;
         results.push({
           name: child.fullName ?? child.name ?? '',
           duration: diagnostic?.duration ?? 0,
           status:
-            child.result?.state === 'passed'
-              ? 'pass'
-              : child.result?.state === 'failed'
-                ? 'fail'
-                : 'skip',
+            result?.state === 'passed' ? 'pass' : result?.state === 'failed' ? 'fail' : 'skip',
         });
       }
 
