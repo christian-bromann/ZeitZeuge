@@ -21,6 +21,7 @@ import { computeMetrics } from './metrics.js';
 import {
   aggregateListenerTracking,
   getListenerImbalances,
+  LISTENER_TRACKING_JSONL,
   type RawListenerTrackingData,
   type EventListenerTracking,
 } from './listener-tracker.js';
@@ -415,19 +416,19 @@ export class ZeitZeugeReporter {
       );
     }
 
-    // Find all .cpuprofile files, sorted by modification time
+    // Find all .cpuprofile files, collecting both mtime (for correlation)
+    // and size (to pre-filter before expensive parsing).
     const profileFiles = allFiles
       .filter((f) => f.endsWith('.cpuprofile'))
       .map((f) => {
         const fullPath = join(profileDir, f);
         try {
           const stat = statSync(fullPath);
-          return { name: f, path: fullPath, lastModified: stat.mtimeMs };
+          return { name: f, path: fullPath, lastModified: stat.mtimeMs, size: stat.size };
         } catch {
-          return { name: f, path: fullPath, lastModified: 0 };
+          return { name: f, path: fullPath, lastModified: 0, size: 0 };
         }
-      })
-      .sort((a, b) => a.lastModified - b.lastModified);
+      });
 
     if (profileFiles.length === 0) {
       if (this.options.verbose) {
@@ -440,24 +441,46 @@ export class ZeitZeugeReporter {
       return [];
     }
 
-    const results: CorrelatedProfile[] = [];
-
-    // Strategy: Match profiles to test files by execution order
-    // Use executionOrder if available, otherwise use testTiming order
+    // Strategy: Match profiles to test files by execution order.
+    // Sort by mtime for correlation, then associate each with a test file.
+    const byMtime = [...profileFiles].sort((a, b) => a.lastModified - b.lastModified);
     const orderedTestFiles =
       this.executionOrder.length > 0 ? this.executionOrder : testTiming.map((t) => t.file);
 
-    for (let i = 0; i < profileFiles.length; i++) {
-      const pf = profileFiles[i]!;
-      const testFile = orderedTestFiles[i] ?? `unknown-${i}`;
+    const candidates = byMtime.map((pf, i) => ({
+      ...pf,
+      testFile: orderedTestFiles[i] ?? `unknown-${i}`,
+    }));
 
+    // Pre-filter: only read/parse the largest profiles by file size.
+    // File size is an excellent proxy for profile duration (more samples
+    // = bigger file = longer running test), so we can skip the majority
+    // of small profiles before doing any expensive I/O or parsing.
+    // We take a few more than we need (PROFILE_PARSE_BUDGET) to account
+    // for edge cases where size doesn't perfectly correlate with duration.
+    const PROFILE_ANALYSIS_CAP = 10;
+    const PROFILE_PARSE_BUDGET = Math.min(candidates.length, PROFILE_ANALYSIS_CAP + 5);
+    const toParse =
+      candidates.length <= PROFILE_PARSE_BUDGET
+        ? candidates
+        : [...candidates].sort((a, b) => b.size - a.size).slice(0, PROFILE_PARSE_BUDGET);
+
+    if (this.options.verbose && candidates.length > PROFILE_PARSE_BUDGET) {
+      console.log(
+        `[zeitzeuge] Pre-filtered ${candidates.length} profiles down to ${toParse.length} largest by file size (skipping ${candidates.length - toParse.length} small profiles)`,
+      );
+    }
+
+    const results: CorrelatedProfile[] = [];
+    const testFileSet = new Set(testTiming.map((t) => resolve(t.file)));
+
+    for (const pf of toParse) {
       try {
         const content = readFileSync(pf.path, 'utf-8');
         const rawProfile: V8CpuProfile = JSON.parse(content);
         const summary = parseCpuProfile(rawProfile, pf.path);
 
         // Classify each hot function and script by source category
-        const testFileSet = new Set(testTiming.map((t) => resolve(t.file)));
         for (const fn of summary.hotFunctions) {
           fn.sourceCategory = classifyScript(fn.scriptUrl, this.options.projectRoot, testFileSet);
         }
@@ -470,7 +493,7 @@ export class ZeitZeugeReporter {
         }
 
         results.push({
-          testFile,
+          testFile: pf.testFile,
           profilePath: pf.path,
           summary,
         });
@@ -483,9 +506,9 @@ export class ZeitZeugeReporter {
       }
     }
 
-    // Limit to the 10 slowest profiles for analysis
+    // Limit to the slowest profiles for analysis
     results.sort((a, b) => b.summary.duration - a.summary.duration);
-    return results.slice(0, 10);
+    return results.slice(0, PROFILE_ANALYSIS_CAP);
   }
 
   /**
@@ -507,27 +530,37 @@ export class ZeitZeugeReporter {
         const fullPath = join(profileDir, f);
         try {
           const stat = statSync(fullPath);
-          return { name: f, path: fullPath, lastModified: stat.mtimeMs };
+          return { name: f, path: fullPath, lastModified: stat.mtimeMs, size: stat.size };
         } catch {
-          return { name: f, path: fullPath, lastModified: 0 };
+          return { name: f, path: fullPath, lastModified: 0, size: 0 };
         }
-      })
-      .sort((a, b) => a.lastModified - b.lastModified);
+      });
 
     if (heapFiles.length === 0) {
       return [];
     }
 
+    // Correlate by mtime order, then pre-filter by size (same strategy as CPU profiles)
+    const byMtime = [...heapFiles].sort((a, b) => a.lastModified - b.lastModified);
     const orderedTestFiles =
       this.executionOrder.length > 0 ? this.executionOrder : testTiming.map((t) => t.file);
+
+    const candidates = byMtime.map((hf, i) => ({
+      ...hf,
+      testFile: orderedTestFiles[i] ?? `unknown-${i}`,
+    }));
+
+    const HEAP_ANALYSIS_CAP = 10;
+    const HEAP_PARSE_BUDGET = Math.min(candidates.length, HEAP_ANALYSIS_CAP + 5);
+    const toParse =
+      candidates.length <= HEAP_PARSE_BUDGET
+        ? candidates
+        : [...candidates].sort((a, b) => b.size - a.size).slice(0, HEAP_PARSE_BUDGET);
 
     const results: CorrelatedHeapProfile[] = [];
     const testFileSet = new Set(testTiming.map((t) => resolve(t.file)));
 
-    for (let i = 0; i < heapFiles.length; i++) {
-      const hf = heapFiles[i]!;
-      const testFile = orderedTestFiles[i] ?? `unknown-${i}`;
-
+    for (const hf of toParse) {
       try {
         const content = readFileSync(hf.path, 'utf-8');
         const rawHeapProfile: V8HeapProfile = JSON.parse(content);
@@ -546,7 +579,7 @@ export class ZeitZeugeReporter {
         }
 
         results.push({
-          testFile,
+          testFile: hf.testFile,
           profilePath: hf.path,
           summary,
         });
@@ -559,17 +592,20 @@ export class ZeitZeugeReporter {
       }
     }
 
-    // Keep at most 10 (mirrors CPU profile cap)
-    return results.slice(0, 10);
+    // Keep at most the cap (sorted by total allocation size)
+    return results.slice(0, HEAP_ANALYSIS_CAP);
   }
 
   /**
    * Collect and aggregate event listener tracking data written by the
    * preload script in each worker process.
    *
-   * Each worker writes a `listener-tracking-<pid>.json` file to the profile
-   * directory on exit. This method reads all such files, parses them, and
-   * aggregates the data into a single summary.
+   * Workers append one JSON line per process to a shared JSONL file
+   * (`listener-tracking.jsonl`). This method reads the single file,
+   * parses all entries, and aggregates them into a single summary.
+   *
+   * Falls back to reading individual `listener-tracking-<pid>.json` files
+   * for backward compatibility with profiles generated by older versions.
    */
   private collectListenerTracking(): EventListenerTracking | undefined {
     const { profileDir } = this.options;
@@ -578,25 +614,49 @@ export class ZeitZeugeReporter {
       return undefined;
     }
 
-    const allFiles = readdirSync(profileDir);
-    const trackingFiles = allFiles.filter((f) => f.startsWith('listener-tracking-'));
-
-    if (trackingFiles.length === 0) {
-      return undefined;
-    }
-
     const entries: RawListenerTrackingData[] = [];
 
-    for (const file of trackingFiles) {
+    // Prefer the combined JSONL file (one read instead of N).
+    const jsonlPath = join(profileDir, LISTENER_TRACKING_JSONL);
+    if (existsSync(jsonlPath)) {
       try {
-        const content = readFileSync(join(profileDir, file), 'utf-8');
-        const data: RawListenerTrackingData = JSON.parse(content);
-        entries.push(data);
+        const content = readFileSync(jsonlPath, 'utf-8');
+        for (const line of content.split('\n')) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            entries.push(JSON.parse(trimmed) as RawListenerTrackingData);
+          } catch (err) {
+            if (this.options.verbose) {
+              console.warn(
+                `[zeitzeuge] Failed to parse JSONL line in ${LISTENER_TRACKING_JSONL}: ${err instanceof Error ? err.message : err}`,
+              );
+            }
+          }
+        }
       } catch (err) {
         if (this.options.verbose) {
           console.warn(
-            `[zeitzeuge] Failed to parse listener tracking ${file}: ${err instanceof Error ? err.message : err}`,
+            `[zeitzeuge] Failed to read ${LISTENER_TRACKING_JSONL}: ${err instanceof Error ? err.message : err}`,
           );
+        }
+      }
+    } else {
+      // Fallback: read individual per-PID files (backward compat).
+      const allFiles = readdirSync(profileDir);
+      const trackingFiles = allFiles.filter((f) => f.startsWith('listener-tracking-'));
+
+      for (const file of trackingFiles) {
+        try {
+          const content = readFileSync(join(profileDir, file), 'utf-8');
+          const data: RawListenerTrackingData = JSON.parse(content);
+          entries.push(data);
+        } catch (err) {
+          if (this.options.verbose) {
+            console.warn(
+              `[zeitzeuge] Failed to parse listener tracking ${file}: ${err instanceof Error ? err.message : err}`,
+            );
+          }
         }
       }
     }

@@ -12,7 +12,7 @@
 
 import { test, expect, describe } from 'bun:test';
 import { execSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -24,6 +24,7 @@ import { initModel } from '../../src/models/init.js';
 import {
   generateListenerTrackerScript,
   aggregateListenerTracking,
+  LISTENER_TRACKING_JSONL,
   type RawListenerTrackingData,
   type EventListenerTracking,
 } from '../../src/vitest/listener-tracker.js';
@@ -115,13 +116,15 @@ async function runAgentAnalysis(): Promise<AnalysisResult> {
       sourcePaths.set(appUrl, readFileSync(APP_SOURCE, 'utf-8'));
     }
 
-    // 4. Collect listener tracking data from the preload script
-    const trackingFiles = readdirSync(profileDir).filter((f) => f.startsWith('listener-tracking-'));
+    // 4. Collect listener tracking data from the shared JSONL file
+    const jsonlPath = join(profileDir, LISTENER_TRACKING_JSONL);
     let listenerTracking: EventListenerTracking | undefined;
-    if (trackingFiles.length > 0) {
-      const entries: RawListenerTrackingData[] = trackingFiles.map((f) =>
-        JSON.parse(readFileSync(join(profileDir, f), 'utf-8')),
-      );
+    if (existsSync(jsonlPath)) {
+      const content = readFileSync(jsonlPath, 'utf-8');
+      const entries: RawListenerTrackingData[] = content
+        .split('\n')
+        .filter((line) => line.trim())
+        .map((line) => JSON.parse(line));
       listenerTracking = aggregateListenerTracking(entries);
     }
 

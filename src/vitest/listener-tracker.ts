@@ -102,6 +102,9 @@ export function getListenerImbalances(tracking: EventListenerTracking): Listener
 
 // ── Preload script generator ─────────────────────────────────
 
+/** The single JSONL file name used by the listener tracker. */
+export const LISTENER_TRACKING_JSONL = 'listener-tracking.jsonl';
+
 /**
  * Generate the ESM preload script that will be injected into worker
  * processes via `--import`.
@@ -110,6 +113,11 @@ export function getListenerImbalances(tracking: EventListenerTracking): Listener
  * entry point. This guarantees compatibility with projects that use
  * `"type": "module"` in their `package.json`.
  *
+ * Each worker appends a single JSON line to a shared JSONL file
+ * (`listener-tracking.jsonl`) on process exit. This is safe because
+ * each line is well under POSIX PIPE_BUF (4096 bytes on Linux,
+ * 65536 on macOS), guaranteeing atomic appends with `O_APPEND`.
+ *
  * @param outputDir Absolute path to the profile directory where the tracker
  *                  should write its JSON summary on process exit.
  */
@@ -117,9 +125,9 @@ export function generateListenerTrackerScript(outputDir: string): string {
   // The output dir is embedded as a JSON-safe string literal.
   return `// zeitzeuge: Event listener tracker (auto-injected via --import)
 // Tracks EventTarget/EventEmitter listener add/remove patterns
-// and writes a summary to the profile directory on process exit.
+// and appends a summary line to a shared JSONL file on process exit.
 
-import { writeFileSync } from 'node:fs';
+import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import EventEmitter from 'node:events';
 
@@ -253,8 +261,10 @@ process.on('exit', () => {
       Object.keys(data.emitterCounts).length > 0;
     if (!hasData) return;
 
-    const outPath = join(OUTPUT_DIR, 'listener-tracking-' + process.pid + '.json');
-    writeFileSync(outPath, JSON.stringify(data));
+    // Append a single JSON line to the shared JSONL file.
+    // Each line is well under PIPE_BUF so O_APPEND guarantees atomicity.
+    const outPath = join(OUTPUT_DIR, '${LISTENER_TRACKING_JSONL}');
+    appendFileSync(outPath, JSON.stringify(data) + '\\n');
   } catch {}
 });
 `;
