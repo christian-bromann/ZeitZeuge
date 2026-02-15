@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "example"
+    "example",
+    "evals"
   ],
   "type": "module",
   "scripts": {
@@ -15,7 +16,8 @@
     "prepare": "simple-git-hooks",
     "build": "bun run --filter '*' build",
     "test": "bun test",
-    "example": "bun --filter example test"
+    "example": "bun --filter example test",
+    "evals": "cd evals && bun eval:test"
   },
   "devDependencies": {
     "@types/bun": "latest",

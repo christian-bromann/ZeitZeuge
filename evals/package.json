@@ -1,0 +1,15 @@
+{
+  "name": "evals",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval": "bun run eval.ts",
+    "eval:test": "bun test eval.test.ts"
+  },
+  "dependencies": {
+    "langsmith": "^0.5.4",
+    "openevals": "^0.1.4",
+    "ora": "^9.3.0",
+    "zeitzeuge": "workspace:*"
+  }
+}

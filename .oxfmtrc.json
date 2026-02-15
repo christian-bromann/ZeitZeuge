@@ -9,13 +9,5 @@
   "bracketSpacing": true,
   "arrowParens": "always",
   "endOfLine": "lf",
-  "ignore": [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/.next/**",
-    "**/cache/**",
-    "**/ir-output/**",
-    "**/pnpm-lock.yaml",
-    "**/*.d.ts"
-  ]
+  "ignore": ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/cache/**", "**/*.d.ts"]
 }
