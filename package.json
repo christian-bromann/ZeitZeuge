@@ -2,20 +2,20 @@
   "name": "zeitzeuge-monorepo",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "example"
   ],
   "type": "module",
   "scripts": {
-    "build:js": "bun build src/cli.ts src/vitest/index.ts --outdir dist --target node --format esm --packages external",
-    "build:types": "bunx tsc -p tsconfig.build.json",
-    "build": "bun run build:js && bun run build:types",
-    "dev": "bun run src/cli.ts",
+    "dev": "bun run packages/cli/src/cli.ts",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "lint": "bun ./node_modules/oxlint/dist/cli.js",
     "lint:fix": "bun ./node_modules/oxlint/dist/cli.js --fix",
     "prepare": "simple-git-hooks",
-    "test": "bun test"
+    "build": "bun run --filter '*' build",
+    "test": "bun test",
+    "example": "bun --filter example test"
   },
   "devDependencies": {
     "@types/bun": "latest",

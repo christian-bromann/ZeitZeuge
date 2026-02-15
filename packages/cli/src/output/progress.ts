@@ -34,8 +34,21 @@ export class TodoProgressRenderer {
   private totalTodos = 0;
   private completedTodos = 0;
 
-  constructor(private spinner: Ora) {
+  /**
+   * Whether the spinner supports in-place animation.
+   *
+   * When false (CI / Bun), we avoid calling `spinner.start()` after
+   * `stopAndPersist()` because ora's non-animated `start()` writes a
+   * full text line — producing duplicate/garbled output.
+   */
+  private canAnimate: boolean;
+
+  constructor(
+    private spinner: Ora,
+    { animate = true }: { animate?: boolean } = {},
+  ) {
     this.baseSpinnerText = spinner.text;
+    this.canAnimate = animate;
   }
 
   private printHeaderOnce(): void {
@@ -44,7 +57,10 @@ export class TodoProgressRenderer {
 
     const header = 'Performance analysis progress:';
     this.spinner.stopAndPersist({ symbol: ' ', text: header });
-    this.spinner.start();
+    // Only restart animation when the spinner supports it.
+    // When isEnabled is false (CI / Bun), start() writes a duplicate
+    // text line instead of animating, which produces noisy output.
+    if (this.canAnimate) this.spinner.start();
   }
 
   /** Build a progress prefix like `[2/5]` from the current todo counts. */
@@ -98,8 +114,10 @@ export class TodoProgressRenderer {
             symbol: ' ',
             text: pc.dim(label),
           });
-          this.spinner.start();
-          this.updateSpinnerText(this.currentInProgressContent);
+          if (this.canAnimate) {
+            this.spinner.start();
+            this.updateSpinnerText(this.currentInProgressContent);
+          }
         }
       }
     }
@@ -126,7 +144,7 @@ export class TodoProgressRenderer {
             symbol: ' ',
             text: `  ${this.progressPrefix()}${pc.green('✓')} ${todo.content}`,
           });
-          this.spinner.start();
+          if (this.canAnimate) this.spinner.start();
           // Reset tool call tracking when moving to a new todo
           this.lastToolCallName = undefined;
           this.lastSubagentToolCallName = undefined;
@@ -136,7 +154,9 @@ export class TodoProgressRenderer {
           this.lastInProgressKey = key;
           this.currentInProgressContent = todo.content;
           this.printHeaderOnce();
-          this.updateSpinnerText(todo.content);
+          if (this.canAnimate) {
+            this.updateSpinnerText(todo.content);
+          }
           // Reset tool call tracking for the new task
           this.lastToolCallName = undefined;
           this.lastSubagentToolCallName = undefined;

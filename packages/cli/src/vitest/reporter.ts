@@ -33,7 +33,7 @@ import type {
   V8HeapProfile,
 } from './types.js';
 
-import pkg from '../../../../package.json';
+import pkg from '../../package.json';
 
 export interface ReporterOptions {
   output: string;
@@ -124,8 +124,16 @@ export class ZeitZeugeReporter {
   /** Ordered list of test file paths as they started executing. */
   private executionOrder: string[] = [];
 
-  /** Whether we're running in CI (suppress spinners). */
-  private isCI = !!process.env.CI;
+  /** Whether we're running in CI or via Bun (suppress animated spinners).
+   *
+   * `bun run` relays child-process stdout through a pseudo-TTY that
+   * doesn't properly handle the ANSI cursor-repositioning `ora` relies
+   * on, so every spinner frame is appended instead of overwriting the
+   * previous one.  We detect Bun via the `npm_config_user_agent` env
+   * var that `bun run` injects into child processes.
+   */
+  private suppressSpinners =
+    !!process.env.CI || !!process.env.npm_config_user_agent?.startsWith('bun');
 
   constructor(options: ReporterOptions) {
     this.options = options;
@@ -193,7 +201,7 @@ export class ZeitZeugeReporter {
     }
 
     // 2. Collect and parse profiles
-    const spinner = this.isCI
+    const spinner = this.suppressSpinners
       ? null
       : createSafeSpinner({ text: 'zeitzeuge: Collecting CPU profiles...', color: 'cyan' });
 
@@ -244,7 +252,7 @@ export class ZeitZeugeReporter {
     const sourcePaths = this.readHotFunctionSources(profiles);
 
     // 8. Build workspace
-    const wsSpinner = this.isCI
+    const wsSpinner = this.suppressSpinners
       ? null
       : createSafeSpinner({ text: 'zeitzeuge: Building analysis workspace...', color: 'cyan' });
 
@@ -263,7 +271,7 @@ export class ZeitZeugeReporter {
 
     // 9. Run Deep Agent analysis
     if (this.options.analyzeOnFinish) {
-      const agentSpinner = this.isCI
+      const agentSpinner = this.suppressSpinners
         ? null
         : createSafeSpinner({ text: 'zeitzeuge: Analyzing test performance...', color: 'cyan' });
       const spinnerForAgent =
@@ -272,11 +280,17 @@ export class ZeitZeugeReporter {
 
       try {
         const model = initModel();
-        const findings = await analyzeTestPerformance(model, workspace.backend, spinnerForAgent, {
-          metrics,
-          hasHeapProfiles: heapProfiles.length > 0,
-          hasListenerTracking: !!listenerTracking,
-        });
+        const findings = await analyzeTestPerformance(
+          model,
+          workspace.backend,
+          spinnerForAgent,
+          {
+            metrics,
+            hasHeapProfiles: heapProfiles.length > 0,
+            hasListenerTracking: !!listenerTracking,
+          },
+          { animateProgress: !this.suppressSpinners },
+        );
 
         agentSpinner?.succeed(`zeitzeuge: Analysis complete — ${findings.length} finding(s)`);
 

@@ -41,8 +41,9 @@ async function invokeWithTodoStreaming<TTypes extends DeepAgentTypeConfig>(
   agent: DeepAgent<TTypes>,
   userMessage: string,
   spinner: Ora,
+  { animateProgress = true }: { animateProgress?: boolean } = {},
 ): Promise<ReturnType<typeof agent.invoke>> {
-  const renderer = new TodoProgressRenderer(spinner);
+  const renderer = new TodoProgressRenderer(spinner, { animate: animateProgress });
 
   // Prevent "MaxListenersExceededWarning" on the internal AbortSignal.
   // Long-running agent loops with subgraphs can accumulate many
@@ -252,6 +253,7 @@ export async function analyzeTestPerformance(
   backend: BackendProtocol,
   spinner: Ora,
   context?: VitestAnalysisContext,
+  { animateProgress = true }: { animateProgress?: boolean } = {},
 ): Promise<Finding[]> {
   const agent = createDeepAgent({
     model,
@@ -269,7 +271,7 @@ export async function analyzeTestPerformance(
         'root causes and provide code-level fixes.',
       ].join('\n');
 
-  const result = await invokeWithTodoStreaming(agent, userMessage, spinner);
+  const result = await invokeWithTodoStreaming(agent, userMessage, spinner, { animateProgress });
   const findings = result.structuredResponse?.findings;
   if (!Array.isArray(findings)) {
     throw new Error(`Failed to analyze test performance: ${result.messages.at(-1)?.text}`);
