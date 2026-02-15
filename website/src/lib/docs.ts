@@ -20,7 +20,11 @@ export interface Doc extends DocMeta {
   rawMarkdown: string;
 }
 
-const DOCS_DIR = path.join(process.cwd(), '..', 'docs');
+// In production (Vercel), docs are copied to ./content by the prebuild script.
+// In development, fall back to ../docs for live editing.
+const DOCS_DIR = fs.existsSync(path.join(process.cwd(), 'content'))
+  ? path.join(process.cwd(), 'content')
+  : path.join(process.cwd(), '..', 'docs');
 
 export function getDocSlugs(): string[] {
   if (!fs.existsSync(DOCS_DIR)) return [];

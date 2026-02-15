@@ -1,8 +1,10 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // No output: 'export' — we need middleware + route handlers for Vercel
-  // Pages are still SSG via generateStaticParams
+  // Include monorepo root in output file tracing so ../docs is bundled
+  // for serverless functions (API routes) on Vercel
+  outputFileTracingRoot: path.join(import.meta.dirname, '..'),
 };
 
 export default nextConfig;

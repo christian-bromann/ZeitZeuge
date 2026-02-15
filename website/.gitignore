@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# generated docs content (copied from ../docs at build time)
+/content/
+
 # production
 /build
 

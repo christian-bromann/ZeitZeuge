@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prebuild": "rm -rf content && cp -r ../docs content",
     "dev": "next dev",
-    "build": "next build",
+    "build": "bun run prebuild && next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.26.0",
+    "@modelcontextprotocol/sdk": "1.25.2",
     "gray-matter": "^4.0.3",
     "mcp-handler": "^1.0.7",
     "next": "16.1.6",
