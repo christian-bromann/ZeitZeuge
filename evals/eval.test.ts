@@ -17,7 +17,7 @@ import { findingQuality } from './src/evaluators/finding-quality.js';
 import { codeFixes } from './src/evaluators/code-fix-quality.js';
 import { severityAccuracy } from './src/evaluators/severity-accuracy.js';
 import { noHallucination } from './src/evaluators/no-hallucination.js';
-import type { Finding } from '../packages/cli/src/types.js';
+import type { Finding } from '@zeitzeuge/utils';
 
 // Absolute paths derived from this file's location
 const ROOT = resolve(dirname(import.meta.filename), '..');

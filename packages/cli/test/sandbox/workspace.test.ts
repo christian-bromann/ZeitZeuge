@@ -5,7 +5,7 @@ import type {
   TraceResult,
   NetworkRequest,
   RuntimeTraceSummary,
-} from '../../src/types';
+} from '@zeitzeuge/utils';
 
 /**
  * Create a minimal HeapSummary fixture for workspace tests.

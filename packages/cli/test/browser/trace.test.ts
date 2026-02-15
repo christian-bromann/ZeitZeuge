@@ -1,6 +1,6 @@
 import { test, expect, describe, beforeEach } from 'bun:test';
 import { tracePageLoad } from '../../src/browser/trace';
-import type { TraceHandle } from '../../src/types';
+import type { TraceHandle } from '@zeitzeuge/utils';
 
 /**
  * Mock CDP session that records all calls and allows triggering events.

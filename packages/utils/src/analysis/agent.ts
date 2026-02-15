@@ -10,11 +10,9 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { Ora } from 'ora';
 
 import { SYSTEM_PROMPT } from './prompts.js';
-import { VITEST_SYSTEM_PROMPT } from '../vitest/prompts.js';
 import { FindingsSchema } from '../schema.js';
 import { TodoProgressRenderer } from '../output/progress.js';
-import type { Finding, HeapSummary, TraceResult } from '../types.js';
-import type { PerformanceMetrics } from '../vitest/metrics.js';
+import type { Finding, HeapSummary, TraceResult, PerformanceMetrics } from '../types.js';
 
 /**
  * Check whether a LangGraph subgraph namespace string refers to a
@@ -247,17 +245,22 @@ function buildVitestUserMessage(ctx: VitestAnalysisContext): string {
 /**
  * Analyze Vitest test performance data using a Deep Agent that explores
  * the workspace containing CPU profiles + test timing + source files.
+ *
+ * @param systemPrompt - The system prompt to use for the analysis agent.
+ *   Passed by the caller (e.g. `@zeitzeuge/vitest`) to avoid a circular
+ *   dependency between utils and the vitest package.
  */
 export async function analyzeTestPerformance(
   model: BaseChatModel,
   backend: BackendProtocol,
   spinner: Ora,
+  systemPrompt: string,
   context?: VitestAnalysisContext,
   { animateProgress = true }: { animateProgress?: boolean } = {},
 ): Promise<Finding[]> {
   const agent = createDeepAgent({
     model,
-    systemPrompt: VITEST_SYSTEM_PROMPT,
+    systemPrompt,
     backend,
     responseFormat: toolStrategy(FindingsSchema),
   });

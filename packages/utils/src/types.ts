@@ -274,3 +274,217 @@ export interface LaunchOptions {
   /** Run Chrome in headless mode. */
   headless?: boolean;
 }
+
+// ── Vitest / test-runner shared types ──
+// These are pure data shape interfaces used by output/terminal, output/report,
+// and analysis/agent. Implementations (computeMetrics, aggregateListenerTracking,
+// etc.) live in @zeitzeuge/vitest.
+
+/**
+ * Classification of a script/function based on its file path.
+ *
+ * - `application` — files within the project source tree (the code being tested)
+ * - `dependency`  — files inside node_modules (third-party libraries)
+ * - `test`        — test files (*.test.*, *.spec.*, *.bench.*)
+ * - `framework`   — vitest / tinybench / v8 internals
+ * - `unknown`     — could not be classified (e.g. eval, no URL)
+ */
+export type SourceCategory = 'application' | 'dependency' | 'test' | 'framework' | 'unknown';
+
+/** Timing data extracted from a Vitest TestModule. */
+export interface TestFileTiming {
+  file: string;
+  duration: number;
+  testCount: number;
+  passCount: number;
+  failCount: number;
+  setupTime: number;
+  tests: Array<{
+    name: string;
+    duration: number;
+    status: 'pass' | 'fail' | 'skip';
+  }>;
+}
+
+/** A CPU profile correlated with its test file. */
+export interface CorrelatedProfile {
+  testFile: string;
+  profilePath: string;
+  summary: CpuProfileSummary;
+}
+
+/** Structured summary of a parsed V8 CPU profile. */
+export interface CpuProfileSummary {
+  profilePath: string;
+  duration: number;
+  sampleCount: number;
+  hotFunctions: HotFunction[];
+  expensiveCallTrees: CallTreeNode[];
+  gcSamples: number;
+  gcPercentage: number;
+  idlePercentage: number;
+  scriptBreakdown: ScriptTimeSummary[];
+}
+
+/** A function consuming significant CPU self time. */
+export interface HotFunction {
+  functionName: string;
+  scriptUrl: string;
+  lineNumber: number;
+  columnNumber: number;
+  selfTime: number;
+  totalTime: number;
+  hitCount: number;
+  selfPercent: number;
+  sourceCategory?: SourceCategory;
+  callerChain?: CallerFrame[];
+}
+
+/** A frame in a caller chain. */
+export interface CallerFrame {
+  functionName: string;
+  scriptUrl: string;
+  lineNumber: number;
+}
+
+/** A node in the call tree with inclusive timing. */
+export interface CallTreeNode {
+  functionName: string;
+  scriptUrl: string;
+  lineNumber: number;
+  totalTime: number;
+  totalPercent: number;
+  children: CallTreeNode[];
+}
+
+/** Per-script time aggregation. */
+export interface ScriptTimeSummary {
+  scriptUrl: string;
+  selfTime: number;
+  selfPercent: number;
+  functionCount: number;
+  sourceCategory?: SourceCategory;
+}
+
+// ── Event listener tracking types ──
+
+/** Aggregated event listener tracking data across all worker processes. */
+export interface EventListenerTracking {
+  eventTargetCounts: Record<string, { addCount: number; removeCount: number }>;
+  emitterCounts: Record<string, { addCount: number; removeCount: number }>;
+  exceedances: ListenerExceedance[];
+}
+
+export interface ListenerExceedance {
+  targetType: string;
+  eventType: string;
+  listenerCount: number;
+  threshold: number;
+  stack?: string;
+}
+
+export interface ListenerImbalance {
+  api: 'EventTarget' | 'EventEmitter';
+  type: string;
+  addCount: number;
+  removeCount: number;
+}
+
+/**
+ * Minimum difference between add and remove counts before an event type
+ * is considered to have a notable listener imbalance.
+ */
+export const LISTENER_IMBALANCE_THRESHOLD = 5;
+
+/**
+ * Return event types where listeners were added significantly more often
+ * than they were removed, combining both EventTarget and EventEmitter counts.
+ */
+export function getListenerImbalances(tracking: EventListenerTracking): ListenerImbalance[] {
+  return [
+    ...Object.entries(tracking.eventTargetCounts).map(([t, c]) => ({
+      api: 'EventTarget' as const,
+      type: t,
+      ...c,
+    })),
+    ...Object.entries(tracking.emitterCounts).map(([t, c]) => ({
+      api: 'EventEmitter' as const,
+      type: t,
+      ...c,
+    })),
+  ]
+    .filter((c) => c.addCount > c.removeCount + LISTENER_IMBALANCE_THRESHOLD)
+    .sort((a, b) => b.addCount - b.removeCount - (a.addCount - a.removeCount));
+}
+
+// ── Performance metrics types ──
+
+/** Suite-level aggregate metrics. */
+export interface SuiteMetrics {
+  totalDuration: number;
+  totalTests: number;
+  passCount: number;
+  failCount: number;
+  totalSetupTime: number;
+  averageTestDuration: number;
+  medianTestDuration: number;
+  p95TestDuration: number;
+  slowestTestDuration: number;
+  slowestTestName: string;
+  slowestFileDuration: number;
+  slowestFile: string;
+}
+
+/** CPU profile-derived metrics. */
+export interface CpuMetrics {
+  gcPercentage: number;
+  gcTime: number;
+  idlePercentage: number;
+  idleTime: number;
+  applicationTime: number;
+  applicationPercent: number;
+  dependencyTime: number;
+  dependencyPercent: number;
+  testFrameworkTime: number;
+  testFrameworkPercent: number;
+}
+
+/** Per-file metric entry. */
+export interface FileMetric {
+  duration: number;
+  testCount: number;
+  setupTime: number;
+  gcPercentage: number;
+}
+
+/** Per-test metric entry. */
+export interface TestMetric {
+  duration: number;
+  status: 'pass' | 'fail' | 'skip';
+}
+
+/** Summary of a hot function for metrics display. */
+export interface HotFunctionMetric {
+  key: string;
+  functionName: string;
+  scriptUrl: string;
+  lineNumber: number;
+  selfTime: number;
+  selfPercent: number;
+  sourceCategory: string;
+}
+
+/** Complete performance metrics snapshot for a test run. */
+export interface PerformanceMetrics {
+  version: 1;
+  timestamp: string;
+  suite: SuiteMetrics;
+  cpu: CpuMetrics;
+  files: Record<string, FileMetric>;
+  tests: Record<string, TestMetric>;
+  hotFunctions: HotFunctionMetric[];
+  heap?: {
+    totalAllocatedBytes: number;
+  };
+  listenerTracking?: EventListenerTracking;
+}

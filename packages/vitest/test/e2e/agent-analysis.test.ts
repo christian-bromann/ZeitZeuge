@@ -16,20 +16,24 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { parseCpuProfile } from '../../src/vitest/profile-parser.js';
-import { classifyScript } from '../../src/vitest/classify.js';
-import { createVitestWorkspace } from '../../src/vitest/workspace.js';
-import { analyzeTestPerformance } from '../../src/analysis/agent.js';
-import { initModel } from '../../src/models/init.js';
+import { parseCpuProfile } from '../../src/profile-parser.js';
+import { classifyScript } from '../../src/classify.js';
+import { createVitestWorkspace } from '../../src/workspace.js';
 import {
   generateListenerTrackerScript,
   aggregateListenerTracking,
   LISTENER_TRACKING_JSONL,
   type RawListenerTrackingData,
+} from '../../src/listener-tracker.js';
+import { VITEST_SYSTEM_PROMPT } from '../../src/prompts.js';
+import {
+  analyzeTestPerformance,
+  initModel,
+  type Finding,
+  type CorrelatedProfile,
+  type TestFileTiming,
   type EventListenerTracking,
-} from '../../src/vitest/listener-tracker.js';
-import type { Finding } from '../../src/types.js';
-import type { CorrelatedProfile, TestFileTiming } from '../../src/vitest/types.js';
+} from '@zeitzeuge/utils';
 import ora from 'ora';
 
 const HAS_API_KEY = !!(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY);
@@ -141,7 +145,12 @@ async function runAgentAnalysis(): Promise<AnalysisResult> {
       const model = initModel();
       const spinner = ora({ text: 'zeitzeuge: Analyzing...', isEnabled: false }).start();
       try {
-        const findings = await analyzeTestPerformance(model, workspace.backend, spinner);
+        const findings = await analyzeTestPerformance(
+          model,
+          workspace.backend,
+          spinner,
+          VITEST_SYSTEM_PROMPT,
+        );
         return { findings, listenerTracking };
       } finally {
         spinner.stop();

@@ -7,7 +7,7 @@
  * Scoring: exact match = 1.0, one level off = 0.5, two levels off = 0.0.
  */
 
-import type { Finding } from '../../../packages/cli/src/types.js';
+import type { Finding } from '@zeitzeuge/utils';
 import { REFERENCE_FINDINGS } from '../reference-findings.js';
 import { computeCoverage } from './finding-coverage.js';
 

@@ -1,6 +1,6 @@
 import { test, expect, describe } from 'bun:test';
 import { parseSnapshot } from '../../src/analysis/parser';
-import type { RawSnapshot } from '../../src/types';
+import type { RawSnapshot } from '@zeitzeuge/utils';
 
 /**
  * Builds a minimal valid V8 heap snapshot JSON string.

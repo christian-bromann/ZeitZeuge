@@ -1,5 +1,5 @@
 import { remote, type Browser } from 'webdriverio';
-import type { LaunchOptions } from '../types.js';
+import type { LaunchOptions } from '@zeitzeuge/utils';
 
 export type { Browser } from 'webdriverio';
 

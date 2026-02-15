@@ -6,8 +6,7 @@
  * introduce regressions.
  */
 
-import { initModel } from '../../../packages/cli/src/models/init.js';
-import type { Finding } from '../../../packages/cli/src/types.js';
+import { initModel, type Finding } from '@zeitzeuge/utils';
 
 // ── Judge prompt ─────────────────────────────────────────────
 

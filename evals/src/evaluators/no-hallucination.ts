@@ -10,7 +10,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import type { Finding } from '../../../packages/cli/src/types.js';
+import type { Finding } from '@zeitzeuge/utils';
 
 // ── Helpers ──────────────────────────────────────────────────
 

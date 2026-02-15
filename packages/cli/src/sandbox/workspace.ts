@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 
 import { FilesystemBackend, type BackendProtocol } from 'deepagents';
 
-import type { HeapSummary, TraceResult, NetworkRequest } from '../types.js';
+import type { HeapSummary, TraceResult, NetworkRequest } from '@zeitzeuge/utils';
 
 export interface WorkspaceOptions {
   heapSummary: HeapSummary;

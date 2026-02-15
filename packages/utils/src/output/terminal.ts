@@ -1,8 +1,7 @@
 import pc from 'picocolors';
 import ora, { type Ora } from 'ora';
-import type { Finding, HeapSummary, TraceResult } from '../types.js';
-import type { PerformanceMetrics } from '../vitest/metrics.js';
-import { getListenerImbalances } from '../vitest/listener-tracker.js';
+import type { Finding, HeapSummary, TraceResult, PerformanceMetrics } from '../types.js';
+import { getListenerImbalances } from '../types.js';
 
 const SEVERITY_ICONS: Record<Finding['severity'], string> = {
   critical: pc.red('🔴 CRITICAL'),

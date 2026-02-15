@@ -5,7 +5,7 @@ import type {
   FrameBreakdown,
   GCEvent,
   RuntimeTraceSummary,
-} from '../types.js';
+} from '@zeitzeuge/utils';
 
 /**
  * Trace event names categorised by the type of work they represent.

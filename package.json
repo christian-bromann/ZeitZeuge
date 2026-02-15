@@ -14,7 +14,7 @@
     "lint": "bun ./node_modules/oxlint/dist/cli.js",
     "lint:fix": "bun ./node_modules/oxlint/dist/cli.js --fix",
     "prepare": "simple-git-hooks",
-    "build": "bun run --filter '*' build",
+    "build": "bun run --filter '@zeitzeuge/utils' build && bun run --filter '*' build",
     "test": "bun test",
     "example": "bun --filter example test",
     "evals": "cd evals && bun eval:test"

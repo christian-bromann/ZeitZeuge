@@ -16,18 +16,19 @@
     "evals": {
       "name": "evals",
       "dependencies": {
+        "@zeitzeuge/utils": "workspace:*",
+        "@zeitzeuge/vitest": "workspace:*",
         "langsmith": "^0.5.4",
         "openevals": "^0.1.4",
         "ora": "^9.3.0",
-        "zeitzeuge": "workspace:*",
       },
     },
     "example": {
       "name": "example",
       "devDependencies": {
         "@types/bun": "latest",
+        "@zeitzeuge/vitest": "workspace:*",
         "vitest": "^3.1.0",
-        "zeitzeuge": "workspace:*",
       },
     },
     "packages/cli": {
@@ -36,6 +37,25 @@
       "bin": {
         "zeitzeuge": "./dist/cli.js",
       },
+      "dependencies": {
+        "@zeitzeuge/utils": "workspace:*",
+        "puppeteer-core": "^24.37.2",
+        "webdriverio": "^9.24.0",
+        "yargs": "^18.0.0",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/yargs": "^17",
+        "lint-staged": "^16.2.7",
+        "oxfmt": "^0.32.0",
+        "oxlint": "^1.47.0",
+        "simple-git-hooks": "^2.13.1",
+        "typescript": "^5",
+      },
+    },
+    "packages/utils": {
+      "name": "@zeitzeuge/utils",
+      "version": "0.6.6",
       "dependencies": {
         "@langchain/anthropic": "^1.3.17",
         "@langchain/core": "^1.1.24",
@@ -46,18 +66,24 @@
         "langchain": "^1.2.23",
         "ora": "^9.3.0",
         "picocolors": "^1.1.1",
-        "puppeteer-core": "^24.37.2",
-        "webdriverio": "^9.24.0",
-        "yargs": "^18.0.0",
         "zod": "^4.3.6",
       },
       "devDependencies": {
         "@types/bun": "latest",
-        "@types/yargs": "^17",
-        "lint-staged": "^16.2.7",
-        "oxfmt": "^0.32.0",
-        "oxlint": "^1.47.0",
-        "simple-git-hooks": "^2.13.1",
+        "typescript": "^5",
+      },
+    },
+    "packages/vitest": {
+      "name": "@zeitzeuge/vitest",
+      "version": "0.6.6",
+      "dependencies": {
+        "@zeitzeuge/utils": "workspace:*",
+        "chalk": "^5.6.2",
+        "deepagents": "^1.7.6",
+        "ora": "^9.3.0",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
         "typescript": "^5",
       },
       "peerDependencies": {
@@ -335,6 +361,10 @@
     "@wdio/types": ["@wdio/types@9.24.0", "", { "dependencies": { "@types/node": "^20.1.0" } }, "sha512-PYYunNl8Uq1r8YMJAK6ReRy/V/XIrCSyj5cpCtR5EqCL6heETOORFj7gt4uPnzidfgbtMBcCru0LgjjlMiH1UQ=="],
 
     "@wdio/utils": ["@wdio/utils@9.24.0", "", { "dependencies": { "@puppeteer/browsers": "^2.2.0", "@wdio/logger": "9.18.0", "@wdio/types": "9.24.0", "decamelize": "^6.0.0", "deepmerge-ts": "^7.0.3", "edgedriver": "^6.1.2", "geckodriver": "^6.1.0", "get-port": "^7.0.0", "import-meta-resolve": "^4.0.0", "locate-app": "^2.2.24", "mitt": "^3.0.1", "safaridriver": "^1.0.0", "split2": "^4.2.0", "wait-port": "^1.1.0" } }, "sha512-6WhtzC5SNCGRBTkaObX6A07Ofnnyyf+TQH/d/fuhZRqvBknrP4AMMZF+PFxGl1fwdySWdBn+gV2QLE+52Byowg=="],
+
+    "@zeitzeuge/utils": ["@zeitzeuge/utils@workspace:packages/utils"],
+
+    "@zeitzeuge/vitest": ["@zeitzeuge/vitest@workspace:packages/vitest"],
 
     "@zip.js/zip.js": ["@zip.js/zip.js@2.8.20", "", {}, "sha512-oJzVhK9gnSKD++WLG37QEgeTgm5W8XUYmNv0EhOxytSr85vXn9EMpOoKNTK3yWDLa55Z0MovKW/6RNeh9OUmnA=="],
 

@@ -1,19 +1,29 @@
 /**
  * TypeScript types for the zeitzeuge Vitest integration.
- */
-
-// ── Source classification ──
-
-/**
- * Classification of a script/function based on its file path.
  *
- * - `application` — files within the project source tree (the code being tested)
- * - `dependency`  — files inside node_modules (third-party libraries)
- * - `test`        — test files (*.test.*, *.spec.*, *.bench.*)
- * - `framework`   — vitest / tinybench / v8 internals
- * - `unknown`     — could not be classified (e.g. eval, no URL)
+ * Shared types (SourceCategory, TestFileTiming, CorrelatedProfile,
+ * CpuProfileSummary, HotFunction, etc.) are defined in @zeitzeuge/utils
+ * and re-exported here for backward compatibility.
  */
-export type SourceCategory = 'application' | 'dependency' | 'test' | 'framework' | 'unknown';
+
+// Import shared types for use in this file's definitions
+import type {
+  SourceCategory as _SourceCategory,
+  TestFileTiming as _TestFileTiming,
+  CorrelatedProfile as _CorrelatedProfile,
+} from '@zeitzeuge/utils';
+
+// Re-export shared types from @zeitzeuge/utils
+export type {
+  SourceCategory,
+  TestFileTiming,
+  CorrelatedProfile,
+  CpuProfileSummary,
+  HotFunction,
+  CallerFrame,
+  CallTreeNode,
+  ScriptTimeSummary,
+} from '@zeitzeuge/utils';
 
 // ── Plugin options ──
 
@@ -47,33 +57,7 @@ export interface ZeitZeugeVitestOptions {
   projectRoot?: string;
 }
 
-// ── Test timing ──
-
-/** Timing data extracted from a Vitest TestModule. */
-export interface TestFileTiming {
-  file: string;
-  duration: number;
-  testCount: number;
-  passCount: number;
-  failCount: number;
-  setupTime: number;
-  tests: Array<{
-    name: string;
-    duration: number;
-    status: 'pass' | 'fail' | 'skip';
-  }>;
-}
-
-// ── Correlated profile ──
-
-/** A CPU profile correlated with its test file. */
-export interface CorrelatedProfile {
-  testFile: string;
-  profilePath: string;
-  summary: CpuProfileSummary;
-}
-
-// ── Correlated heap profile ──
+// ── Correlated heap profile (vitest-specific) ──
 
 /** A V8 heap profile correlated with its test file. */
 export interface CorrelatedHeapProfile {
@@ -144,87 +128,7 @@ export interface V8HeapProfileNode {
   children?: V8HeapProfileNode[];
 }
 
-// ── Parsed profile output ──
-
-/** Structured summary of a parsed V8 CPU profile. */
-export interface CpuProfileSummary {
-  /** Source .cpuprofile file path */
-  profilePath: string;
-  /** Total profile duration in ms */
-  duration: number;
-  /** Sample count */
-  sampleCount: number;
-  /** Top functions by self time */
-  hotFunctions: HotFunction[];
-  /** Top functions by total time (inclusive of callees) */
-  expensiveCallTrees: CallTreeNode[];
-  /** GC-related samples (functions in (garbage collector) category) */
-  gcSamples: number;
-  gcPercentage: number;
-  /** Idle samples (percentage of time not doing work) */
-  idlePercentage: number;
-  /** Per-script time breakdown */
-  scriptBreakdown: ScriptTimeSummary[];
-}
-
-/** A frame in a caller chain. */
-export interface CallerFrame {
-  functionName: string;
-  scriptUrl: string;
-  lineNumber: number;
-}
-
-/** A function consuming significant CPU self time. */
-export interface HotFunction {
-  functionName: string;
-  scriptUrl: string;
-  lineNumber: number;
-  columnNumber: number;
-  /** Self time in ms (excluding callees) */
-  selfTime: number;
-  /** Total time in ms (including callees) */
-  totalTime: number;
-  /** Number of samples hitting this function */
-  hitCount: number;
-  /** Percentage of total profile time */
-  selfPercent: number;
-  /** Classification of the function's source file */
-  sourceCategory?: SourceCategory;
-  /**
-   * Chain of callers from this function up toward the call tree root.
-   * The first entry is the direct caller, the last is the outermost
-   * ancestor with meaningful time. Useful for understanding WHY a
-   * function is hot (what application entry point triggers it).
-   * Limited to the 10 nearest callers.
-   */
-  callerChain?: CallerFrame[];
-}
-
-/** A node in the call tree with inclusive timing. */
-export interface CallTreeNode {
-  functionName: string;
-  scriptUrl: string;
-  lineNumber: number;
-  /** Total time in ms (inclusive) */
-  totalTime: number;
-  totalPercent: number;
-  /** Direct callees, sorted by total time */
-  children: CallTreeNode[];
-}
-
-/** Per-script time aggregation. */
-export interface ScriptTimeSummary {
-  scriptUrl: string;
-  /** Total self time across all functions in this script */
-  selfTime: number;
-  selfPercent: number;
-  /** Number of distinct functions sampled */
-  functionCount: number;
-  /** Classification of this script */
-  sourceCategory?: SourceCategory;
-}
-
-// ── Parsed heap profile output ──
+// ── Parsed heap profile output (vitest-specific) ──
 
 /** A function with significant allocated bytes (self-attributed). */
 export interface AllocationHotspot {
@@ -237,7 +141,7 @@ export interface AllocationHotspot {
   /** Percent of total allocated bytes */
   selfPercent: number;
   /** Classification of the function's source file */
-  sourceCategory?: SourceCategory;
+  sourceCategory?: _SourceCategory;
 }
 
 /** Per-script allocated-bytes aggregation. */
@@ -249,7 +153,7 @@ export interface ScriptAllocationSummary {
   /** Number of distinct functions sampled */
   functionCount: number;
   /** Classification of this script */
-  sourceCategory?: SourceCategory;
+  sourceCategory?: _SourceCategory;
 }
 
 /** Structured summary of a parsed V8 heap profile. */
@@ -270,8 +174,8 @@ export interface HeapProfileSummary {
 
 /** Options for building the Vitest analysis workspace. */
 export interface VitestWorkspaceOptions {
-  testTiming: TestFileTiming[];
-  profiles: CorrelatedProfile[];
+  testTiming: _TestFileTiming[];
+  profiles: _CorrelatedProfile[];
   /** Optional heap profiles (from --heap-prof) correlated with test files. */
   heapProfiles?: CorrelatedHeapProfile[];
   /** Map of test file path → source code */
@@ -281,7 +185,7 @@ export interface VitestWorkspaceOptions {
   /** Project root for resolving relative paths */
   projectRoot?: string;
   /** Computed performance metrics for the current run. */
-  metrics?: import('./metrics.js').PerformanceMetrics;
+  metrics?: import('@zeitzeuge/utils').PerformanceMetrics;
   /** Aggregated event listener tracking from worker processes. */
-  listenerTracking?: import('./listener-tracker.js').EventListenerTracking;
+  listenerTracking?: import('@zeitzeuge/utils').EventListenerTracking;
 }

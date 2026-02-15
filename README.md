@@ -22,11 +22,17 @@ npx zeitzeuge http://localhost:3000
 
 ### Vitest integration
 
-Add the plugin to your `vitest.config.ts` to profile your test suite and get AI-powered analysis of your **application code** performance:
+Install the Vitest plugin:
+
+```bash
+npm install -D @zeitzeuge/vitest
+```
+
+Add it to your `vitest.config.ts` to profile your test suite and get AI-powered analysis of your **application code** performance:
 
 ```ts
 import { defineConfig } from 'vitest/config';
-import { zeitzeuge } from 'zeitzeuge/vitest';
+import { zeitzeuge } from '@zeitzeuge/vitest';
 
 export default defineConfig({
   plugins: [zeitzeuge()],
@@ -61,7 +67,7 @@ A Markdown report is written to `zeitzeuge-report.md` with findings and suggeste
 4. **Deep Agent explores** — a LangChain Deep Agent (`deepagents`) autonomously browses the workspace, reads actual source code, greps for patterns, and correlates heap data with trace data and runtime analysis
 5. **Reports findings** — memory leaks, frame-blocking functions, listener leaks, render-blocking scripts, GC pressure — with code-level fixes
 
-### Vitest mode (`zeitzeuge/vitest` plugin)
+### Vitest mode (`@zeitzeuge/vitest` plugin)
 
 1. **Instruments Vitest** — injects `--cpu-prof` into worker process args, forces `pool: 'forks'` for reliable profiling, disables file parallelism for clean per-file profiles
 2. **Captures V8 CPU profiles** for each test file during the test run
@@ -184,6 +190,14 @@ Options:
 | `OPENAI_API_KEY`    | OpenAI API key (preferred)                                      |
 | `ANTHROPIC_API_KEY` | Anthropic API key (fallback)                                    |
 | `ZEITZEUGE_MODEL`   | Override model name (e.g. `gpt-4o`, `claude-sonnet-4-20250514`) |
+
+## Packages
+
+| Package                                 | Directory          | Description                                        |
+| --------------------------------------- | ------------------ | -------------------------------------------------- |
+| [`zeitzeuge`](packages/cli/)            | `packages/cli/`    | CLI for page-load performance analysis             |
+| [`@zeitzeuge/vitest`](packages/vitest/) | `packages/vitest/` | Vitest plugin for test suite performance analysis  |
+| `@zeitzeuge/utils`                      | `packages/utils/`  | Shared internals (private, bundled into consumers) |
 
 ## Development
 

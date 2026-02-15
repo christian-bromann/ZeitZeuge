@@ -24,15 +24,11 @@ import { mkdtempSync, readdirSync, readFileSync, existsSync, rmSync } from 'node
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { parseCpuProfile } from '../../src/vitest/profile-parser.js';
-import { classifyScript } from '../../src/vitest/classify.js';
-import { createVitestWorkspace } from '../../src/vitest/workspace.js';
-import type {
-  V8CpuProfile,
-  HotFunction,
-  CorrelatedProfile,
-  TestFileTiming,
-} from '../../src/vitest/types.js';
+import { parseCpuProfile } from '../../src/profile-parser.js';
+import { classifyScript } from '../../src/classify.js';
+import { createVitestWorkspace } from '../../src/workspace.js';
+import type { V8CpuProfile } from '../../src/types.js';
+import type { HotFunction, CorrelatedProfile, TestFileTiming } from '@zeitzeuge/utils';
 
 const FIXTURE_DIR = resolve(import.meta.dir, '..', 'fixtures', 'vitest-e2e');
 const RUNNER_PATH = join(FIXTURE_DIR, 'runner.mjs');

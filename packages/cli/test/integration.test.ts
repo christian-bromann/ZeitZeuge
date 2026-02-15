@@ -1,8 +1,8 @@
 import { test, expect, describe } from 'bun:test';
 import { parseSnapshot } from '../src/analysis/parser';
-import { initModel } from '../src/models/init';
+import { initModel } from '@zeitzeuge/utils';
 import { getAssetPath } from '../src/sandbox/workspace';
-import type { RawSnapshot, Finding, TraceResult, NetworkRequest } from '../src/types';
+import type { RawSnapshot, Finding, TraceResult, NetworkRequest } from '@zeitzeuge/utils';
 
 /**
  * Integration tests for the zeitzeuge pipeline.

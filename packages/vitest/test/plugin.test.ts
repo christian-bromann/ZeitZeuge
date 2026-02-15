@@ -1,7 +1,7 @@
 import { test, expect, describe, afterEach } from 'bun:test';
 import { existsSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { zeitzeuge } from '../../src/vitest/plugin.js';
+import { zeitzeuge } from '../src/plugin.js';
 
 // Use a unique temp dir for each test run to avoid conflicts
 const TEST_PROFILE_DIR = `.zeitzeuge-test-profiles-${Date.now()}`;

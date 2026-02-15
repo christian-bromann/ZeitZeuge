@@ -1,11 +1,7 @@
 import { test, expect, describe } from 'bun:test';
-import { generateTestMarkdown } from '../../src/output/report.js';
-import type { Finding } from '../../src/types.js';
-import type {
-  TestFileTiming,
-  CorrelatedProfile,
-  CpuProfileSummary,
-} from '../../src/vitest/types.js';
+import { generateTestMarkdown } from '@zeitzeuge/utils';
+import type { Finding } from '@zeitzeuge/utils';
+import type { TestFileTiming, CorrelatedProfile, CpuProfileSummary } from '../src/types.js';
 
 function makeTestTiming(overrides?: Partial<TestFileTiming>): TestFileTiming {
   return {

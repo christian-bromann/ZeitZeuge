@@ -1,4 +1,4 @@
-import type { TraceEvent } from '../../src/types';
+import type { TraceEvent } from '@zeitzeuge/utils';
 
 /**
  * Navigation start timestamp in microseconds.

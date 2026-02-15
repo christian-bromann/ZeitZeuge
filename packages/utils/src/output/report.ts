@@ -1,8 +1,13 @@
 import { writeFileSync } from 'node:fs';
-import type { Finding, HeapSummary, TraceResult } from '../types.js';
-import type { TestFileTiming, CorrelatedProfile } from '../vitest/types.js';
-import type { PerformanceMetrics } from '../vitest/metrics.js';
-import { getListenerImbalances } from '../vitest/listener-tracker.js';
+import type {
+  Finding,
+  HeapSummary,
+  TraceResult,
+  TestFileTiming,
+  CorrelatedProfile,
+  PerformanceMetrics,
+} from '../types.js';
+import { getListenerImbalances } from '../types.js';
 import { formatBytes } from './terminal.js';
 
 const SEVERITY_EMOJI: Record<Finding['severity'], string> = {

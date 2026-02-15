@@ -7,7 +7,7 @@
  */
 
 import { REFERENCE_FINDINGS, type FlawCategory } from '../reference-findings.js';
-import type { Finding } from '../../../packages/cli/src/types.js';
+import type { Finding } from '@zeitzeuge/utils';
 
 // ── Types ────────────────────────────────────────────────────
 

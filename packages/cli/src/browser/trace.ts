@@ -7,7 +7,7 @@ import type {
   TraceHandle,
   CaptureOptions,
   RuntimeTraceSummary,
-} from '../types.js';
+} from '@zeitzeuge/utils';
 import { parseRuntimeTrace } from './runtime-trace.js';
 
 /**

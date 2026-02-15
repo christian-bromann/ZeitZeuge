@@ -1,5 +1,5 @@
 import type { Browser } from 'webdriverio';
-import type { CaptureResult, CaptureOptions } from '../types.js';
+import type { CaptureResult, CaptureOptions } from '@zeitzeuge/utils';
 import { tracePageLoad } from './trace.js';
 
 /**

@@ -9,23 +9,23 @@
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { parseCpuProfile } from '../../packages/cli/src/vitest/profile-parser.js';
-import { createVitestWorkspace } from '../../packages/cli/src/vitest/workspace.js';
-import { classifyScript } from '../../packages/cli/src/vitest/classify.js';
-import { computeMetrics } from '../../packages/cli/src/vitest/metrics.js';
 import {
+  parseCpuProfile,
+  createVitestWorkspace,
+  classifyScript,
+  computeMetrics,
   aggregateListenerTracking,
-  getListenerImbalances,
   LISTENER_TRACKING_JSONL,
   type RawListenerTrackingData,
+  type V8CpuProfile,
+} from '@zeitzeuge/vitest';
+import {
+  getListenerImbalances,
   type EventListenerTracking,
-} from '../../packages/cli/src/vitest/listener-tracker.js';
-import type {
-  TestFileTiming,
-  CorrelatedProfile,
-  V8CpuProfile,
-} from '../../packages/cli/src/vitest/types.js';
-import type { PerformanceMetrics } from '../../packages/cli/src/vitest/metrics.js';
+  type TestFileTiming,
+  type CorrelatedProfile,
+  type PerformanceMetrics,
+} from '@zeitzeuge/utils';
 // eslint-disable-next-line @typescript-eslint/no-empty-interface -- BackendProtocol is opaque here
 type BackendProtocol = Awaited<ReturnType<typeof createVitestWorkspace>>['backend'];
 

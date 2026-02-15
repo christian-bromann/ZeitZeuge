@@ -8,8 +8,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { initModel } from '../../../packages/cli/src/models/init.js';
-import type { Finding } from '../../../packages/cli/src/types.js';
+import { initModel, type Finding } from '@zeitzeuge/utils';
 
 import { REFERENCE_FINDINGS, type ReferenceFinding } from '../reference-findings.js';
 import { computeCoverage } from './finding-coverage.js';

@@ -12,11 +12,15 @@ import ora, { type Ora } from 'ora';
 import { parseCpuProfile } from './profile-parser.js';
 import { parseHeapProfile } from './heap-profile-parser.js';
 import { createVitestWorkspace } from './workspace.js';
-import { initModel } from '../models/init.js';
-import { printFindingsVitest, printMetricsSummary } from '../output/terminal.js';
-import { analyzeTestPerformance } from '../analysis/agent.js';
-import { writeTestReport } from '../output/report.js';
+import {
+  initModel,
+  printFindingsVitest,
+  printMetricsSummary,
+  analyzeTestPerformance,
+  writeTestReport,
+} from '@zeitzeuge/utils';
 import { classifyScript } from './classify.js';
+import { VITEST_SYSTEM_PROMPT } from './prompts.js';
 import { computeMetrics } from './metrics.js';
 import {
   aggregateListenerTracking,
@@ -33,7 +37,7 @@ import type {
   V8HeapProfile,
 } from './types.js';
 
-import pkg from '../../package.json';
+import pkg from '../package.json';
 
 export interface ReporterOptions {
   output: string;
@@ -284,6 +288,7 @@ export class ZeitZeugeReporter {
           model,
           workspace.backend,
           spinnerForAgent,
+          VITEST_SYSTEM_PROMPT,
           {
             metrics,
             hasHeapProfiles: heapProfiles.length > 0,

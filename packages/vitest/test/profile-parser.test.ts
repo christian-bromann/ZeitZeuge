@@ -1,8 +1,8 @@
 import { test, expect, describe } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parseCpuProfile } from '../../src/vitest/profile-parser.js';
-import type { V8CpuProfile } from '../../src/vitest/types.js';
+import { parseCpuProfile } from '../src/profile-parser.js';
+import type { V8CpuProfile } from '../src/types.js';
 
 const FIXTURE_PATH = resolve(__dirname, '../fixtures/sample.cpuprofile');
 

@@ -1,10 +1,6 @@
 import { test, expect, describe } from 'bun:test';
-import { computeMetrics } from '../../src/vitest/metrics.js';
-import type {
-  TestFileTiming,
-  CorrelatedProfile,
-  CorrelatedHeapProfile,
-} from '../../src/vitest/types.js';
+import { computeMetrics } from '../src/metrics.js';
+import type { TestFileTiming, CorrelatedProfile, CorrelatedHeapProfile } from '../src/types.js';
 
 // ── Test data factories ──────────────────────────────────────
 

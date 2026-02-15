@@ -15,6 +15,16 @@
  * to guarantee compatibility with ESM projects (`"type": "module"`).
  */
 
+import type { EventListenerTracking, ListenerExceedance } from '@zeitzeuge/utils';
+
+// Re-export shared types for backward compatibility
+export type {
+  EventListenerTracking,
+  ListenerExceedance,
+  ListenerImbalance,
+} from '@zeitzeuge/utils';
+export { getListenerImbalances, LISTENER_IMBALANCE_THRESHOLD } from '@zeitzeuge/utils';
+
 // ── Raw per-process data (written by the preload script) ─────
 
 /** Shape of the JSON file written by each worker process. */
@@ -31,73 +41,6 @@ export interface RawListenerExceedance {
   listenerCount: number;
   threshold: number;
   stack: string;
-}
-
-// ── Aggregated data (used by metrics / workspace / terminal) ─
-
-/** Aggregated event listener tracking data across all worker processes. */
-export interface EventListenerTracking {
-  /** Per-event-type add/remove counts for EventTarget APIs (e.g. AbortSignal). */
-  eventTargetCounts: Record<string, { addCount: number; removeCount: number }>;
-  /** Per-event-type add/remove counts for EventEmitter APIs. */
-  emitterCounts: Record<string, { addCount: number; removeCount: number }>;
-  /** Instances where a single target's listener count exceeded its maxListeners. */
-  exceedances: ListenerExceedance[];
-}
-
-export interface ListenerExceedance {
-  /** Class name of the target, e.g. "AbortSignal", "EventEmitter". */
-  targetType: string;
-  /** The event name, e.g. "abort", "data". */
-  eventType: string;
-  /** The listener count that triggered the exceedance. */
-  listenerCount: number;
-  /** The maxListeners threshold that was exceeded. */
-  threshold: number;
-  /** Short stack trace snippet captured at the exceedance point. */
-  stack?: string;
-}
-
-// ── Imbalance detection ──────────────────────────────────────
-
-/**
- * Minimum difference between add and remove counts before an event type
- * is considered to have a notable listener imbalance. Small imbalances
- * are normal (e.g. listeners added at startup that are never explicitly
- * removed because the process exits), so we tolerate a small surplus.
- */
-export const LISTENER_IMBALANCE_THRESHOLD = 5;
-
-export interface ListenerImbalance {
-  /** Which API registered the listener ("EventTarget" or "EventEmitter"). */
-  api: 'EventTarget' | 'EventEmitter';
-  /** The event name, e.g. "abort", "data". */
-  type: string;
-  addCount: number;
-  removeCount: number;
-}
-
-/**
- * Return event types where listeners were added significantly more often
- * than they were removed, combining both EventTarget and EventEmitter counts.
- *
- * Results are sorted by imbalance size (largest first).
- */
-export function getListenerImbalances(tracking: EventListenerTracking): ListenerImbalance[] {
-  return [
-    ...Object.entries(tracking.eventTargetCounts).map(([t, c]) => ({
-      api: 'EventTarget' as const,
-      type: t,
-      ...c,
-    })),
-    ...Object.entries(tracking.emitterCounts).map(([t, c]) => ({
-      api: 'EventEmitter' as const,
-      type: t,
-      ...c,
-    })),
-  ]
-    .filter((c) => c.addCount > c.removeCount + LISTENER_IMBALANCE_THRESHOLD)
-    .sort((a, b) => b.addCount - b.removeCount - (a.addCount - a.removeCount));
 }
 
 // ── Preload script generator ─────────────────────────────────

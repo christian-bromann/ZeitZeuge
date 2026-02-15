@@ -6,7 +6,7 @@ import type {
   ConstructorStat,
   DetachedNodeInfo,
   ClosureStats,
-} from '../types.js';
+} from '@zeitzeuge/utils';
 
 interface V8Snapshot {
   snapshot: {

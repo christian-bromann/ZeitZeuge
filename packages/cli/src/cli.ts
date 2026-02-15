@@ -2,21 +2,21 @@
 
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { initModel } from './models/init.js';
-import { launchBrowser, closeBrowser, type Browser } from './browser/launch.js';
-import { capturePage } from './browser/capture.js';
-import { parseSnapshot } from './analysis/parser.js';
-import { analyze } from './analysis/agent.js';
-import { createWorkspace } from './sandbox/workspace.js';
 import {
+  initModel,
+  analyze,
   printFindings,
   printHeader,
   printError,
   printCaptureInfo,
   createSpinner,
   formatBytes,
-} from './output/terminal.js';
-import { writeReport } from './output/report.js';
+  writeReport,
+} from '@zeitzeuge/utils';
+import { launchBrowser, closeBrowser, type Browser } from './browser/launch.js';
+import { capturePage } from './browser/capture.js';
+import { parseSnapshot } from './analysis/parser.js';
+import { createWorkspace } from './sandbox/workspace.js';
 
 // Read version from package.json
 import { readFileSync } from 'node:fs';

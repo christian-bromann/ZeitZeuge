@@ -3,101 +3,34 @@
  *
  * Computes a structured set of metrics from test timing and CPU/heap profile
  * data so users can see where time is spent at a glance.
+ *
+ * Metric type definitions live in @zeitzeuge/utils and are re-exported here
+ * for backward compatibility.
  */
 
-import type { TestFileTiming, CorrelatedProfile, CorrelatedHeapProfile } from './types.js';
-import type { EventListenerTracking } from './listener-tracker.js';
+import type {
+  TestFileTiming,
+  CorrelatedProfile,
+  EventListenerTracking,
+  SuiteMetrics,
+  CpuMetrics,
+  FileMetric,
+  TestMetric,
+  HotFunctionMetric,
+  PerformanceMetrics,
+} from '@zeitzeuge/utils';
+import type { CorrelatedHeapProfile } from './types.js';
 import { mergeHotFunctions } from './workspace.js';
 
-// ── Metric types ─────────────────────────────────────────────
-
-/** Suite-level aggregate metrics. */
-export interface SuiteMetrics {
-  totalDuration: number;
-  totalTests: number;
-  passCount: number;
-  failCount: number;
-  totalSetupTime: number;
-  averageTestDuration: number;
-  medianTestDuration: number;
-  p95TestDuration: number;
-  slowestTestDuration: number;
-  slowestTestName: string;
-  slowestFileDuration: number;
-  slowestFile: string;
-}
-
-/** CPU profile-derived metrics. */
-export interface CpuMetrics {
-  gcPercentage: number;
-  gcTime: number;
-  idlePercentage: number;
-  idleTime: number;
-  applicationTime: number;
-  applicationPercent: number;
-  dependencyTime: number;
-  dependencyPercent: number;
-  testFrameworkTime: number;
-  testFrameworkPercent: number;
-}
-
-/** Per-file metric entry. */
-export interface FileMetric {
-  duration: number;
-  testCount: number;
-  setupTime: number;
-  gcPercentage: number;
-}
-
-/** Per-test metric entry. */
-export interface TestMetric {
-  duration: number;
-  status: 'pass' | 'fail' | 'skip';
-}
-
-/** Summary of a hot function for metrics display. */
-export interface HotFunctionMetric {
-  /** Stable key: "scriptUrl:functionName:lineNumber" */
-  key: string;
-  functionName: string;
-  scriptUrl: string;
-  lineNumber: number;
-  selfTime: number;
-  selfPercent: number;
-  sourceCategory: string;
-}
-
-/** Complete performance metrics snapshot for a test run. */
-export interface PerformanceMetrics {
-  /** Schema version for forward compatibility. */
-  version: 1;
-  /** ISO timestamp when the metrics were captured. */
-  timestamp: string;
-
-  suite: SuiteMetrics;
-  cpu: CpuMetrics;
-
-  /** Per-file metrics, keyed by relative file path. */
-  files: Record<string, FileMetric>;
-  /** Per-test metrics, keyed by "file::testName". */
-  tests: Record<string, TestMetric>;
-  /** Top hot functions (up to 20). */
-  hotFunctions: HotFunctionMetric[];
-
-  /** Heap metrics (only present if heap profiling was enabled). */
-  heap?: {
-    totalAllocatedBytes: number;
-  };
-
-  /**
-   * Event listener tracking data from worker processes.
-   *
-   * Captures EventTarget and EventEmitter add/remove patterns and detects
-   * listener exceedances (e.g. too many abort listeners on AbortSignal).
-   * Only present when notable listener patterns were detected.
-   */
-  listenerTracking?: EventListenerTracking;
-}
+// Re-export metric types for backward compatibility
+export type {
+  SuiteMetrics,
+  CpuMetrics,
+  FileMetric,
+  TestMetric,
+  HotFunctionMetric,
+  PerformanceMetrics,
+} from '@zeitzeuge/utils';
 
 // ── Metric computation ───────────────────────────────────────
 

@@ -1,0 +1,50 @@
+{
+  "name": "@zeitzeuge/vitest",
+  "version": "0.6.6",
+  "description": "Vitest plugin for performance analysis powered by zeitzeuge.",
+  "keywords": [
+    "analysis",
+    "performance",
+    "vitest",
+    "zeitzeuge"
+  ],
+  "homepage": "https://github.com/christian-bromann/zeitzeuge",
+  "license": "MIT",
+  "author": "Christian Bromann <christian@bromann.dev>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/christian-bromann/zeitzeuge.git"
+  },
+  "files": [
+    "dist",
+    "vitest.d.ts"
+  ],
+  "type": "module",
+  "module": "src/index.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build:js": "bun build src/index.ts --outdir dist --target node --format esm --packages external",
+    "build:types": "bunx tsc -p tsconfig.build.json",
+    "build": "bun run build:js && bun run build:types",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@zeitzeuge/utils": "workspace:*",
+    "chalk": "^5.6.2",
+    "deepagents": "^1.7.6",
+    "ora": "^9.3.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  },
+  "peerDependencies": {
+    "vitest": ">=3.1.0"
+  }
+}

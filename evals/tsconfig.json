@@ -1,9 +1,4 @@
 {
   "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "zeitzeuge/*": ["../packages/cli/src/*"]
-    }
-  },
-  "include": ["src/**/*.ts", "*.ts", "../packages/cli/src/**/*.ts"]
+  "include": ["src/**/*.ts", "*.ts"]
 }

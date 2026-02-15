@@ -1,13 +1,13 @@
 import { test, expect, describe } from 'bun:test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { createVitestWorkspace, mergeHotFunctions } from '../../src/vitest/workspace.js';
+import { createVitestWorkspace, mergeHotFunctions } from '../src/workspace.js';
 import type {
   TestFileTiming,
   CorrelatedProfile,
   CpuProfileSummary,
   HotFunction,
-} from '../../src/vitest/types.js';
+} from '../src/types.js';
 
 function makeTestTiming(overrides?: Partial<TestFileTiming>): TestFileTiming {
   return {

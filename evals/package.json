@@ -7,9 +7,10 @@
     "eval:test": "bun test eval.test.ts"
   },
   "dependencies": {
+    "@zeitzeuge/utils": "workspace:*",
+    "@zeitzeuge/vitest": "workspace:*",
     "langsmith": "^0.5.4",
     "openevals": "^0.1.4",
-    "ora": "^9.3.0",
-    "zeitzeuge": "workspace:*"
+    "ora": "^9.3.0"
   }
 }

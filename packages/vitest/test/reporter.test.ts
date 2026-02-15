@@ -2,7 +2,7 @@ import { test, expect, describe, afterEach } from 'bun:test';
 import { mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { ZeitZeugeReporter } from '../../src/vitest/reporter.js';
+import { ZeitZeugeReporter } from '../src/reporter.js';
 
 const TEMP_PREFIX = join(tmpdir(), 'zeitzeuge-reporter-test-');
 
