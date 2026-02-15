@@ -4,7 +4,7 @@
  */
 
 import { join, parse, resolve } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { ZeitZeugeReporter } from './reporter.js';
 import { generateListenerTrackerScript } from './listener-tracker.js';
 import type { ZeitZeugeVitestOptions } from './types.js';
@@ -69,9 +69,15 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
           ? addSuffixToFilename(baseOutput, safeProjectName)
           : baseOutput;
 
-      // 1. Create the profile output directory — Node.js --cpu-prof-dir
-      //    requires it to exist before workers start, it won't create it.
+      // 1. Clean and (re-)create the profile output directory.
+      //    Remove stale profiles from previous runs so they don't interfere
+      //    with mtime-based profile-to-test correlation.
+      //    Node.js --cpu-prof-dir requires the directory to exist before
+      //    workers start — it won't create it.
       try {
+        if (existsSync(resolvedProfileDir)) {
+          rmSync(resolvedProfileDir, { recursive: true, force: true });
+        }
         mkdirSync(resolvedProfileDir, { recursive: true });
       } catch {
         // ignore — if we can't create it, profiling just won't work
