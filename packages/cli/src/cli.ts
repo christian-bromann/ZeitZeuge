@@ -4,7 +4,6 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import {
   initModel,
-  analyze,
   printFindings,
   printHeader,
   printError,
@@ -13,6 +12,7 @@ import {
   formatBytes,
   writeReport,
 } from '@zeitzeuge/utils';
+import { analyze } from './analysis/agent.js';
 import { launchBrowser, closeBrowser, type Browser } from './browser/launch.js';
 import { capturePage } from './browser/capture.js';
 import { parseSnapshot } from './analysis/parser.js';

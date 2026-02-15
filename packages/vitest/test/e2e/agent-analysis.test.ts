@@ -25,9 +25,8 @@ import {
   LISTENER_TRACKING_JSONL,
   type RawListenerTrackingData,
 } from '../../src/listener-tracker.js';
-import { VITEST_SYSTEM_PROMPT } from '../../src/prompts.js';
+import { analyzeTestPerformance } from '../../src/agent.js';
 import {
-  analyzeTestPerformance,
   initModel,
   type Finding,
   type CorrelatedProfile,
@@ -145,12 +144,7 @@ async function runAgentAnalysis(): Promise<AnalysisResult> {
       const model = initModel();
       const spinner = ora({ text: 'zeitzeuge: Analyzing...', isEnabled: false }).start();
       try {
-        const findings = await analyzeTestPerformance(
-          model,
-          workspace.backend,
-          spinner,
-          VITEST_SYSTEM_PROMPT,
-        );
+        const findings = await analyzeTestPerformance(model, workspace.backend, spinner);
         return { findings, listenerTracking };
       } finally {
         spinner.stop();

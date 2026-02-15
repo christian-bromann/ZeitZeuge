@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import type { Ora } from 'ora';
 
 import { TodoProgressRenderer } from '../../src/output/progress';
-import { analyzeTestPerformance } from '../../src/analysis/agent';
+import { analyzeTestPerformance } from '@zeitzeuge/vitest';
 
 /** Strip ANSI escape codes for clean assertions. */
 function stripAnsi(str: string): string {

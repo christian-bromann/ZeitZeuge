@@ -14,14 +14,7 @@ export { FindingSchema, FindingsSchema, ALL_CATEGORIES } from './schema.js';
 export { initModel } from './models/init.js';
 
 // ── Analysis ──
-export {
-  analyze,
-  analyzeTestPerformance,
-  formatBytes as formatBytesAgent,
-  type PageLoadContext,
-  type VitestAnalysisContext,
-} from './analysis/agent.js';
-export { SYSTEM_PROMPT } from './analysis/prompts.js';
+export { invokeWithTodoStreaming } from './analysis/agent.js';
 
 // ── Output ──
 export { TodoProgressRenderer, type ChunkMeta } from './output/progress.js';

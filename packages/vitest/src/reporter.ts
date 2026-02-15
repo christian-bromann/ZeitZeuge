@@ -16,11 +16,10 @@ import {
   initModel,
   printFindingsVitest,
   printMetricsSummary,
-  analyzeTestPerformance,
   writeTestReport,
 } from '@zeitzeuge/utils';
+import { analyzeTestPerformance } from './agent.js';
 import { classifyScript } from './classify.js';
-import { VITEST_SYSTEM_PROMPT } from './prompts.js';
 import { computeMetrics } from './metrics.js';
 import {
   aggregateListenerTracking,
@@ -288,7 +287,6 @@ export class ZeitZeugeReporter {
           model,
           workspace.backend,
           spinnerForAgent,
-          VITEST_SYSTEM_PROMPT,
           {
             metrics,
             hasHeapProfiles: heapProfiles.length > 0,

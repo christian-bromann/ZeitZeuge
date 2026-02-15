@@ -14,6 +14,7 @@
  */
 
 export { zeitzeuge } from './plugin.js';
+export { analyzeTestPerformance, type VitestAnalysisContext } from './agent.js';
 export { VITEST_SYSTEM_PROMPT } from './prompts.js';
 export type { ZeitZeugeVitestOptions } from './types.js';
 export type { SourceCategory } from '@zeitzeuge/utils';

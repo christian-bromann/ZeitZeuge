@@ -8,8 +8,8 @@
 
 import ora from 'ora';
 
-import { initModel, analyzeTestPerformance, type Finding } from '@zeitzeuge/utils';
-import { VITEST_SYSTEM_PROMPT } from '@zeitzeuge/vitest';
+import { initModel, type Finding } from '@zeitzeuge/utils';
+import { analyzeTestPerformance } from '@zeitzeuge/vitest';
 
 import { buildWorkspaceFromDataset } from './build-workspace.js';
 
@@ -46,7 +46,6 @@ export async function runAgent(inputs: RunAgentInputs): Promise<RunAgentOutput> 
       model,
       workspace.backend,
       spinner,
-      VITEST_SYSTEM_PROMPT,
       {
         metrics: workspace.metrics,
         hasHeapProfiles: false,

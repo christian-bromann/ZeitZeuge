@@ -38,7 +38,10 @@
         "zeitzeuge": "./dist/cli.js",
       },
       "dependencies": {
+        "@langchain/core": "^1.1.24",
         "@zeitzeuge/utils": "workspace:*",
+        "deepagents": "^1.7.6",
+        "langchain": "^1.2.23",
         "puppeteer-core": "^24.37.2",
         "webdriverio": "^9.24.0",
         "yargs": "^18.0.0",
@@ -70,6 +73,7 @@
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "@zeitzeuge/vitest": "workspace:*",
         "typescript": "^5",
       },
     },
@@ -77,9 +81,11 @@
       "name": "@zeitzeuge/vitest",
       "version": "0.6.6",
       "dependencies": {
+        "@langchain/core": "^1.1.24",
         "@zeitzeuge/utils": "workspace:*",
         "chalk": "^5.6.2",
         "deepagents": "^1.7.6",
+        "langchain": "^1.2.23",
         "ora": "^9.3.0",
       },
       "devDependencies": {
