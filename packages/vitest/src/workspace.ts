@@ -20,6 +20,10 @@ export interface VitestWorkspaceResult {
   backend: BackendProtocol;
   /** Clean up the temporary directory when done */
   cleanup: () => void;
+  /** Workspace-relative paths for application source files (e.g. "/src/utils/crypto.ts") */
+  sourceFiles: string[];
+  /** Workspace-relative paths for test files (e.g. "/tests/tests/crypto.test.ts") */
+  testFiles: string[];
 }
 
 /** Minimum selfPercent for a source file to be included in the workspace. */
@@ -305,6 +309,18 @@ export async function createVitestWorkspace(
     files['/src/index.json'] = JSON.stringify(fileIndex, null, 2);
   }
 
+  // ── Collect workspace-relative file paths for user message enumeration ──
+  const sourceFilesList: string[] = [];
+  const testFilesList: string[] = [];
+
+  for (const key of Object.keys(files)) {
+    if (key.startsWith('/src/') && !key.endsWith('/index.json') && !key.endsWith('.json')) {
+      sourceFilesList.push(key);
+    } else if (key.startsWith('/tests/')) {
+      testFilesList.push(key);
+    }
+  }
+
   // ── Write all files to a temp directory ──
   const tempDir = mkdtempSync(join(tmpdir(), 'zeitzeuge-vitest-workspace-'));
 
@@ -329,7 +345,7 @@ export async function createVitestWorkspace(
     }
   };
 
-  return { backend, cleanup };
+  return { backend, cleanup, sourceFiles: sourceFilesList, testFiles: testFilesList };
 }
 
 /**

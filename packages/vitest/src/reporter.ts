@@ -291,6 +291,8 @@ export class ZeitZeugeReporter {
             metrics,
             hasHeapProfiles: heapProfiles.length > 0,
             hasListenerTracking: !!listenerTracking,
+            sourceFiles: workspace.sourceFiles,
+            testFiles: workspace.testFiles,
           },
           { animateProgress: !this.suppressSpinners },
         );

@@ -41,7 +41,7 @@ export async function runAgent(inputs: RunAgentInputs): Promise<RunAgentOutput> 
     // 3. Create a headless spinner (no terminal animation during evals)
     const spinner = ora({ text: 'Analyzing...', isEnabled: false }).start();
 
-    // 4. Run the Deep Agent analysis
+    // 4. Run the Deep Agent analysis (parallel subagents)
     const findings = await analyzeTestPerformance(
       model,
       workspace.backend,
@@ -50,6 +50,8 @@ export async function runAgent(inputs: RunAgentInputs): Promise<RunAgentOutput> 
         metrics: workspace.metrics,
         hasHeapProfiles: false,
         hasListenerTracking: workspace.hasListenerTracking,
+        sourceFiles: workspace.sourceFiles,
+        testFiles: workspace.testFiles,
       },
       { animateProgress: false },
     );

@@ -15,7 +15,14 @@
 
 export { zeitzeuge } from './plugin.js';
 export { analyzeTestPerformance, type VitestAnalysisContext } from './agent.js';
-export { VITEST_SYSTEM_PROMPT } from './prompts.js';
+export {
+  VITEST_SYSTEM_PROMPT,
+  CPU_HOTSPOT_PROMPT,
+  LISTENER_LEAK_PROMPT,
+  MEMORY_CLOSURE_PROMPT,
+  CODE_PATTERN_PROMPT,
+} from './prompts.js';
+export { deduplicateFindings, rankFindings, extractFunctionName } from './deduplication.js';
 export type { ZeitZeugeVitestOptions } from './types.js';
 export type { SourceCategory } from '@zeitzeuge/utils';
 export type {

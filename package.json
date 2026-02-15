@@ -4,7 +4,8 @@
   "workspaces": [
     "packages/*",
     "example",
-    "evals"
+    "evals",
+    "website"
   ],
   "type": "module",
   "scripts": {
@@ -17,7 +18,8 @@
     "build": "bun run --filter '@zeitzeuge/utils' build && bun run --filter '*' build",
     "test": "bun test",
     "example": "bun --filter example test",
-    "evals": "cd evals && bun eval:test"
+    "evals": "cd evals && bun eval:test",
+    "website": "cd website && bun dev"
   },
   "devDependencies": {
     "@types/bun": "latest",

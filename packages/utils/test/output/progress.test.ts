@@ -9,19 +9,23 @@
  */
 
 import { test, expect, describe, beforeEach } from 'bun:test';
+
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
 import { AIMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
 import { createDeepAgent, FilesystemBackend, type SubAgent } from 'deepagents';
 import { toolStrategy } from 'langchain';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import type { Ora } from 'ora';
 
-import { TodoProgressRenderer } from '../../src/output/progress';
 import { analyzeTestPerformance } from '@zeitzeuge/vitest';
+
+import { FindingsSchema } from '../../src/schema';
+import { TodoProgressRenderer } from '../../src/output/progress';
 
 /** Strip ANSI escape codes for clean assertions. */
 function stripAnsi(str: string): string {
@@ -973,16 +977,152 @@ describe('TodoProgressRenderer', () => {
 
       const texts = spinner.persistedTexts();
 
-      // Main agent tool call (task)
-      expect(texts.some((t) => t.includes('task(') && !t.includes('[subagent]'))).toBe(true);
+      // Main agent tool call (task) — not labelled as subagent
+      expect(texts.some((t) => t.includes('task(') && !t.includes('[general-purpose]'))).toBe(true);
 
-      // Subagent tool calls
-      const subLines = texts.filter((t) => t.includes('[subagent]'));
+      // Subagent tool calls — labelled [general-purpose] from the task() args
+      const subLines = texts.filter((t) => t.includes('[general-purpose]'));
       expect(subLines.some((t) => t.includes('read_file'))).toBe(true);
       expect(subLines.some((t) => t.includes('grep'))).toBe(true);
 
       // Todo completed with progress
       expect(texts.some((t) => t.includes('✓') && t.includes('Read source'))).toBe(true);
+    });
+
+    test('captures subagent_type from task() tool call and uses it as the label', () => {
+      // Main agent calls task(subagent_type: "cpu-hotspot", ...)
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([
+            {
+              name: 'task',
+              args: { subagent_type: 'cpu-hotspot', description: 'Analyze hot functions' },
+            },
+          ]),
+        ),
+      );
+      // Subagent chunk arrives — should be labelled [cpu-hotspot]
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/src/data.ts' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      const subLine = texts.find((t) => t.includes('[cpu-hotspot]'));
+      expect(subLine).toBeDefined();
+      expect(subLine).toContain('read_file');
+    });
+
+    test('falls back to [subagent] when no prior task() call provides a name', () => {
+      // Subagent chunk without any preceding task() call
+      renderer.handleChunk(
+        agentUpdateChunk(aiMessageWithToolCalls([{ name: 'grep', args: { pattern: 'TODO' } }])),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      const subLine = texts.find((t) => t.includes('[subagent]'));
+      expect(subLine).toBeDefined();
+      expect(subLine).toContain('grep');
+    });
+
+    test('persists subagent name across multiple subagent chunks', () => {
+      // Main agent spawns "listener-leak" subagent
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([
+            {
+              name: 'task',
+              args: { subagent_type: 'listener-leak', description: 'Check listeners' },
+            },
+          ]),
+        ),
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/a.ts' } }]),
+        ),
+        { isSubagent: true },
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'grep', args: { pattern: 'addEventListener' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      const subLines = texts.filter((t) => t.includes('[listener-leak]'));
+      expect(subLines.length).toBe(2);
+    });
+
+    test('updates label when main agent spawns a different subagent', () => {
+      // First subagent: cpu-hotspot
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([
+            { name: 'task', args: { subagent_type: 'cpu-hotspot', description: 'CPU analysis' } },
+          ]),
+        ),
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/a.ts' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      // Second subagent: memory-closure
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([
+            {
+              name: 'task',
+              args: { subagent_type: 'memory-closure', description: 'Memory analysis' },
+            },
+          ]),
+        ),
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(aiMessageWithToolCalls([{ name: 'grep', args: { pattern: 'WeakRef' } }])),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      expect(texts.some((t) => t.includes('[cpu-hotspot]') && t.includes('read_file'))).toBe(true);
+      expect(texts.some((t) => t.includes('[memory-closure]') && t.includes('grep'))).toBe(true);
+    });
+
+    test('resets subagent name on todo transition', () => {
+      // Main agent spawns cpu-hotspot
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([
+            { name: 'task', args: { subagent_type: 'cpu-hotspot', description: 'CPU analysis' } },
+          ]),
+        ),
+      );
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/a.ts' } }]),
+        ),
+        { isSubagent: true },
+      );
+
+      // Todo transition resets all tracking including subagent name
+      renderer.handleChunk(todoChunk([{ id: '1', content: 'Step 1', status: 'in_progress' }]));
+
+      // New subagent chunk without a preceding task() call falls back to [subagent]
+      renderer.handleChunk(
+        agentUpdateChunk(aiMessageWithToolCalls([{ name: 'grep', args: { pattern: 'TODO' } }])),
+        { isSubagent: true },
+      );
+
+      const texts = spinner.persistedTexts();
+      expect(texts.some((t) => t.includes('[cpu-hotspot]'))).toBe(true);
+      expect(texts.some((t) => t.includes('[subagent]'))).toBe(true);
     });
   });
 
@@ -1361,7 +1501,6 @@ describe('TodoProgressRenderer', () => {
         };
 
         // ── Create the agent with subagent support ──
-        const { FindingsSchema } = await import('../../src/schema');
         const agent = createDeepAgent({
           model: mainModel as any,
           backend,
@@ -1407,12 +1546,25 @@ describe('TodoProgressRenderer', () => {
         // Header
         expect(texts[0]).toBe('Performance analysis progress:');
 
-        // Main agent tool calls
-        expect(texts.some((t) => t.includes('read_file') && !t.includes('[subagent]'))).toBe(true);
-        expect(texts.some((t) => t.includes('task(') && !t.includes('[subagent]'))).toBe(true);
+        // Main agent tool calls (no subagent label)
+        expect(
+          texts.some(
+            (t) =>
+              t.includes('read_file') &&
+              !t.includes('[source-reader]') &&
+              !t.includes('[subagent]'),
+          ),
+        ).toBe(true);
+        expect(
+          texts.some(
+            (t) =>
+              t.includes('task(') && !t.includes('[source-reader]') && !t.includes('[subagent]'),
+          ),
+        ).toBe(true);
 
-        // Subagent tool calls should appear with [subagent] label
-        const subLines = texts.filter((t) => t.includes('[subagent]'));
+        // Subagent tool calls should appear with [source-reader] label
+        // (captured from the main agent's task(subagent_type: "source-reader") call)
+        const subLines = texts.filter((t) => t.includes('[source-reader]'));
         expect(subLines.length).toBeGreaterThanOrEqual(1);
         // Subagent should have called read_file and/or grep
         expect(subLines.some((t) => t.includes('read_file') || t.includes('grep'))).toBe(true);

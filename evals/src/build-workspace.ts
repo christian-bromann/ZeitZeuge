@@ -38,6 +38,10 @@ export interface WorkspaceResult {
   metrics: PerformanceMetrics;
   /** Whether listener tracking data was found and included. */
   hasListenerTracking: boolean;
+  /** Workspace-relative paths to application source files. */
+  sourceFiles: string[];
+  /** Workspace-relative paths to test files. */
+  testFiles: string[];
 }
 
 /**
@@ -94,6 +98,8 @@ export async function buildWorkspaceFromDataset(
     cleanup: workspace.cleanup,
     metrics,
     hasListenerTracking: !!listenerTracking,
+    sourceFiles: workspace.sourceFiles,
+    testFiles: workspace.testFiles,
   };
 }
 

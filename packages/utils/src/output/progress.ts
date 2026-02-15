@@ -30,6 +30,8 @@ export class TodoProgressRenderer {
   private lastToolCallName: string | undefined;
   /** Last tool call name for subagents (separate dedup). */
   private lastSubagentToolCallName: string | undefined;
+  /** Current subagent name for display purposes. */
+  private currentSubagentName: string | undefined;
   private currentInProgressContent: string | undefined;
   private totalTodos = 0;
   private completedTodos = 0;
@@ -96,6 +98,15 @@ export class TodoProgressRenderer {
     const toolCalls = extractToolCallsFromStreamChunk(chunk);
     if (toolCalls && toolCalls.length > 0) {
       for (const tc of toolCalls) {
+        // When the main agent calls `task(subagent_type: "cpu-hotspot", …)`,
+        // remember the subagent_type so subsequent subagent chunks are labelled.
+        if (!isSubagent && tc.name === 'task') {
+          const subagentType = tc.args.subagent_type;
+          if (typeof subagentType === 'string') {
+            this.currentSubagentName = subagentType;
+          }
+        }
+
         const signature = formatToolCall(tc);
 
         // Main agent and subagent have independent dedup tracking
@@ -107,8 +118,9 @@ export class TodoProgressRenderer {
           this.printHeaderOnce();
 
           // Subagent tool calls get extra indentation + label
+          const displayName = this.currentSubagentName ?? 'subagent';
           const label = isSubagent
-            ? `      ↳ ${pc.cyan('[subagent]')} ${signature}`
+            ? `      ↳ ${pc.cyan(`[${displayName}]`)} ${signature}`
             : `  ↳ ${signature}`;
           this.spinner.stopAndPersist({
             symbol: ' ',
@@ -148,6 +160,7 @@ export class TodoProgressRenderer {
           // Reset tool call tracking when moving to a new todo
           this.lastToolCallName = undefined;
           this.lastSubagentToolCallName = undefined;
+          this.currentSubagentName = undefined;
         }
 
         if (nextStatus === 'in_progress' && this.lastInProgressKey !== key) {
@@ -160,6 +173,7 @@ export class TodoProgressRenderer {
           // Reset tool call tracking for the new task
           this.lastToolCallName = undefined;
           this.lastSubagentToolCallName = undefined;
+          this.currentSubagentName = undefined;
         }
       }
     }
