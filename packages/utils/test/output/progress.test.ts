@@ -1111,18 +1111,21 @@ describe('TodoProgressRenderer', () => {
         { isSubagent: true },
       );
 
-      // Todo transition resets all tracking including subagent name
+      // Todo transition resets dedup tracking
       renderer.handleChunk(todoChunk([{ id: '1', content: 'Step 1', status: 'in_progress' }]));
 
-      // New subagent chunk without a preceding task() call falls back to [subagent]
+      // New subagent chunk after reset: dispatched subagent list persists,
+      // so the label still shows the last dispatched name (cpu-hotspot)
       renderer.handleChunk(
         agentUpdateChunk(aiMessageWithToolCalls([{ name: 'grep', args: { pattern: 'TODO' } }])),
         { isSubagent: true },
       );
 
       const texts = spinner.persistedTexts();
-      expect(texts.some((t) => t.includes('[cpu-hotspot]'))).toBe(true);
-      expect(texts.some((t) => t.includes('[subagent]'))).toBe(true);
+      // Both the pre-reset and post-reset chunks should show [cpu-hotspot]
+      // because the dispatched subagent list is preserved (subagents are still running)
+      const cpuHotspotLabels = texts.filter((t) => t.includes('[cpu-hotspot]'));
+      expect(cpuHotspotLabels.length).toBe(2);
     });
   });
 

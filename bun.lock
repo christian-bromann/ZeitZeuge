@@ -42,6 +42,7 @@
         "@zeitzeuge/utils": "workspace:*",
         "deepagents": "^1.7.6",
         "langchain": "^1.2.23",
+        "ora": "^9.3.0",
         "puppeteer-core": "^24.37.2",
         "webdriverio": "^9.24.0",
         "yargs": "^18.0.0",

@@ -59,7 +59,7 @@ export async function invokeWithTodoStreaming<TTypes extends DeepAgentTypeConfig
     if (item.length === 3) {
       const [ns, mode, chunk] = item;
       const isSubagent = isSubagentNamespace(ns);
-      renderer.handleChunk(chunk, { isSubagent });
+      renderer.handleChunk(chunk, { isSubagent, namespace: ns });
       // Only track main-agent "values" as the authoritative final state.
       if (!isSubagent && mode === 'values') lastValues = chunk;
       continue;

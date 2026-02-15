@@ -22,14 +22,13 @@ workspace" section of this prompt. Read them DIRECTLY — do NOT use ls or glob.
 
 export const VERIFICATION_RULES = `## Verification rules (mandatory for every finding)
 
-1. **ALWAYS read the source file** in /src/ or /tests/ and verify the code
-   BEFORE suggesting a fix. Never suggest a fix for code you have not read.
-2. **Never guess at line numbers** — confirm by reading the file. If the profile
-   reports a line number but the source at that line doesn't match, say so.
-3. Each \`suggestedFix\` MUST reference the actual current code and describe
-   what to change. Include a before/after snippet from the real source.
-4. Never report a finding based solely on a function name — always read the
-   implementation to confirm the issue exists.`;
+1. **ALWAYS read the source file** before reporting a finding. You MUST have
+   read the actual code. Never report based on function names or profiling data alone.
+2. **Copy code verbatim** — beforeCode must be copied exactly from the file you
+   read, not paraphrased. Line numbers must match what you observed.
+3. **Provide a working fix** — afterCode must be a complete drop-in replacement
+   that compiles, preserves the function signature, and only fixes the perf issue.
+4. **Never omit beforeCode/afterCode** — every finding MUST have both fields set.`;
 
 export const SEVERITY_RULES = `## Severity classification
 
@@ -100,21 +99,32 @@ FORBIDDEN actions:
 
 The file list in "FILES IN THIS WORKSPACE" above is COMPLETE and EXACT.`;
 
-export const STRUCTURED_OUTPUT_FIELDS = `## Structured output fields
+export const STRUCTURED_OUTPUT_FIELDS = `## Structured output fields — REQUIRED for every finding
 
-For each finding, fill in as many fields as applicable:
+Every finding MUST include ALL of these fields:
 
-- \`sourceFile\` — the workspace path (e.g. /src/utils/parser.ts) where the issue
-  occurs. Always set this when you can identify the file.
-- \`lineNumber\` — the 1-based line number in the source file. Only set after
-  verifying by reading the file.
-- \`confidence\` — \`high\` if you read the source and confirmed the issue,
-  \`medium\` if the profiling data strongly suggests it but you couldn't fully
-  verify, \`low\` if inferred from patterns.
-- \`estimatedSavingsMs\` — your estimate of time saved if the fix is applied.
-- \`beforeCode\` — a snippet of the CURRENT problematic code, copied from the
-  source file you read. Keep it focused (5–15 lines).
-- \`afterCode\` — the IMPROVED code snippet showing the fix. Must be a drop-in
-  replacement for \`beforeCode\`.
-- \`impactMs\` — the current measured cost (e.g. selfTime of the hot function).
-- \`affectedTests\` — list of test names that exercise this code path.`;
+- \`sourceFile\` — (REQUIRED) the workspace path (e.g. /src/utils/parser.ts)
+- \`lineNumber\` — (REQUIRED) the 1-based line number, verified by reading the file
+- \`confidence\` — \`high\` if you read the source, \`medium\` if strongly suggested,
+  \`low\` if inferred
+- \`beforeCode\` — (REQUIRED) the CURRENT problematic code, COPIED VERBATIM from the
+  source file you read. Include the full function or the relevant 5–20 lines.
+  This MUST be actual code from the file, not a paraphrase or summary.
+- \`afterCode\` — (REQUIRED) the IMPROVED code showing the fix. This MUST be a
+  complete, working drop-in replacement for \`beforeCode\`:
+  - Same function signature and exports
+  - Same return type and API contract
+  - Only changes the performance issue — preserves all other behavior
+  - Include ALL the code from beforeCode with just the fix applied
+- \`estimatedSavingsMs\` — your estimate of time saved if the fix is applied
+- \`impactMs\` — the current measured cost (e.g. selfTime of the hot function)
+- \`affectedTests\` — list of test names that exercise this code path
+
+### beforeCode / afterCode rules
+
+- NEVER leave beforeCode or afterCode empty. Every finding must have both.
+- beforeCode must be VERBATIM from the source file — do not abbreviate or paraphrase
+- afterCode must be a complete replacement — not a diff, not pseudocode
+- afterCode must compile and work as a drop-in replacement
+- If you cannot provide a concrete fix, still include beforeCode and describe
+  the fix approach in afterCode as a code comment within the actual code`;

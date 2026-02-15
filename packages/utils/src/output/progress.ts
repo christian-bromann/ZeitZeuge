@@ -19,6 +19,8 @@ interface ToolCallInfo {
 export interface ChunkMeta {
   /** True when the chunk originates from a subagent (subgraph). */
   isSubagent?: boolean;
+  /** The LangGraph namespace for subgraph identification. */
+  namespace?: unknown;
 }
 
 export class TodoProgressRenderer {
@@ -26,10 +28,12 @@ export class TodoProgressRenderer {
   private lastInProgressKey: string | undefined;
   private baseSpinnerText: string | undefined;
   private printedHeader = false;
-  /** Last tool call name for the main agent (dedup). */
-  private lastToolCallName: string | undefined;
-  /** Last tool call name for subagents (separate dedup). */
-  private lastSubagentToolCallName: string | undefined;
+  /** Last tool call dedup key for the main agent. */
+  private lastToolCallKey: string | undefined;
+  /** Last tool call dedup key per subagent namespace. */
+  private lastSubagentToolCallKeys = new Map<string, string>();
+  /** Dispatched subagent names in order (from task tool calls). */
+  private dispatchedSubagents: string[] = [];
   /** Current subagent name for display purposes. */
   private currentSubagentName: string | undefined;
   private currentInProgressContent: string | undefined;
@@ -93,32 +97,57 @@ export class TodoProgressRenderer {
 
   handleChunk(chunk: unknown, meta?: ChunkMeta): void {
     const isSubagent = meta?.isSubagent === true;
+    const nsKey = normalizeNamespace(meta?.namespace);
 
     // --- Handle tool calls ---
     const toolCalls = extractToolCallsFromStreamChunk(chunk);
     if (toolCalls && toolCalls.length > 0) {
       for (const tc of toolCalls) {
         // When the main agent calls `task(subagent_type: "cpu-hotspot", …)`,
-        // remember the subagent_type so subsequent subagent chunks are labelled.
+        // remember ALL dispatched subagent names so we can label their chunks.
         if (!isSubagent && tc.name === 'task') {
           const subagentType = tc.args.subagent_type;
           if (typeof subagentType === 'string') {
-            this.currentSubagentName = subagentType;
+            this.dispatchedSubagents.push(subagentType);
           }
         }
 
+        // Build a dedup key: for `task` calls, include `subagent_type`
+        // so all 4 parallel task dispatches are shown (not just the first).
+        const dedupKey =
+          tc.name === 'task' && typeof tc.args.subagent_type === 'string'
+            ? `task:${tc.args.subagent_type}`
+            : tc.name;
+
         const signature = formatToolCall(tc);
 
-        // Main agent and subagent have independent dedup tracking
-        const lastName = isSubagent ? this.lastSubagentToolCallName : this.lastToolCallName;
-        if (tc.name !== lastName) {
-          if (isSubagent) this.lastSubagentToolCallName = tc.name;
-          else this.lastToolCallName = tc.name;
+        // Main agent and subagent have independent dedup tracking.
+        // Subagents are deduped per-namespace so parallel agents each show their tools.
+        let lastKey: string | undefined;
+        if (isSubagent) {
+          lastKey = this.lastSubagentToolCallKeys.get(nsKey);
+        } else {
+          lastKey = this.lastToolCallKey;
+        }
+
+        if (dedupKey !== lastKey) {
+          if (isSubagent) {
+            this.lastSubagentToolCallKeys.set(nsKey, dedupKey);
+          } else {
+            this.lastToolCallKey = dedupKey;
+          }
 
           this.printHeaderOnce();
 
-          // Subagent tool calls get extra indentation + label
-          const displayName = this.currentSubagentName ?? 'subagent';
+          // Resolve the subagent display name:
+          // 1. Try to extract from namespace (most accurate for parallel subagents)
+          // 2. Fall back to the last dispatched subagent name
+          const displayName = isSubagent
+            ? (extractSubagentNameFromNamespace(meta?.namespace, this.dispatchedSubagents) ??
+              this.dispatchedSubagents[this.dispatchedSubagents.length - 1] ??
+              'subagent')
+            : '';
+
           const label = isSubagent
             ? `      ↳ ${pc.cyan(`[${displayName}]`)} ${signature}`
             : `  ↳ ${signature}`;
@@ -158,8 +187,8 @@ export class TodoProgressRenderer {
           });
           if (this.canAnimate) this.spinner.start();
           // Reset tool call tracking when moving to a new todo
-          this.lastToolCallName = undefined;
-          this.lastSubagentToolCallName = undefined;
+          this.lastToolCallKey = undefined;
+          this.lastSubagentToolCallKeys.clear();
           this.currentSubagentName = undefined;
         }
 
@@ -171,8 +200,8 @@ export class TodoProgressRenderer {
             this.updateSpinnerText(todo.content);
           }
           // Reset tool call tracking for the new task
-          this.lastToolCallName = undefined;
-          this.lastSubagentToolCallName = undefined;
+          this.lastToolCallKey = undefined;
+          this.lastSubagentToolCallKeys.clear();
           this.currentSubagentName = undefined;
         }
       }
@@ -287,6 +316,30 @@ function formatToolCall(tc: ToolCallInfo): string {
   }
   if (keys.length > 3) parts.push('...');
   return `${tc.name}(${parts.join(', ')})`;
+}
+
+/**
+ * Normalize a LangGraph namespace to a stable string key for dedup.
+ */
+function normalizeNamespace(ns: unknown): string {
+  if (typeof ns === 'string') return ns;
+  if (Array.isArray(ns)) return ns.filter((s) => typeof s === 'string').join('|');
+  return '';
+}
+
+/**
+ * Try to extract a dispatched subagent name from the LangGraph namespace.
+ *
+ * Deepagents uses the subagent `name` field in the subgraph namespace path.
+ * We check if any known dispatched subagent name appears in the namespace.
+ */
+function extractSubagentNameFromNamespace(ns: unknown, knownNames: string[]): string | undefined {
+  const nsStr = normalizeNamespace(ns).toLowerCase();
+  if (!nsStr) return undefined;
+  for (const name of knownNames) {
+    if (nsStr.includes(name.toLowerCase())) return name;
+  }
+  return undefined;
 }
 
 /** Truncate a value for display. */
