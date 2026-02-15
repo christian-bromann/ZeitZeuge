@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+
+/*
+ * Color system:
+ * - Light: warm off-white bg, white card surfaces, deep teal primary
+ * - Dark:  near-black bg, subtle surface elevation, vibrant cyan primary
+ */
+
+:root {
+  --background: #fafafa;
+  --foreground: #171717;
+  --surface: #ffffff;
+  --surface-alt: #f0f0f0;
+  --border: #e2e2e2;
+  --border-subtle: #ebebeb;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  --primary: #0e7490;
+  --primary-hover: #155e75;
+  --primary-subtle: #ecfeff;
+  --code-bg: #f5f5f5;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #f5f5f5;
+  --surface: #161618;
+  --surface-alt: #111113;
+  --border: #27272a;
+  --border-subtle: #1e1e21;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --primary: #22d3ee;
+  --primary-hover: #06b6d4;
+  --primary-subtle: rgba(34, 211, 238, 0.08);
+  --code-bg: #1a1a1e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-code-bg: var(--code-bg);
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* ── Prose styles for rendered Markdown in docs ── */
+.prose {
+  max-width: 720px;
+  line-height: 1.75;
+}
+.prose h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+.prose h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+.prose h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.prose h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.prose p {
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+.prose ul,
+.prose ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+.prose ul {
+  list-style-type: disc;
+}
+.prose ol {
+  list-style-type: decimal;
+}
+.prose li {
+  margin-bottom: 0.25rem;
+  color: var(--text-secondary);
+}
+.prose strong {
+  color: var(--foreground);
+}
+.prose a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose a:hover {
+  color: var(--primary-hover);
+}
+.prose code:not(pre code) {
+  background: var(--code-bg);
+  padding: 0.15em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: var(--font-mono), monospace;
+  color: var(--foreground);
+}
+.prose pre {
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  padding: 1.5rem;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  color: var(--text-secondary);
+}
+.prose th {
+  font-weight: 600;
+  background: var(--surface-alt);
+  color: var(--foreground);
+}
+.prose blockquote {
+  border-left: 3px solid var(--primary);
+  padding-left: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.prose hr {
+  border-color: var(--border);
+  margin: 2rem 0;
+}
+
+/* ── Shiki multi-theme: CSS variable approach ──
+   With defaultColor: false, Shiki outputs NO inline color/background —
+   only --shiki-dark / --shiki-light CSS variables on each element.
+   We control which set is active based on .dark class.                */
+
+pre.shiki {
+  background-color: var(--code-bg) !important;
+}
+
+/* Dark mode (default — matches server render with defaultTheme="dark") */
+.shiki,
+.shiki span {
+  color: var(--shiki-dark);
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
+}
+
+/* Light mode */
+html:not(.dark) .shiki,
+html:not(.dark) .shiki span {
+  color: var(--shiki-light);
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
+}
