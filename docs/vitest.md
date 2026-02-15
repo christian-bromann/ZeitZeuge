@@ -35,6 +35,46 @@ vitest run
 
 A Markdown report is written to `zeitzeuge-report.md` with findings and suggested fixes.
 
+> **Heads-up — cost & runtime impact**
+>
+> Zeitzeuge profiles every test file, analyzes the results with an LLM, and
+> produces a report. Depending on the size of your project this can add **60 seconds
+> or more** to each test run and **consumes API tokens**. It is designed as an
+> investigation tool, not something you run on every commit.
+
+### Recommended: on-demand profiling
+
+Instead of always loading the plugin, gate it behind an environment variable so
+it only activates when you explicitly opt in:
+
+```ts
+import { defineConfig } from 'vitest/config';
+import { zeitzeuge } from '@zeitzeuge/vitest';
+
+export default defineConfig({
+  plugins: [
+    zeitzeuge({
+      enabled: !!process.env.ZEITZEUGE,
+    }),
+  ],
+});
+```
+
+Normal test runs stay fast and free of charge:
+
+```bash
+vitest run              # regular run — no profiling, no LLM cost
+```
+
+When you want to investigate performance, enable zeitzeuge for that run:
+
+```bash
+ZEITZEUGE=1 vitest run  # profiles tests + generates AI report
+```
+
+This keeps profiling out of your inner development loop and CI pipelines while
+making it easy to reach for whenever you need it.
+
 ## Plugin Options
 
 ```ts
@@ -62,15 +102,15 @@ zeitzeuge({
 });
 ```
 
-| Option            | Type      | Default                 | Description                                 |
-| ----------------- | --------- | ----------------------- | ------------------------------------------- |
-| `enabled`         | `boolean` | `true`                  | Enable/disable the plugin                   |
-| `output`          | `string`  | `'zeitzeuge-report.md'` | Path for the Markdown report                |
-| `profileDir`      | `string`  | `'.zeitzeuge-profiles'` | Directory for temporary `.cpuprofile` files |
-| `heapProf`        | `boolean` | `false`                 | Also write V8 heap profiles                 |
-| `analyzeOnFinish` | `boolean` | `true`                  | Run Deep Agent analysis after tests finish  |
-| `projectRoot`     | `string`  | `process.cwd()`         | Project root for classifying code           |
-| `verbose`         | `boolean` | `false`                 | Enable debug logging                        |
+| Option            | Type      | Default                 | Description                                                                             |
+| ----------------- | --------- | ----------------------- | --------------------------------------------------------------------------------------- |
+| `enabled`         | `boolean` | `true`                  | Enable/disable the plugin (see [on-demand profiling](#recommended-on-demand-profiling)) |
+| `output`          | `string`  | `'zeitzeuge-report.md'` | Path for the Markdown report                                                            |
+| `profileDir`      | `string`  | `'.zeitzeuge-profiles'` | Directory for temporary `.cpuprofile` files                                             |
+| `heapProf`        | `boolean` | `false`                 | Also write V8 heap profiles                                                             |
+| `analyzeOnFinish` | `boolean` | `true`                  | Run Deep Agent analysis after tests finish                                              |
+| `projectRoot`     | `string`  | `process.cwd()`         | Project root for classifying code                                                       |
+| `verbose`         | `boolean` | `false`                 | Enable debug logging                                                                    |
 
 ## Heap Profiling
 
