@@ -51,8 +51,6 @@ describe('Zeitzeuge Agent Quality', () => {
     AGENT_TIMEOUT,
   );
 
-  // ── Coverage evaluator ──
-
   test('finding coverage meets targets', () => {
     expect(findings).toBeDefined();
 
@@ -88,8 +86,6 @@ describe('Zeitzeuge Agent Quality', () => {
     expect(coverage.slowCodePathCoverage).toBeGreaterThanOrEqual(0.8);
   });
 
-  // ── Quality evaluator ──
-
   test(
     'finding quality meets targets',
     async () => {
@@ -110,8 +106,6 @@ describe('Zeitzeuge Agent Quality', () => {
     },
     AGENT_TIMEOUT,
   );
-
-  // ── Code fix quality ──
 
   test(
     'code fix quality meets targets',
@@ -135,8 +129,6 @@ describe('Zeitzeuge Agent Quality', () => {
     AGENT_TIMEOUT,
   );
 
-  // ── Severity accuracy ──
-
   test('severity accuracy meets targets', async () => {
     expect(findings).toBeDefined();
 
@@ -151,8 +143,6 @@ describe('Zeitzeuge Agent Quality', () => {
 
     expect(scores.severity_accuracy ?? 0).toBeGreaterThanOrEqual(0.75);
   });
-
-  // ── Hallucination check ──
 
   test('hallucination rate meets targets', async () => {
     expect(findings).toBeDefined();
