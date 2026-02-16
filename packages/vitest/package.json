@@ -1,6 +1,6 @@
 {
   "name": "@zeitzeuge/vitest",
-  "version": "0.6.6",
+  "version": "0.1.0",
   "description": "Vitest plugin for performance analysis powered by zeitzeuge.",
   "keywords": [
     "analysis",

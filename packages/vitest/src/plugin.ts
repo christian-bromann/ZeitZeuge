@@ -3,6 +3,7 @@
  * and triggers Deep Agent analysis after tests complete.
  */
 
+import { setMaxListeners } from 'node:events';
 import { join, parse, resolve } from 'node:path';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { ZeitZeugeReporter } from './reporter.js';
@@ -49,6 +50,14 @@ export function zeitzeuge(options: ZeitZeugeVitestOptions = {}) {
 
     configureVitest(context: any) {
       if (!enabled) return;
+
+      // We force pool:'forks' + fileParallelism:false, which means Vitest
+      // creates one forked child per test file.  Vitest's internal
+      // AbortSignal accumulates an abort listener for each fork; with more
+      // than 10 test files this exceeds the default EventTarget limit and
+      // prints a MaxListenersExceededWarning.  Raise the global default so
+      // the harmless warning is suppressed.
+      setMaxListeners(20);
 
       const { vitest, project } = context;
       const isWorkspace = Array.isArray(vitest?.projects) && vitest.projects.length > 1;
