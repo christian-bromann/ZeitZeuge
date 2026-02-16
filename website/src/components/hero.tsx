@@ -1,8 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { CodeBlock } from './code-block';
+import { TerminalAnimation } from './terminal-animation';
 
-export async function Hero() {
+export function Hero() {
   return (
     <section className="relative py-12 sm:py-16 overflow-hidden">
       {/* Subtle gradient glow */}
@@ -10,25 +10,27 @@ export async function Hero() {
         <div className="w-[600px] h-[400px] bg-primary/8 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center">
-        <Image
-          src="/zeitzeuge.png"
-          alt="zeitzeuge mascot"
-          width={300}
-          height={300}
-          className="mx-auto drop-shadow-lg"
-          priority
-        />
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-6 text-foreground">
-          AI-Powered Performance Analysis
-        </h1>
-        <p className="text-lg sm:text-xl text-text-secondary mb-10 max-w-2xl mx-auto leading-relaxed">
-          Capture V8 heap snapshots, Chrome runtime traces, and CPU profiles — hand them to a Deep
-          Agent that finds bottlenecks and suggests code-level fixes.
-        </p>
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
+        <div className="text-center">
+          <Image
+            src="/zeitzeuge.png"
+            alt="zeitzeuge mascot"
+            width={300}
+            height={300}
+            className="mx-auto drop-shadow-lg"
+            priority
+          />
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-6 text-foreground">
+            AI-Powered Performance Analysis
+          </h1>
+          <p className="text-lg sm:text-xl text-text-secondary mb-10 max-w-2xl mx-auto leading-relaxed">
+            Capture V8 heap snapshots, Chrome runtime traces, and CPU profiles — hand them to a Deep
+            Agent that finds bottlenecks and suggests code-level fixes.
+          </p>
+        </div>
 
-        <div className="max-w-lg mx-auto mb-8">
-          <CodeBlock code="npx zeitzeuge https://zeitzeuge.dev" language="bash" />
+        <div className="max-w-4xl mx-auto mb-8">
+          <TerminalAnimation />
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

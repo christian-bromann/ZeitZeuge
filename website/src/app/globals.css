@@ -191,3 +191,135 @@ html:not(.dark) .shiki span {
   font-weight: var(--shiki-light-font-weight);
   text-decoration: var(--shiki-light-text-decoration);
 }
+
+/* ── Terminal animation ── */
+
+@keyframes blink-cursor {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.terminal-cursor {
+  animation: blink-cursor 1.06s step-end infinite;
+}
+
+.terminal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.terminal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.terminal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+.terminal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.terminal-fade-right {
+  mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+}
+
+/* Terminal color classes — scoped to data-theme on the terminal container */
+[data-theme='light'] .term-prompt {
+  color: #16a34a;
+}
+[data-theme='light'] .term-command {
+  color: #1e1e1e;
+}
+[data-theme='light'] .term-badge {
+  color: #0891b2;
+}
+[data-theme='light'] .term-success {
+  color: #16a34a;
+}
+[data-theme='light'] .term-text {
+  color: #374151;
+}
+[data-theme='light'] .term-muted {
+  color: #6b7280;
+}
+[data-theme='light'] .term-cyan {
+  color: #0891b2;
+}
+[data-theme='light'] .term-heading {
+  color: #111827;
+  font-weight: 700;
+}
+[data-theme='light'] .term-value {
+  color: #b45309;
+}
+[data-theme='light'] .term-warning {
+  color: #ea580c;
+}
+[data-theme='light'] .term-critical {
+  color: #dc2626;
+}
+[data-theme='light'] .term-info {
+  color: #16a34a;
+}
+[data-theme='light'] .term-agent {
+  color: #7c3aed;
+}
+[data-theme='light'] .term-pending {
+  color: #b45309;
+}
+[data-theme='light'] .term-path {
+  color: #6b7280;
+  font-style: italic;
+}
+
+[data-theme='dark'] .term-prompt {
+  color: #50fa7b;
+}
+[data-theme='dark'] .term-command {
+  color: #f8f8f2;
+}
+[data-theme='dark'] .term-badge {
+  color: #8be9fd;
+}
+[data-theme='dark'] .term-success {
+  color: #50fa7b;
+}
+[data-theme='dark'] .term-text {
+  color: #c8c8c8;
+}
+[data-theme='dark'] .term-muted {
+  color: #6272a4;
+}
+[data-theme='dark'] .term-cyan {
+  color: #8be9fd;
+}
+[data-theme='dark'] .term-heading {
+  color: #f8f8f2;
+  font-weight: 700;
+}
+[data-theme='dark'] .term-value {
+  color: #f1fa8c;
+}
+[data-theme='dark'] .term-warning {
+  color: #ffb86c;
+}
+[data-theme='dark'] .term-critical {
+  color: #ff5555;
+}
+[data-theme='dark'] .term-info {
+  color: #50fa7b;
+}
+[data-theme='dark'] .term-agent {
+  color: #bd93f9;
+}
+[data-theme='dark'] .term-pending {
+  color: #f1fa8c;
+}
+[data-theme='dark'] .term-path {
+  color: #6272a4;
+  font-style: italic;
+}
