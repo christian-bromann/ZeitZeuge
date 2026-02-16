@@ -3,6 +3,16 @@ import ora, { type Ora } from 'ora';
 import type { Finding, HeapSummary, TraceResult, PerformanceMetrics } from '../types.js';
 import { getListenerImbalances } from '../types.js';
 
+/**
+ * Get the usable terminal width, with a sensible default for non-TTY.
+ * Reserves a small right margin to avoid edge wrapping artefacts.
+ */
+function getTerminalWidth(): number {
+  const cols = process.stdout.columns || 80;
+  // leave a 2-char margin so lines never touch the very edge
+  return Math.max(cols - 2, 40);
+}
+
 const SEVERITY_ICONS: Record<Finding['severity'], string> = {
   critical: pc.red('🔴 CRITICAL'),
   warning: pc.yellow('🟡 WARNING'),
@@ -45,13 +55,18 @@ const CATEGORY_LABELS: Record<string, string> = {
  * Print the zeitzeuge header with version and target URL.
  */
 export function printHeader(url: string, version: string): void {
-  const urlDisplay = url.length > 44 ? url.slice(0, 41) + '...' : url;
+  const tw = getTerminalWidth();
+  // Box inner width: tw - 2 (for the border chars ┌/└ and ┐/┘)
+  const innerWidth = Math.max(tw - 2, 20);
+  // Content area inside the box (│  content  │) → inner - 4 (border + padding)
+  const contentWidth = innerWidth - 4;
+  const urlDisplay = url.length > contentWidth - 13 ? url.slice(0, contentWidth - 16) + '...' : url;
   console.log(
     pc.cyan(
-      `\n┌${'─'.repeat(57)}┐\n` +
-        `│  zeitzeuge v${version.padEnd(44)}│\n` +
-        `│  Analyzing: ${urlDisplay.padEnd(44)}│\n` +
-        `└${'─'.repeat(57)}┘\n`,
+      `\n┌${'─'.repeat(innerWidth)}┐\n` +
+        `│  zeitzeuge v${version.padEnd(contentWidth - 12)}│\n` +
+        `│  Analyzing: ${urlDisplay.padEnd(contentWidth - 12)}│\n` +
+        `└${'─'.repeat(innerWidth)}┘\n`,
     ),
   );
 }
@@ -67,61 +82,107 @@ export function createSpinner(text: string): Ora {
  * Print all findings to the terminal with formatting.
  */
 export function printFindings(findings: Finding[]): void {
-  console.log(pc.dim('\n' + '━'.repeat(58) + '\n'));
+  const tw = getTerminalWidth();
+  const separatorWidth = Math.min(58, tw);
+
+  console.log(pc.dim('\n' + '━'.repeat(separatorWidth) + '\n'));
 
   if (findings.length === 0) {
     console.log(pc.green('  ✔ No significant performance issues found. Page looks healthy!\n'));
-    console.log(pc.dim('━'.repeat(58)));
+    console.log(pc.dim('━'.repeat(separatorWidth)));
     return;
   }
+
+  // Indentation used for body text / metadata
+  const bodyIndent = '   ';
+  const bodyWidth = tw - bodyIndent.length;
 
   for (const finding of findings) {
     const icon = SEVERITY_ICONS[finding.severity];
     const categoryLabel = CATEGORY_LABELS[finding.category] ?? finding.category;
-    console.log(`${icon} [${categoryLabel}]: ${pc.bold(finding.title)}`);
 
-    // Show context-specific metadata
+    // Wrap the title line if it exceeds terminal width
+    const titlePrefix = `${icon} [${categoryLabel}]: `;
+    // ANSI color codes don't take up visual space — estimate visible prefix length
+    const titlePrefixVisual = `XX XXXXXXXX [${categoryLabel}]: `.length;
+    const titleLines = wrapText(finding.title, tw - titlePrefixVisual);
+    console.log(`${titlePrefix}${pc.bold(titleLines[0] ?? '')}`);
+    for (const tl of titleLines.slice(1)) {
+      console.log(`${' '.repeat(titlePrefixVisual)}${pc.bold(tl)}`);
+    }
+
+    // Show context-specific metadata (wrap long lines)
     if (finding.retainedSize != null) {
-      console.log(pc.dim(`   Retained size: ${formatBytes(finding.retainedSize)}`));
+      console.log(pc.dim(`${bodyIndent}Retained size: ${formatBytes(finding.retainedSize)}`));
     }
     if (finding.impactMs != null) {
-      console.log(pc.dim(`   Impact: ${finding.impactMs.toFixed(0)}ms`));
+      console.log(pc.dim(`${bodyIndent}Impact: ${finding.impactMs.toFixed(0)}ms`));
     }
     if (finding.resourceUrl) {
-      console.log(pc.dim(`   Resource: ${finding.resourceUrl}`));
+      for (const rl of wrapText(`Resource: ${finding.resourceUrl}`, bodyWidth)) {
+        console.log(pc.dim(`${bodyIndent}${rl}`));
+      }
     }
     if (finding.retainerPath && finding.retainerPath.length > 0) {
-      console.log(pc.dim(`   Path: ${finding.retainerPath.join(' → ')}`));
+      for (const rl of wrapText(`Path: ${finding.retainerPath.join(' → ')}`, bodyWidth)) {
+        console.log(pc.dim(`${bodyIndent}${rl}`));
+      }
     }
     if (finding.testFile) {
-      console.log(pc.dim(`   Test file: ${finding.testFile}`));
+      console.log(pc.dim(`${bodyIndent}Test file: ${finding.testFile}`));
     }
     if (finding.hotFunction) {
       const hf = finding.hotFunction;
-      console.log(
-        pc.dim(
-          `   Function: ${hf.name} at ${hf.scriptUrl}:${hf.lineNumber} (selfTime: ${hf.selfTime.toFixed(0)}ms, ${hf.selfPercent.toFixed(1)}%)`,
-        ),
-      );
+      const fnText =
+        `Function: ${hf.name} at ${hf.scriptUrl}:${hf.lineNumber} ` +
+        `(selfTime: ${hf.selfTime.toFixed(0)}ms, ${hf.selfPercent.toFixed(1)}%)`;
+      for (const fl of wrapText(fnText, bodyWidth)) {
+        console.log(pc.dim(`${bodyIndent}${fl}`));
+      }
     }
 
-    console.log(`\n   ${finding.description}\n`);
+    // Wrap the description to terminal width
+    console.log('');
+    for (const dl of wrapText(finding.description, bodyWidth)) {
+      console.log(`${bodyIndent}${dl}`);
+    }
+    console.log('');
 
     if (finding.suggestedFix) {
-      console.log(pc.dim('   Suggested fix:'));
-      const lines = finding.suggestedFix.split('\n');
-      const boxWidth = Math.max(...lines.map((l) => l.length), 20) + 4;
-      console.log(pc.dim(`   ┌${'─'.repeat(boxWidth)}┐`));
-      for (const line of lines) {
-        console.log(pc.dim('   │ ') + pc.white(line.padEnd(boxWidth - 2)) + pc.dim(' │'));
+      console.log(pc.dim(`${bodyIndent}Suggested fix:`));
+
+      // Box prefix is "   ┌─…─┐" → 3 (indent) + 2 (border+space each side) = overhead 7
+      const boxOverhead = bodyIndent.length + 4; // "   │ " ... " │"
+      const maxBoxContentWidth = tw - boxOverhead;
+
+      // Wrap suggested fix lines to fit within the box
+      const wrappedLines: string[] = [];
+      for (const rawLine of finding.suggestedFix.split('\n')) {
+        if (rawLine.length <= maxBoxContentWidth) {
+          wrappedLines.push(rawLine);
+        } else {
+          wrappedLines.push(...wrapText(rawLine, maxBoxContentWidth));
+        }
       }
-      console.log(pc.dim(`   └${'─'.repeat(boxWidth)}┘`));
+
+      const boxContentWidth = Math.min(
+        Math.max(...wrappedLines.map((l) => l.length), 20),
+        maxBoxContentWidth,
+      );
+      const boxWidth = boxContentWidth + 2; // +2 for the single space padding each side
+      console.log(pc.dim(`${bodyIndent}┌${'─'.repeat(boxWidth)}┐`));
+      for (const line of wrappedLines) {
+        console.log(
+          pc.dim(`${bodyIndent}│ `) + pc.white(line.padEnd(boxContentWidth)) + pc.dim(' │'),
+        );
+      }
+      console.log(pc.dim(`${bodyIndent}└${'─'.repeat(boxWidth)}┘`));
     }
 
     console.log();
   }
 
-  console.log(pc.dim('━'.repeat(58)));
+  console.log(pc.dim('━'.repeat(separatorWidth)));
 
   // Summary line
   const counts = {
@@ -163,8 +224,10 @@ function wrapText(text: string, maxWidth: number): string[] {
  * Print findings in a compact format (optimized for Vitest logs).
  */
 export function printFindingsVitest(findings: Finding[]): void {
+  const tw = getTerminalWidth();
   const indent = '  ';
   const subIndent = indent + '  ';
+  const wrapWidth = tw - subIndent.length;
 
   if (findings.length === 0) {
     console.log(`${indent}${pc.green('✔')} No significant performance issues found.`);
@@ -180,26 +243,31 @@ export function printFindingsVitest(findings: Finding[]): void {
     if (finding.testFile) console.log(pc.dim(`${subIndent}Test file: ${finding.testFile}`));
     if (finding.impactMs != null)
       console.log(pc.dim(`${subIndent}Impact: ${finding.impactMs.toFixed(0)}ms`));
-    if (finding.resourceUrl) console.log(pc.dim(`${subIndent}Resource: ${finding.resourceUrl}`));
+    if (finding.resourceUrl) {
+      for (const rl of wrapText(`Resource: ${finding.resourceUrl}`, wrapWidth)) {
+        console.log(pc.dim(`${subIndent}${rl}`));
+      }
+    }
     if (finding.hotFunction) {
       const hf = finding.hotFunction;
-      console.log(
-        pc.dim(
-          `${subIndent}Function: ${hf.name} at ${hf.scriptUrl}:${hf.lineNumber} (selfTime: ${hf.selfTime.toFixed(
-            0,
-          )}ms, ${hf.selfPercent.toFixed(1)}%)`,
-        ),
-      );
+      const fnText =
+        `Function: ${hf.name} at ${hf.scriptUrl}:${hf.lineNumber} ` +
+        `(selfTime: ${hf.selfTime.toFixed(0)}ms, ${hf.selfPercent.toFixed(1)}%)`;
+      for (const fl of wrapText(fnText, wrapWidth)) {
+        console.log(pc.dim(`${subIndent}${fl}`));
+      }
     }
 
-    for (const line of wrapText(finding.description, 100)) {
+    for (const line of wrapText(finding.description, wrapWidth)) {
       console.log(`${subIndent}${line}`);
     }
 
     if (finding.suggestedFix) {
       console.log(pc.dim(`${subIndent}Suggested fix:`));
-      for (const line of finding.suggestedFix.split('\n')) {
-        console.log(`${subIndent}  ${line}`);
+      for (const rawLine of finding.suggestedFix.split('\n')) {
+        for (const wl of wrapText(rawLine, wrapWidth - 2)) {
+          console.log(`${subIndent}  ${wl}`);
+        }
       }
     }
 

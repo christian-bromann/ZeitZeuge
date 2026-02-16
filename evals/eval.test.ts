@@ -104,9 +104,9 @@ describe('Zeitzeuge Agent Quality', () => {
       console.log(`  Specificity:   ${scores.quality_specificity?.toFixed(2)}/5`);
       console.log(`  Actionability: ${scores.quality_actionability?.toFixed(2)}/5`);
       console.log(`  Explanation:   ${scores.quality_explanation?.toFixed(2)}/5`);
-      console.log(`  Overall:       ${scores.quality_overall?.toFixed(2)}/5 (target: ≥3.5)`);
+      console.log(`  Overall:       ${scores.quality_overall?.toFixed(2)}/5 (target: ≥4)`);
 
-      expect(scores.quality_overall).toBeGreaterThanOrEqual(3.5);
+      expect(scores.quality_overall).toBeGreaterThanOrEqual(4);
     },
     AGENT_TIMEOUT,
   );
@@ -146,10 +146,10 @@ describe('Zeitzeuge Agent Quality', () => {
 
     console.log('\n=== Severity Accuracy ===');
     console.log(
-      `  Accuracy: ${((scores.severity_accuracy ?? 0) * 100).toFixed(1)}% (target: ≥60%)`,
+      `  Accuracy: ${((scores.severity_accuracy ?? 0) * 100).toFixed(1)}% (target: ≥80%)`,
     );
 
-    expect(scores.severity_accuracy ?? 0).toBeGreaterThanOrEqual(0.6);
+    expect(scores.severity_accuracy ?? 0).toBeGreaterThanOrEqual(0.8);
   });
 
   // ── Hallucination check ──

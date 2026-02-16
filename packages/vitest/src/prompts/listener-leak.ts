@@ -11,6 +11,7 @@ import {
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
   PARALLEL_TOOL_CALLS,
+  FULL_RESPONSE_REQUIREMENT,
 } from './shared.js';
 
 export const LISTENER_LEAK_PROMPT = `You are a specialist in detecting event listener leaks and event handling imbalances in JavaScript/TypeScript code.
@@ -45,11 +46,24 @@ function subscribe(channel) {
 }
 \`\`\`
 
-### Pattern C — MaxListeners exceeded
+### Pattern C — MaxListeners exceeded (MUST report separately)
 
-When listener counts exceed the default maxListeners threshold (10).
-This is an AUTOMATIC consequence of Pattern A or B, and should be reported
-as a separate finding when the tracking data shows exceedances.
+When listener counts exceed the default maxListeners threshold (10), this
+triggers a MaxListenersExceededWarning at runtime. Check /listener-tracking.json
+for the "exceedances" array — each entry shows an event type where the listener
+count exceeded the threshold.
+
+**This is a SEPARATE finding from Pattern A/B**, even if the same function causes
+both the accumulation AND the exceedance. You MUST report:
+1. Pattern A or B finding: the code that adds listeners without cleanup
+2. Pattern C finding: the maxListeners threshold being exceeded, with the
+   specific count, threshold, and event name from the exceedance data
+
+The Pattern C finding should have:
+- category: "listener-leak" or "event-handling"
+- severity: "critical" (exceedances are always critical)
+- keywords: mention "maxListeners", "threshold", "exceeded", the event name,
+  and the specific count from the tracking data
 
 ## Your workflow (follow this EXACTLY)
 
@@ -75,12 +89,22 @@ as a separate finding when the tracking data shows exceedances.
 
 - If a function adds a listener without removal → one finding about accumulation
 - If a subscribe function has no unsubscribe mechanism → a separate finding
-- If maxListeners is exceeded → a separate finding (cross-reference with the causal
-  pattern above)
+- If maxListeners is exceeded → a SEPARATE finding (cross-reference with the causal
+  pattern above). This must be its own finding even if you already reported the
+  listener accumulation that caused it. The developer needs to know BOTH that
+  listeners accumulate AND that the threshold is exceeded.
+
+### Minimum expected findings
+
+For a typical codebase with listener leaks, expect at least:
+1. One finding per function that adds listeners without cleanup (Pattern A)
+2. One finding per subscribe function without unsubscribe (Pattern B)
+3. One finding per maxListeners exceedance from tracking data (Pattern C)
 
 ${PARALLEL_TOOL_CALLS}
 ${VERIFICATION_RULES}
 ${SEVERITY_RULES}
 ${FINDING_CATEGORIES}
 ${OUTPUT_FORMAT}
-${STRUCTURED_OUTPUT_FIELDS}`;
+${STRUCTURED_OUTPUT_FIELDS}
+${FULL_RESPONSE_REQUIREMENT}`;

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { setMaxListeners } from 'node:events';
 import type { DeepAgent, DeepAgentTypeConfig } from 'deepagents';
 import type { Ora } from 'ora';
@@ -46,7 +47,12 @@ export async function invokeWithTodoStreaming<TTypes extends DeepAgentTypeConfig
 
   let lastValues: unknown;
 
+  const logFile = 'stream.json';
+  fs.writeFileSync(logFile, '[\n');
+  let isFirstEntry = true;
   for await (const item of stream as AsyncIterable<unknown>) {
+    fs.appendFileSync(logFile, `${isFirstEntry ? '' : ',\n'}${JSON.stringify(item)}`);
+    isFirstEntry = false;
     if (!Array.isArray(item)) {
       // Fallback: raw chunk (single streamMode, no subgraphs).
       renderer.handleChunk(item);

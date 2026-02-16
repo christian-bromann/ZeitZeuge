@@ -26,9 +26,6 @@ export interface VitestWorkspaceResult {
   testFiles: string[];
 }
 
-/** Minimum selfPercent for a source file to be included in the workspace. */
-const SOURCE_INCLUSION_THRESHOLD = 1; // 1% of any profile
-
 /** Slow test threshold in ms. */
 const SLOW_TEST_THRESHOLD = 100;
 
@@ -114,9 +111,26 @@ export async function createVitestWorkspace(
   );
 
   // ── /profiles/<sanitized-filename>.json ──
+  // Sanitize absolute scriptUrl paths → workspace-relative paths so the agent
+  // doesn't try to read OS-level absolute paths in the VFS.
   for (const profile of profiles) {
     const safeName = sanitizeFilename(profile.testFile);
-    files[`/profiles/${safeName}.json`] = JSON.stringify(profile.summary, null, 2);
+    const sanitized = {
+      ...profile.summary,
+      hotFunctions: profile.summary.hotFunctions.map((fn) => {
+        const { scriptUrl: _s, ...rest } = fn;
+        let relPath = relativizePath(fn.scriptUrl, options.projectRoot);
+        if (relPath.startsWith('src/')) relPath = relPath.slice(4);
+        return { ...rest, workspacePath: `/src/${relPath}` };
+      }),
+      scriptBreakdown: profile.summary.scriptBreakdown.map((s) => {
+        const { scriptUrl: _s, ...rest } = s;
+        let relPath = relativizePath(s.scriptUrl, options.projectRoot);
+        if (relPath.startsWith('src/')) relPath = relPath.slice(4);
+        return { ...rest, workspacePath: `/src/${relPath}` };
+      }),
+    };
+    files[`/profiles/${safeName}.json`] = JSON.stringify(sanitized, null, 2);
   }
 
   // ── /heap-profiles/index.json + /heap-profiles/<sanitized-filename>.json ──
@@ -168,12 +182,17 @@ export async function createVitestWorkspace(
   }
   const totalDurationMs = testTiming.reduce((s, t) => s + t.duration, 0);
   const appScriptSummary = Array.from(appScriptMap.entries())
-    .map(([scriptUrl, data]) => ({
-      scriptUrl,
-      selfTime: round(data.selfTime),
-      selfPercent: totalDurationMs > 0 ? round((data.selfTime / totalDurationMs) * 100) : 0,
-      functionCount: data.functionCount,
-    }))
+    .map(([scriptUrl, data]) => {
+      // Use workspace-relative path instead of absolute scriptUrl
+      let relPath = relativizePath(scriptUrl, options.projectRoot);
+      if (relPath.startsWith('src/')) relPath = relPath.slice(4);
+      return {
+        workspacePath: `/src/${relPath}`,
+        selfTime: round(data.selfTime),
+        selfPercent: totalDurationMs > 0 ? round((data.selfTime / totalDurationMs) * 100) : 0,
+        functionCount: data.functionCount,
+      };
+    })
     .sort((a, b) => b.selfTime - a.selfTime);
   files['/scripts/application.json'] = JSON.stringify(appScriptSummary, null, 2);
 
@@ -195,12 +214,15 @@ export async function createVitestWorkspace(
     }
   }
   const depScriptSummary = Array.from(depScriptMap.entries())
-    .map(([scriptUrl, data]) => ({
-      scriptUrl,
-      selfTime: round(data.selfTime),
-      selfPercent: totalDurationMs > 0 ? round((data.selfTime / totalDurationMs) * 100) : 0,
-      functionCount: data.functionCount,
-    }))
+    .map(([scriptUrl, data]) => {
+      const relPath = relativizePath(scriptUrl, options.projectRoot);
+      return {
+        workspacePath: relPath.startsWith('node_modules/') ? relPath : scriptUrl,
+        selfTime: round(data.selfTime),
+        selfPercent: totalDurationMs > 0 ? round((data.selfTime / totalDurationMs) * 100) : 0,
+        functionCount: data.functionCount,
+      };
+    })
     .sort((a, b) => b.selfTime - a.selfTime);
   files['/scripts/dependencies.json'] = JSON.stringify(depScriptSummary, null, 2);
 
@@ -211,51 +233,95 @@ export async function createVitestWorkspace(
 
   // ── /listener-tracking.json — EventTarget/EventEmitter listener patterns ──
   if (listenerTracking) {
-    files['/listener-tracking.json'] = JSON.stringify(listenerTracking, null, 2);
+    // Sanitize absolute paths in exceedance stack traces so the agent
+    // doesn't see OS-level paths that don't exist in the VFS.
+    const sanitizedTracking = {
+      ...listenerTracking,
+      exceedances: listenerTracking.exceedances?.map((exc) => {
+        if (!exc.stack || !options.projectRoot) return exc;
+        return {
+          ...exc,
+          stack: exc.stack.replaceAll(options.projectRoot + '/', ''),
+        };
+      }),
+    };
+    files['/listener-tracking.json'] = JSON.stringify(sanitizedTracking, null, 2);
   }
 
   // ── /tests/*.ts — test source files ──
   // Preserve directory structure relative to project root
   for (const [filePath, source] of testSources) {
-    const relPath = relativizePath(filePath, options.projectRoot);
+    let relPath = relativizePath(filePath, options.projectRoot);
+    // Strip leading "tests/" to avoid double prefix /tests/tests/
+    if (relPath.startsWith('tests/')) relPath = relPath.slice(6);
     files[`/tests/${relPath}`] = source;
   }
 
-  // ── /src/*.ts — application source files referenced by hot functions ──
-  // Application code uses a lower threshold than dependencies
-  // Maps scriptUrl → workspace path for source snippet lookup
+  // ── /src/*.ts — application source files ──
+  // Include ALL application source files since application code is typically a
+  // tiny fraction of total CPU time and the agent needs the source to provide
+  // meaningful beforeCode/afterCode suggestions.
   const scriptUrlToWorkspacePath = new Map<string, string>();
   if (sourcePaths) {
-    const hotScriptUrls = new Set<string>();
-    for (const profile of profiles) {
-      for (const fn of profile.summary.hotFunctions) {
-        if (!fn.scriptUrl) continue;
-        const threshold =
-          fn.sourceCategory === 'application'
-            ? 0.1 // very low threshold for application code
-            : SOURCE_INCLUSION_THRESHOLD;
-        if (fn.selfPercent >= threshold) {
-          hotScriptUrls.add(fn.scriptUrl);
-        }
-      }
-    }
-
+    // Write ALL source files to the VFS — the agent needs to read every file
+    // to discover issues that may not appear as hot functions (e.g., quadratic
+    // algorithms, regex recompilation, closure leaks).
     for (const [scriptUrl, source] of sourcePaths) {
-      if (!hotScriptUrls.has(scriptUrl)) continue;
-      const relPath = relativizePath(scriptUrl, options.projectRoot);
+      let relPath = relativizePath(scriptUrl, options.projectRoot);
+      // Strip leading "src/" to avoid double prefix /src/src/
+      if (relPath.startsWith('src/')) relPath = relPath.slice(4);
       const wsPath = `/src/${relPath}`;
       files[wsPath] = source;
+      // Map both the plain path and any file:// variant so enrichHotFunction
+      // can look up workspace paths from V8 profile scriptUrls (which use
+      // file:// URIs) as well as plain OS paths from readSourceTree.
       scriptUrlToWorkspacePath.set(scriptUrl, wsPath);
+      scriptUrlToWorkspacePath.set(`file://${scriptUrl}`, wsPath);
     }
   }
 
   // ── Embed source snippets into hot function data ──
-  // Re-generate hot function files with sourceSnippet and workspacePath fields
+  // Re-generate hot function files with sourceSnippet and workspacePath fields.
+  // IMPORTANT: Strip `scriptUrl` (absolute OS path) from the output so the
+  // agent only sees `workspacePath` (VFS-relative) and doesn't try to read
+  // absolute paths that don't exist in the workspace.
   if (sourcePaths && sourcePaths.size > 0) {
+    /** Relativize a callerChain entry, stripping the absolute scriptUrl. */
+    const sanitizeCallerChain = (
+      chain?: Array<{ functionName: string; scriptUrl: string; lineNumber: number }>,
+    ) => {
+      if (!chain || chain.length === 0) return undefined;
+      return chain.map(({ scriptUrl, ...rest }) => {
+        let relPath = relativizePath(scriptUrl, options.projectRoot);
+        if (relPath.startsWith('src/')) relPath = relPath.slice(4);
+        // Only prefix with /src/ for application paths (not node_modules or node:)
+        const wsPath =
+          relPath.startsWith('node_modules/') || relPath.startsWith('node:')
+            ? relPath
+            : `/src/${relPath}`;
+        return { ...rest, workspacePath: wsPath };
+      });
+    };
+
     const enrichHotFunction = (fn: HotFunction) => {
-      const source = sourcePaths.get(fn.scriptUrl);
+      // V8 profiles use file:// URIs; sourcePaths keys are plain absolute paths.
+      // Try both formats to find the source content.
+      const source =
+        sourcePaths.get(fn.scriptUrl) ?? sourcePaths.get(normalizeFileUrl(fn.scriptUrl));
       const wsPath = scriptUrlToWorkspacePath.get(fn.scriptUrl);
-      if (!source || fn.lineNumber < 0) return { ...fn, workspacePath: wsPath };
+
+      // Strip scriptUrl — agent should use workspacePath instead
+      const { scriptUrl: _stripped, callerChain, ...fnWithoutScriptUrl } = fn;
+
+      // Sanitize callerChain to replace absolute scriptUrl with workspace paths
+      const sanitizedChain = sanitizeCallerChain(callerChain);
+      const base = {
+        ...fnWithoutScriptUrl,
+        workspacePath: wsPath,
+        ...(sanitizedChain ? { callerChain: sanitizedChain } : {}),
+      };
+
+      if (!source || fn.lineNumber < 0) return base;
 
       const sourceLines = source.split('\n');
       // V8 line numbers are 0-based; convert to 1-based for display
@@ -271,7 +337,7 @@ export async function createVitestWorkspace(
         })
         .join('\n');
 
-      return { ...fn, sourceSnippet: snippet, workspacePath: wsPath };
+      return { ...base, sourceSnippet: snippet };
     };
 
     // Re-write hot function files with embedded snippets
@@ -386,6 +452,22 @@ export function mergeHotFunctions(profiles: CorrelatedProfile[]): HotFunction[] 
 }
 
 // ── Helpers ───────────────────────────────────────────────────
+
+/**
+ * Strip the file:// protocol prefix from a URL, returning a plain OS path.
+ * V8 CPU profiles use file:// URIs while readSourceTree returns plain paths.
+ */
+function normalizeFileUrl(url: string): string {
+  if (url.startsWith('file://')) {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      // fallback: strip "file://" manually
+      return url.slice(7);
+    }
+  }
+  return url;
+}
 
 function sanitizeFilename(filePath: string): string {
   return filePath

@@ -8,7 +8,8 @@
 export const WORKSPACE_STRUCTURE = `## Data file descriptions
 
 - /hot-functions/application.json — Hot functions from application code.
-  Each entry has: functionName, selfTime, selfPercent, sourceSnippet, workspacePath
+  Each entry has: functionName, selfTime, selfPercent, sourceSnippet, workspacePath.
+  Use the workspacePath field to read source files (e.g. /src/services/foo.ts).
 - /scripts/application.json — Per-script time breakdown for application code
 - /profiles/index.json — Manifest mapping test files to their CPU profiles
 - /profiles/<file>.json — CPU profile: hot functions, call trees, script breakdown
@@ -32,16 +33,27 @@ export const VERIFICATION_RULES = `## Verification rules (mandatory for every fi
 
 export const SEVERITY_RULES = `## Severity classification
 
-Assign severity based on measured impact — do NOT guess:
+Assign severity based on the nature and measured impact of the issue:
 
-- **critical** — A single function consuming >15% self-time, listener exceedances
-  (count exceeding maxListeners), or GC overhead >10% of total profile duration
-- **warning** — A function consuming 5–15% self-time, listener add/remove imbalance
-  where addCount > 2× removeCount, or GC overhead between 5–10%
-- **info** — A function consuming <5% self-time, minor inefficiencies,
-  dependency observations, or small optimisation opportunities
+- **critical** — Any of:
+  - Synchronous blocking of the event loop (CPU-bound loops, sync crypto, sync I/O)
+  - Functions that CALL blocking functions (compound blockers)
+  - Listener exceedances (count exceeding maxListeners threshold)
+  - GC overhead >10% of total profile duration
+  - A single function consuming >15% of APPLICATION code self-time
+- **warning** — Any of:
+  - Listener add/remove imbalance (addCount > 2× removeCount) without exceedance
+  - O(n²) or worse algorithms on collections
+  - Unnecessary serialization (JSON.parse/JSON.stringify) on hot paths
+  - Closure-based memory leaks or unbounded data structures
+  - A function consuming 5–15% of application self-time
+- **info** — Minor inefficiencies, small optimisation opportunities, per-call
+  object allocation (TextEncoder, RegExp, DateTimeFormat), or patterns that only
+  matter at scale
 
-Always base severity on the actual numbers from the profiling data — never inflate.`;
+IMPORTANT: Blocking/event-loop-blocking operations are ALWAYS critical, regardless
+of measured self-time percentage. Even a short blocking call prevents the event loop
+from processing other work and is a correctness issue, not just a performance issue.`;
 
 export const OUTPUT_FORMAT = `## Output requirements
 
@@ -66,21 +78,28 @@ export const OUTPUT_FORMAT = `## Output requirements
 
 export const FINDING_CATEGORIES = `## Finding categories
 
-Each finding MUST use one of these exact category values:
+Each finding MUST use one of these EXACT category values — do NOT invent new categories:
 
 - **algorithm** — Inefficient algorithm: O(n²) loops, brute-force search, repeated work
 - **serialization** — Excessive JSON.stringify/parse, string concatenation, encoding
-- **allocation** — Excessive object/array creation causing GC pressure
+- **allocation** — Excessive object/array creation, per-call instantiation causing GC pressure
 - **event-handling** — Listener leaks, unbounded event handler accumulation
 - **hot-function** — Generic CPU-hot function that doesn't fit a more specific category
-- **gc-pressure** — High garbage collection overhead
+- **gc-pressure** — Memory leaks, closure-captured references, unbounded data structures
+  that grow without eviction, or high garbage collection overhead. Use this for ANY
+  finding about memory growth, retained references, or missing cleanup/eviction.
 - **listener-leak** — Event listeners not cleaned up properly
-- **unnecessary-computation** — Redundant work that could be cached or eliminated
+- **unnecessary-computation** — Redundant work that could be cached or eliminated,
+  including regex recompilation with constant patterns
 - **blocking-io** — Synchronous I/O or blocking operations in hot paths
 - **other** — Doesn't fit any of the above
 
+IMPORTANT: Do NOT use "memory-leak" — it is NOT a valid category. For memory leak
+findings, use **gc-pressure** (for closure captures and unbounded growth) or
+**allocation** (for excessive object creation).
+
 Prefer more specific categories (algorithm, serialization, allocation, event-handling,
-blocking-io, listener-leak) over generic ones (hot-function, other).`;
+blocking-io, listener-leak, gc-pressure) over generic ones (hot-function, other).`;
 
 export const PARALLEL_TOOL_CALLS = `## CRITICAL: Tool call strategy — parallel reads
 
@@ -98,6 +117,22 @@ FORBIDDEN actions:
 - Reading files one at a time across multiple turns
 
 The file list in "FILES IN THIS WORKSPACE" above is COMPLETE and EXACT.`;
+
+export const FULL_RESPONSE_REQUIREMENT = `## CRITICAL — Your response MUST contain ALL findings in full
+
+Your final response is the ONLY thing the orchestrator sees. If you write a short summary
+like "All N findings have been reported", the orchestrator CANNOT see your findings and
+they will be LOST.
+
+You MUST include the COMPLETE analysis in your response text. For EVERY finding, write out:
+- Title, category, severity, sourceFile, lineNumber
+- Full description of the issue
+- Complete beforeCode (verbatim from the source file)
+- Complete afterCode (working drop-in replacement)
+
+Do NOT abbreviate. Do NOT say "findings have been reported" without listing them.
+The orchestrator will extract findings from your response text — if a finding is not
+in your text, it does not exist.`;
 
 export const STRUCTURED_OUTPUT_FIELDS = `## Structured output fields — REQUIRED for every finding
 
@@ -123,8 +158,18 @@ Every finding MUST include ALL of these fields:
 ### beforeCode / afterCode rules
 
 - NEVER leave beforeCode or afterCode empty. Every finding must have both.
-- beforeCode must be VERBATIM from the source file — do not abbreviate or paraphrase
-- afterCode must be a complete replacement — not a diff, not pseudocode
-- afterCode must compile and work as a drop-in replacement
+- beforeCode must be VERBATIM from the source file — do not abbreviate or paraphrase.
+  Copy the COMPLETE function (or the complete relevant section of 5-30 lines).
+  Do NOT use "..." or "// ..." to skip lines. Include the full code block.
+- afterCode must be a COMPLETE, WORKING replacement for the beforeCode block:
+  - Same function signature, same exports, same return type
+  - Must compile and produce identical behavior except for the performance fix
+  - Include ALL the code from beforeCode, not just the changed lines
+  - If the fix requires adding a module-level constant (e.g., hoisting a RegExp or
+    TextEncoder), include that declaration in afterCode
+  - For blocking operations: the fix should actually make the operation non-blocking
+    (e.g., use async APIs, yield to the event loop, or use workers)
+  - For excessive instantiation: hoist the construction to module level and reuse it
+- afterCode must NOT be a diff, pseudocode, or description of changes
 - If you cannot provide a concrete fix, still include beforeCode and describe
   the fix approach in afterCode as a code comment within the actual code`;

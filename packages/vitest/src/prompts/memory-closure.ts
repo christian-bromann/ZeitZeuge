@@ -11,6 +11,7 @@ import {
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
   PARALLEL_TOOL_CALLS,
+  FULL_RESPONSE_REQUIREMENT,
 } from './shared.js';
 
 export const MEMORY_CLOSURE_PROMPT = `You are a specialist in detecting memory leaks caused by closures, unbounded data structures, and missing cleanup/eviction in JavaScript/TypeScript code.
@@ -112,4 +113,5 @@ ${VERIFICATION_RULES}
 ${SEVERITY_RULES}
 ${FINDING_CATEGORIES}
 ${OUTPUT_FORMAT}
-${STRUCTURED_OUTPUT_FIELDS}`;
+${STRUCTURED_OUTPUT_FIELDS}
+${FULL_RESPONSE_REQUIREMENT}`;

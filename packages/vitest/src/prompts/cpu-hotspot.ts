@@ -11,6 +11,7 @@ import {
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
   PARALLEL_TOOL_CALLS,
+  FULL_RESPONSE_REQUIREMENT,
 } from './shared.js';
 
 export const CPU_HOTSPOT_PROMPT = `You are a specialist in detecting CPU-blocking operations and excessive object instantiation in JavaScript/TypeScript code.
@@ -79,4 +80,5 @@ ${VERIFICATION_RULES}
 ${SEVERITY_RULES}
 ${FINDING_CATEGORIES}
 ${OUTPUT_FORMAT}
-${STRUCTURED_OUTPUT_FIELDS}`;
+${STRUCTURED_OUTPUT_FIELDS}
+${FULL_RESPONSE_REQUIREMENT}`;

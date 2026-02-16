@@ -11,6 +11,7 @@ import {
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
   PARALLEL_TOOL_CALLS,
+  FULL_RESPONSE_REQUIREMENT,
 } from './shared.js';
 
 export const CODE_PATTERN_PROMPT = `You are a specialist in detecting algorithmic inefficiencies, unnecessary computation, and serialization overhead in JavaScript/TypeScript code.
@@ -80,6 +81,23 @@ items.sort((a, b) => {
 // FIX: pre-compute timestamps before sorting
 \`\`\`
 
+Also check for **functions called FROM sort comparators**. If \`items.sort((a, b) => computeWeight(a) - computeWeight(b))\` calls a function that does expensive work (Date parsing, string operations, object creation), that function runs O(n log n) times per sort — report it as a separate finding.
+
+### 5. Pairwise Correlation / Tag Comparison (O(n² × m²))
+
+Look for functions that compare every pair of items AND every pair of their sub-elements:
+\`\`\`typescript
+// BAD: O(n²×m²) — for each pair of tasks, compare all pairs of their tags
+for (const taskA of tasks) {
+  for (const taskB of tasks) {
+    for (const tagA of taskA.tags) {
+      for (const tagB of taskB.tags) { /* ... */ }
+    }
+  }
+}
+\`\`\`
+Functions named like \`computeCorrelations\`, \`computeTagCorrelations\`, \`findPairs\`, etc. are prime suspects. Also look for \`.sort()\` and \`.join()\` inside inner loops.
+
 ## How to detect
 
 1. Read /hot-functions/application.json to identify which functions are CPU-hot
@@ -91,6 +109,8 @@ items.sort((a, b) => {
    - Functions that call JSON.parse, JSON.stringify, or new RegExp inside a loop or on every invocation
    - Sort comparators that create objects (new Date(), etc.) — the comparator runs O(n log n) times
    - Functions called from sort comparators (they inherit O(n log n) invocations)
+   - Functions that do pairwise comparison of collection elements (O(n²) or O(n²×m²))
+   - Duplicate detection using .filter() instead of Set (O(n²) vs O(n))
 
 ## Your workflow
 
@@ -101,15 +121,20 @@ items.sort((a, b) => {
    Do NOT use ls or glob. The exact file paths are listed above.
 2. For EVERY function in EVERY source file, check for:
    - O(n²) patterns (nested loops, .filter inside a loop, pairwise comparisons)
+   - O(n²×m²) patterns (nested iteration over items AND their sub-arrays like tags)
    - JSON.parse/JSON.stringify for cloning (suggest structuredClone or spread)
-   - new RegExp() with constant patterns (should be module-level)
+   - new RegExp() with constant patterns (should be module-level constants)
    - Sort comparators that construct objects or do expensive work per comparison
    - Functions called FROM sort comparators that create objects (e.g., new Date())
+   - Duplicate detection via .filter().length instead of Set (O(n²) → O(n))
 3. Report each distinct pattern as a separate finding — a single file may have 3-5 issues
+4. Regex recompilation and quadratic algorithms are SEPARATE finding types even if in
+   the same file. Report each with its own category (unnecessary-computation vs algorithm)
 
 ${PARALLEL_TOOL_CALLS}
 ${VERIFICATION_RULES}
 ${SEVERITY_RULES}
 ${FINDING_CATEGORIES}
 ${OUTPUT_FORMAT}
-${STRUCTURED_OUTPUT_FIELDS}`;
+${STRUCTURED_OUTPUT_FIELDS}
+${FULL_RESPONSE_REQUIREMENT}`;

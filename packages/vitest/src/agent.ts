@@ -101,17 +101,55 @@ function insertFileListIntoPrompt(prompt: string, fileSection: string): string {
 
 /**
  * Build a user message for the orchestrator.
+ *
+ * Includes the COMPLETE task descriptions with file paths so the orchestrator
+ * copies them verbatim into each subagent's task description (user message).
+ * This is critical: the file list in the task description (user message) has
+ * much higher salience than the system prompt for the subagent model.
  */
 function buildVitestUserMessage(ctx: VitestAnalysisContext): string {
-  const { metrics } = ctx;
+  const { metrics, sourceFiles = [], hasListenerTracking } = ctx;
 
-  return [
-    'Dispatch all 4 subagent tasks NOW in a single response.',
-    'The subagents already know which files to read — just dispatch them.',
-    '',
-    `Test suite: ${metrics.suite.totalTests} tests, total duration ${metrics.suite.totalDuration}ms`,
-    `CPU breakdown: application ${metrics.cpu.applicationPercent}%, dependencies ${metrics.cpu.dependencyPercent}%, GC ${metrics.cpu.gcPercentage}%, idle ${metrics.cpu.idlePercentage}%`,
-  ].join('\n');
+  // Build the file list that each subagent needs to read
+  const srcFiles = sourceFiles.map((f) => `  ${f}`).join('\n');
+  const dataFiles = [
+    '  /hot-functions/application.json',
+    '  /scripts/application.json',
+    hasListenerTracking ? '  /listener-tracking.json' : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const allFiles = `${dataFiles}\n${srcFiles}`;
+
+  return `Dispatch all 4 subagent tasks NOW in a single response.
+Use these EXACT descriptions (copy them verbatim):
+
+TASK 1 — subagent_type: "cpu-hotspot"
+description: "Find blocking/event-loop-blocking operations and excessive object instantiation.
+In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
+${allFiles}
+Read EVERY file above in ONE batch. Then analyze for: synchronous CPU-bound loops, compound blockers (A calls blocking B — report BOTH), and per-call object creation (new TextEncoder, new RegExp, new Date in sort comparators). Report each distinct issue as a separate finding with beforeCode and afterCode."
+
+TASK 2 — subagent_type: "listener-leak"
+description: "Find event listener leaks, add/remove imbalances, and maxListeners exceedances.
+In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
+${allFiles}
+Read EVERY file above in ONE batch. Then analyze for: listeners added without removal, missing unsubscribe mechanisms, maxListeners threshold exceedances. Report each pattern as a separate finding with beforeCode and afterCode."
+
+TASK 3 — subagent_type: "memory-closure"
+description: "Find closure-based memory leaks, unbounded data structures, and missing cleanup/eviction.
+In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
+${allFiles}
+Read EVERY file above in ONE batch. Then analyze for: closures capturing outer-scope data, unbounded arrays/Maps/Sets with no eviction, closures capturing transient objects. A single class can have 3+ separate issues — report each one. Include beforeCode and afterCode for every finding."
+
+TASK 4 — subagent_type: "code-pattern"
+description: "Find O(n²) algorithms, unnecessary JSON serialization, regex recompilation, and expensive sort comparators.
+In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
+${allFiles}
+Read EVERY file above in ONE batch. Then check EVERY function for: nested loops/filter-inside-loop, JSON.parse(JSON.stringify(...)) cloning, new RegExp with constant patterns, sort comparators that create objects. Report each pattern as a separate finding with beforeCode and afterCode."
+
+Test suite: ${metrics.suite.totalTests} tests, ${metrics.suite.totalDuration}ms
+CPU: app ${metrics.cpu.applicationPercent}%, deps ${metrics.cpu.dependencyPercent}%, GC ${metrics.cpu.gcPercentage}%`;
 }
 
 /**

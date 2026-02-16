@@ -28,14 +28,16 @@ export class TodoProgressRenderer {
   private lastInProgressKey: string | undefined;
   private baseSpinnerText: string | undefined;
   private printedHeader = false;
-  /** Last tool call dedup key for the main agent. */
-  private lastToolCallKey: string | undefined;
+  /** Last consecutive dedup key for main-agent non-task tool calls. */
+  private lastMainToolKey: string | undefined;
+  /** Set of dispatched task keys (prevents re-printing across stream modes). */
+  private seenTaskKeys = new Set<string>();
   /** Last tool call dedup key per subagent namespace. */
   private lastSubagentToolCallKeys = new Map<string, string>();
   /** Dispatched subagent names in order (from task tool calls). */
   private dispatchedSubagents: string[] = [];
-  /** Current subagent name for display purposes. */
-  private currentSubagentName: string | undefined;
+  /** Maps namespace key → subagent name (learned from AIMessage `name` field). */
+  private namespaceToSubagentName = new Map<string, string>();
   private currentInProgressContent: string | undefined;
   private totalTodos = 0;
   private completedTodos = 0;
@@ -99,6 +101,15 @@ export class TodoProgressRenderer {
     const isSubagent = meta?.isSubagent === true;
     const nsKey = normalizeNamespace(meta?.namespace);
 
+    // --- Learn subagent name from model_request AIMessage ---
+    // LangGraph model_request updates contain an AIMessage with a `name` field
+    // set to the subagent type (e.g. "listener-leak"). We use this to build a
+    // namespace → subagent-name map so we can label each subagent's output.
+    if (isSubagent && nsKey && !this.namespaceToSubagentName.has(nsKey)) {
+      const name = extractSubagentNameFromChunk(chunk);
+      if (name) this.namespaceToSubagentName.set(nsKey, name);
+    }
+
     // --- Handle tool calls ---
     const toolCalls = extractToolCallsFromStreamChunk(chunk);
     if (toolCalls && toolCalls.length > 0) {
@@ -121,29 +132,35 @@ export class TodoProgressRenderer {
 
         const signature = formatToolCall(tc);
 
-        // Main agent and subagent have independent dedup tracking.
-        // Subagents are deduped per-namespace so parallel agents each show their tools.
-        let lastKey: string | undefined;
+        // Dedup strategy:
+        //   - task calls: Set-based (prevents 3x printing across stream modes)
+        //   - other main-agent calls: consecutive dedup (read→grep→read shows both reads)
+        //   - subagent calls: consecutive dedup per namespace
+        let isDuplicate: boolean;
         if (isSubagent) {
-          lastKey = this.lastSubagentToolCallKeys.get(nsKey);
+          const lastKey = this.lastSubagentToolCallKeys.get(nsKey);
+          isDuplicate = dedupKey === lastKey;
+          if (!isDuplicate) this.lastSubagentToolCallKeys.set(nsKey, dedupKey);
+        } else if (dedupKey.startsWith('task:')) {
+          // task calls use Set dedup — each task:subagent_type printed exactly once
+          isDuplicate = this.seenTaskKeys.has(dedupKey);
+          if (!isDuplicate) this.seenTaskKeys.add(dedupKey);
         } else {
-          lastKey = this.lastToolCallKey;
+          // Regular tool calls use consecutive dedup
+          isDuplicate = dedupKey === this.lastMainToolKey;
+          this.lastMainToolKey = dedupKey;
         }
 
-        if (dedupKey !== lastKey) {
-          if (isSubagent) {
-            this.lastSubagentToolCallKeys.set(nsKey, dedupKey);
-          } else {
-            this.lastToolCallKey = dedupKey;
-          }
-
+        if (!isDuplicate) {
           this.printHeaderOnce();
 
-          // Resolve the subagent display name:
-          // 1. Try to extract from namespace (most accurate for parallel subagents)
-          // 2. Fall back to the last dispatched subagent name
+          // Resolve subagent display name:
+          // 1. Look up the namespace → name mapping (learned from AIMessage)
+          // 2. Try to match known names in the namespace string
+          // 3. Fall back to last dispatched subagent name
           const displayName = isSubagent
-            ? (extractSubagentNameFromNamespace(meta?.namespace, this.dispatchedSubagents) ??
+            ? (this.namespaceToSubagentName.get(nsKey) ??
+              extractSubagentNameFromNamespace(meta?.namespace, this.dispatchedSubagents) ??
               this.dispatchedSubagents[this.dispatchedSubagents.length - 1] ??
               'subagent')
             : '';
@@ -187,9 +204,9 @@ export class TodoProgressRenderer {
           });
           if (this.canAnimate) this.spinner.start();
           // Reset tool call tracking when moving to a new todo
-          this.lastToolCallKey = undefined;
+          this.lastMainToolKey = undefined;
+          this.seenTaskKeys.clear();
           this.lastSubagentToolCallKeys.clear();
-          this.currentSubagentName = undefined;
         }
 
         if (nextStatus === 'in_progress' && this.lastInProgressKey !== key) {
@@ -200,9 +217,9 @@ export class TodoProgressRenderer {
             this.updateSpinnerText(todo.content);
           }
           // Reset tool call tracking for the new task
-          this.lastToolCallKey = undefined;
+          this.lastMainToolKey = undefined;
+          this.seenTaskKeys.clear();
           this.lastSubagentToolCallKeys.clear();
-          this.currentSubagentName = undefined;
         }
       }
     }
@@ -340,6 +357,62 @@ function extractSubagentNameFromNamespace(ns: unknown, knownNames: string[]): st
     if (nsStr.includes(name.toLowerCase())) return name;
   }
   return undefined;
+}
+
+/**
+ * Extract the subagent name from a stream chunk.
+ *
+ * LangGraph `model_request` updates for subagents contain an AIMessage with
+ * a `name` field set to the subagent type (e.g. "listener-leak", "cpu-hotspot").
+ * This allows us to map namespace UUIDs to human-readable subagent labels.
+ */
+function extractSubagentNameFromChunk(chunk: unknown): string | undefined {
+  if (!chunk || typeof chunk !== 'object') return;
+
+  /** Try to extract a name from a single message object. */
+  const nameFromMessage = (msg: unknown): string | undefined => {
+    if (!msg || typeof msg !== 'object') return;
+    // LangChain serialized form: { kwargs: { name: "..." } }
+    const kwargs = (msg as { kwargs?: { name?: unknown } }).kwargs;
+    if (kwargs && typeof kwargs.name === 'string' && kwargs.name.length > 0) {
+      return kwargs.name;
+    }
+    // Direct form (runtime LangChain objects)
+    const direct = msg as { name?: unknown };
+    if (typeof direct.name === 'string' && direct.name.length > 0) {
+      return direct.name;
+    }
+  };
+
+  const obj = chunk as Record<string, unknown>;
+
+  // 1. model_request updates: { model_request: { messages: [AIMessage{..., name: "..."}] } }
+  const modelReq = obj.model_request as { messages?: unknown } | undefined;
+  if (modelReq && Array.isArray(modelReq.messages)) {
+    for (const msg of modelReq.messages) {
+      const name = nameFromMessage(msg);
+      if (name) return name;
+    }
+  }
+
+  // 2. "values" mode: { messages: [HumanMessage, ..., AIMessage{..., name: "..."}] }
+  //    Check the last message in the array (most likely the AIMessage).
+  if (Array.isArray(obj.messages) && obj.messages.length > 0) {
+    const last = obj.messages[obj.messages.length - 1];
+    const name = nameFromMessage(last);
+    if (name) return name;
+  }
+
+  // 3. Other nested updates: { nodeName: { messages: [...] } }
+  for (const value of Object.values(obj)) {
+    if (!value || typeof value !== 'object' || value === modelReq) continue;
+    const nested = value as { messages?: unknown };
+    if (!Array.isArray(nested.messages)) continue;
+    for (const msg of nested.messages) {
+      const name = nameFromMessage(msg);
+      if (name) return name;
+    }
+  }
 }
 
 /** Truncate a value for display. */
