@@ -42,6 +42,12 @@ export class TodoProgressRenderer {
   private totalTodos = 0;
   private completedTodos = 0;
 
+  /** Per-subagent todo state: nsKey → Map<todoContent, status>. */
+  private subagentTodos = new Map<string, Map<string, string>>();
+  /** Aggregate subagent todo counts for the progress percentage. */
+  private subagentTotalTodos = 0;
+  private subagentCompletedTodos = 0;
+
   /**
    * Whether the spinner supports in-place animation.
    *
@@ -65,9 +71,6 @@ export class TodoProgressRenderer {
 
     const header = 'Performance analysis progress:';
     this.spinner.stopAndPersist({ symbol: ' ', text: header });
-    // Only restart animation when the spinner supports it.
-    // When isEnabled is false (CI / Bun), start() writes a duplicate
-    // text line instead of animating, which produces noisy output.
     if (this.canAnimate) this.spinner.start();
   }
 
@@ -97,14 +100,85 @@ export class TodoProgressRenderer {
     this.spinner.text = `${prefix}${base}${ctx}`;
   }
 
+  /** Persist a line and optionally restart the spinner. */
+  private persistLine(symbol: string, text: string): void {
+    this.spinner.stopAndPersist({ symbol, text });
+    if (this.canAnimate) {
+      this.spinner.start();
+      this.updateSpinnerText(this.currentInProgressContent);
+    }
+  }
+
+  /** Resolve the display name for a subagent from its namespace. */
+  private resolveSubagentName(nsKey: string, namespace?: unknown): string {
+    return (
+      this.namespaceToSubagentName.get(nsKey) ??
+      extractSubagentNameFromNamespace(namespace, this.dispatchedSubagents) ??
+      this.dispatchedSubagents[this.dispatchedSubagents.length - 1] ??
+      'subagent'
+    );
+  }
+
+  /** Recompute aggregate subagent todo counts from all subagent state maps. */
+  private recomputeSubagentCounts(): void {
+    let total = 0;
+    let completed = 0;
+    for (const stateMap of this.subagentTodos.values()) {
+      for (const status of stateMap.values()) {
+        if (status !== 'cancelled') total++;
+        if (status === 'completed') completed++;
+      }
+    }
+    this.subagentTotalTodos = total;
+    this.subagentCompletedTodos = completed;
+  }
+
+  /** Build a progress percentage prefix like `  4%` for subagent lines. */
+  private subagentProgressPrefix(): string {
+    if (this.subagentTotalTodos === 0) return '   ';
+    const pct = Math.round((this.subagentCompletedTodos / this.subagentTotalTodos) * 100);
+    return pc.dim(`${String(pct).padStart(3)}%`);
+  }
+
+  /**
+   * Handle a `write_todos` tool call from a subagent.
+   * Extracts the todo items and displays status transitions instead of
+   * showing the raw `write_todos(todos: [...])` tool call signature.
+   */
+  private handleSubagentTodos(todos: AgentTodo[], nsKey: string, displayName: string): void {
+    if (!this.subagentTodos.has(nsKey)) {
+      this.subagentTodos.set(nsKey, new Map());
+    }
+    const stateMap = this.subagentTodos.get(nsKey)!;
+
+    for (const todo of todos) {
+      const key = todo.content;
+      const prevStatus = stateMap.get(key);
+      const nextStatus = todo.status;
+
+      if (prevStatus === nextStatus) continue;
+      stateMap.set(key, nextStatus);
+      this.recomputeSubagentCounts();
+
+      if (nextStatus === 'completed' && prevStatus !== 'completed') {
+        this.printHeaderOnce();
+        const pct = this.subagentProgressPrefix();
+        const label = `  ${pct} ${pc.cyan(`[${displayName}]`)} ${pc.green('✓')} ${todo.content}`;
+        this.persistLine(' ', label);
+      } else if (nextStatus === 'in_progress' && prevStatus !== 'in_progress') {
+        this.printHeaderOnce();
+        const pct = this.subagentProgressPrefix();
+        const label = `  ${pct} ${pc.cyan(`[${displayName}]`)} ${pc.yellow('▸')} ${pc.dim(todo.content)}`;
+        this.persistLine(' ', label);
+      }
+    }
+  }
+
   handleChunk(chunk: unknown, meta?: ChunkMeta): void {
     const isSubagent = meta?.isSubagent === true;
     const nsKey = normalizeNamespace(meta?.namespace);
 
     // --- Learn subagent name from model_request AIMessage ---
-    // LangGraph model_request updates contain an AIMessage with a `name` field
-    // set to the subagent type (e.g. "listener-leak"). We use this to build a
-    // namespace → subagent-name map so we can label each subagent's output.
     if (isSubagent && nsKey && !this.namespaceToSubagentName.has(nsKey)) {
       const name = extractSubagentNameFromChunk(chunk);
       if (name) this.namespaceToSubagentName.set(nsKey, name);
@@ -114,14 +188,29 @@ export class TodoProgressRenderer {
     const toolCalls = extractToolCallsFromStreamChunk(chunk);
     if (toolCalls && toolCalls.length > 0) {
       for (const tc of toolCalls) {
-        // When the main agent calls `task(subagent_type: "cpu-hotspot", …)`,
-        // remember ALL dispatched subagent names so we can label their chunks.
+        // When the main agent dispatches subagents, remember their names.
         if (!isSubagent && tc.name === 'task') {
           const subagentType = tc.args.subagent_type;
           if (typeof subagentType === 'string') {
             this.dispatchedSubagents.push(subagentType);
           }
         }
+
+        // write_todos: for subagents, extract and display as progress items;
+        // for the main agent, skip entirely (state transitions are handled below).
+        if (tc.name === 'write_todos') {
+          if (isSubagent) {
+            const todos = tc.args.todos;
+            if (Array.isArray(todos)) {
+              const displayName = this.resolveSubagentName(nsKey, meta?.namespace);
+              this.handleSubagentTodos(todos as AgentTodo[], nsKey, displayName);
+            }
+          }
+          continue;
+        }
+
+        // Skip internal LangGraph structured-output extraction calls.
+        if (tc.name.startsWith('extract')) continue;
 
         // Build a dedup key: for `task` calls, include `subagent_type`
         // so all 4 parallel task dispatches are shown (not just the first).
@@ -142,11 +231,9 @@ export class TodoProgressRenderer {
           isDuplicate = dedupKey === lastKey;
           if (!isDuplicate) this.lastSubagentToolCallKeys.set(nsKey, dedupKey);
         } else if (dedupKey.startsWith('task:')) {
-          // task calls use Set dedup — each task:subagent_type printed exactly once
           isDuplicate = this.seenTaskKeys.has(dedupKey);
           if (!isDuplicate) this.seenTaskKeys.add(dedupKey);
         } else {
-          // Regular tool calls use consecutive dedup
           isDuplicate = dedupKey === this.lastMainToolKey;
           this.lastMainToolKey = dedupKey;
         }
@@ -154,36 +241,20 @@ export class TodoProgressRenderer {
         if (!isDuplicate) {
           this.printHeaderOnce();
 
-          // Resolve subagent display name:
-          // 1. Look up the namespace → name mapping (learned from AIMessage)
-          // 2. Try to match known names in the namespace string
-          // 3. Fall back to last dispatched subagent name
-          const displayName = isSubagent
-            ? (this.namespaceToSubagentName.get(nsKey) ??
-              extractSubagentNameFromNamespace(meta?.namespace, this.dispatchedSubagents) ??
-              this.dispatchedSubagents[this.dispatchedSubagents.length - 1] ??
-              'subagent')
-            : '';
+          const displayName = isSubagent ? this.resolveSubagentName(nsKey, meta?.namespace) : '';
 
           const label = isSubagent
             ? `      ↳ ${pc.cyan(`[${displayName}]`)} ${signature}`
             : `  ↳ ${signature}`;
-          this.spinner.stopAndPersist({
-            symbol: ' ',
-            text: pc.dim(label),
-          });
-          if (this.canAnimate) {
-            this.spinner.start();
-            this.updateSpinnerText(this.currentInProgressContent);
-          }
+          this.persistLine(' ', pc.dim(label));
         }
       }
     }
 
-    // Subagent chunks don't carry the main agent's todo state — skip todos.
+    // --- Handle main-agent todos ---
+    // Subagent todos are handled above via write_todos tool call interception.
     if (isSubagent) return;
 
-    // --- Handle todos ---
     const todos = extractTodosFromStreamChunk(chunk);
     if (!todos) return;
 
@@ -198,12 +269,7 @@ export class TodoProgressRenderer {
 
         if (nextStatus === 'completed' && prevStatus !== 'completed') {
           this.printHeaderOnce();
-          this.spinner.stopAndPersist({
-            symbol: ' ',
-            text: `  ${this.progressPrefix()}${pc.green('✓')} ${todo.content}`,
-          });
-          if (this.canAnimate) this.spinner.start();
-          // Reset tool call tracking when moving to a new todo
+          this.persistLine(' ', `  ${this.progressPrefix()}${pc.green('✓')} ${todo.content}`);
           this.lastMainToolKey = undefined;
           this.seenTaskKeys.clear();
           this.lastSubagentToolCallKeys.clear();
@@ -216,7 +282,6 @@ export class TodoProgressRenderer {
           if (this.canAnimate) {
             this.updateSpinnerText(todo.content);
           }
-          // Reset tool call tracking for the new task
           this.lastMainToolKey = undefined;
           this.seenTaskKeys.clear();
           this.lastSubagentToolCallKeys.clear();

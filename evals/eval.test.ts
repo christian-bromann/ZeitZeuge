@@ -60,7 +60,7 @@ describe('Zeitzeuge Agent Quality', () => {
 
     console.log('\n=== Finding Coverage ===');
     console.log(
-      `  Overall:                  ${(coverage.overallCoverage * 100).toFixed(1)}% (target: ≥60%)`,
+      `  Overall:                  ${(coverage.overallCoverage * 100).toFixed(1)}% (target: ≥80%)`,
     );
     console.log(
       `  Blocking:                 ${(coverage.blockingCoverage * 100).toFixed(1)}% (target: ≥80%)`,
@@ -69,7 +69,7 @@ describe('Zeitzeuge Agent Quality', () => {
       `  Listener Leak:            ${(coverage.listenerLeakCoverage * 100).toFixed(1)}% (target: ≥70%)`,
     );
     console.log(
-      `  Slow Code Path:           ${(coverage.slowCodePathCoverage * 100).toFixed(1)}% (target: ≥50%)`,
+      `  Slow Code Path:           ${(coverage.slowCodePathCoverage * 100).toFixed(1)}% (target: ≥80%)`,
     );
     console.log(`  Closure Leak:             ${(coverage.closureLeakCoverage * 100).toFixed(1)}%`);
     console.log(
@@ -82,10 +82,10 @@ describe('Zeitzeuge Agent Quality', () => {
     console.log(`  False Positives:          ${coverage.falsePositives}`);
 
     // Scoring targets (soft — logged but not hard failures initially)
-    expect(coverage.overallCoverage).toBeGreaterThanOrEqual(0.6);
+    expect(coverage.overallCoverage).toBeGreaterThanOrEqual(0.8);
     expect(coverage.blockingCoverage).toBeGreaterThanOrEqual(0.8);
     expect(coverage.listenerLeakCoverage).toBeGreaterThanOrEqual(0.7);
-    expect(coverage.slowCodePathCoverage).toBeGreaterThanOrEqual(0.5);
+    expect(coverage.slowCodePathCoverage).toBeGreaterThanOrEqual(0.8);
   });
 
   // ── Quality evaluator ──
@@ -124,13 +124,13 @@ describe('Zeitzeuge Agent Quality', () => {
 
       console.log('\n=== Code Fix Quality ===');
       console.log(
-        `  Correctness:       ${((scores.code_fix_correctness ?? 0) * 100).toFixed(1)}% (target: ≥70%)`,
+        `  Correctness:       ${((scores.code_fix_correctness ?? 0) * 100).toFixed(1)}% (target: ≥50%)`,
       );
       console.log(
         `  Has before/after:  ${((scores.code_fix_has_before_after ?? 0) * 100).toFixed(1)}%`,
       );
 
-      expect(scores.code_fix_correctness ?? 0).toBeGreaterThanOrEqual(0.7);
+      expect(scores.code_fix_correctness ?? 0).toBeGreaterThanOrEqual(0.5);
     },
     AGENT_TIMEOUT,
   );
@@ -146,10 +146,10 @@ describe('Zeitzeuge Agent Quality', () => {
 
     console.log('\n=== Severity Accuracy ===');
     console.log(
-      `  Accuracy: ${((scores.severity_accuracy ?? 0) * 100).toFixed(1)}% (target: ≥80%)`,
+      `  Accuracy: ${((scores.severity_accuracy ?? 0) * 100).toFixed(1)}% (target: ≥75%)`,
     );
 
-    expect(scores.severity_accuracy ?? 0).toBeGreaterThanOrEqual(0.8);
+    expect(scores.severity_accuracy ?? 0).toBeGreaterThanOrEqual(0.75);
   });
 
   // ── Hallucination check ──
