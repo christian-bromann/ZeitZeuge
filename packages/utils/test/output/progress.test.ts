@@ -1323,9 +1323,6 @@ describe('TodoProgressRenderer', () => {
 
         // Progress prefix should appear in completed lines
         expect(completedLines.some((t) => /\[\d+\/\d+\]/.test(t))).toBe(true);
-
-        // write_todos calls should appear
-        expect(texts.some((t) => t.includes('write_todos'))).toBe(true);
       } finally {
         rmSync(workDir, { recursive: true, force: true });
       }

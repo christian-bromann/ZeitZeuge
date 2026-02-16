@@ -363,7 +363,7 @@ describe('e2e: Vitest integration pipeline', () => {
         );
 
         expect(appScripts.length).toBeGreaterThan(0);
-        expect(appScripts[0].scriptUrl).toContain(APP_SOURCE_FILENAME);
+        expect(appScripts[0].workspacePath).toContain(APP_SOURCE_FILENAME);
         expect(appScripts[0].selfTime).toBeGreaterThan(0);
       } finally {
         workspace.cleanup();

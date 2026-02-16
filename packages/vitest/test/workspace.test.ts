@@ -287,7 +287,7 @@ describe('createVitestWorkspace', () => {
     }
   });
 
-  test('excludes source files for hot functions below threshold', async () => {
+  test('includes source files for hot functions below threshold (all sources are written)', async () => {
     const timing = makeTestTiming();
     const hotFn = makeHotFunction({ selfPercent: 0.5, scriptUrl: '/project/src/minor.ts' });
     const profile = makeCorrelatedProfile({
@@ -304,8 +304,8 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const files = listWorkspaceDir(backend, '/src/');
-      expect(files.length).toBe(0);
+      const content = readWorkspaceFile(backend, '/src/minor.ts');
+      expect(content).toBe('export function minorFn() {}');
     } finally {
       cleanup();
     }

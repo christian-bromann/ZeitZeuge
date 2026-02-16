@@ -52,41 +52,42 @@ export function classifyScript(
     return 'framework';
   }
 
-  // Check framework patterns first (vitest/tinybench internals)
-  for (const pattern of FRAMEWORK_PATTERNS) {
-    if (pattern.test(filePath)) {
-      return 'framework';
-    }
-  }
-
   // Check if it's in node_modules
   if (filePath.includes('/node_modules/') || filePath.includes('\\node_modules\\')) {
     return 'dependency';
   }
 
-  // Check if it's a known test file
-  if (testFiles) {
-    const resolved = resolve(filePath);
-    if (testFiles.has(resolved)) {
-      return 'test';
-    }
-  }
-
-  // Check test file patterns
-  for (const pattern of TEST_FILE_PATTERNS) {
-    if (pattern.test(filePath)) {
-      return 'test';
-    }
-  }
-
-  // Check if the file is within the project root
+  // Check if the file is within the project root BEFORE framework patterns.
+  // Project paths may coincidentally match framework patterns (e.g. a project
+  // inside a directory named "vitest"), so project membership takes priority.
   const resolvedProject = resolve(projectRoot);
   const resolvedFile = resolve(filePath);
   const rel = relative(resolvedProject, resolvedFile);
 
-  // If relative path doesn't start with ".." it's inside the project
   if (!rel.startsWith('..') && !rel.startsWith('/')) {
+    // Check if it's a known test file
+    if (testFiles) {
+      if (testFiles.has(resolvedFile)) {
+        return 'test';
+      }
+    }
+
+    // Check test file patterns
+    for (const pattern of TEST_FILE_PATTERNS) {
+      if (pattern.test(filePath)) {
+        return 'test';
+      }
+    }
+
     return 'application';
+  }
+
+  // Check framework patterns (vitest/tinybench internals) — only for files
+  // outside the project root.
+  for (const pattern of FRAMEWORK_PATTERNS) {
+    if (pattern.test(filePath)) {
+      return 'framework';
+    }
   }
 
   return 'unknown';
