@@ -44,9 +44,6 @@ export class TodoProgressRenderer {
 
   /** Per-subagent todo state: nsKey → Map<todoContent, status>. */
   private subagentTodos = new Map<string, Map<string, string>>();
-  /** Aggregate subagent todo counts for the progress percentage. */
-  private subagentTotalTodos = 0;
-  private subagentCompletedTodos = 0;
 
   /**
    * Whether the spinner supports in-place animation.
@@ -119,24 +116,35 @@ export class TodoProgressRenderer {
     );
   }
 
-  /** Recompute aggregate subagent todo counts from all subagent state maps. */
-  private recomputeSubagentCounts(): void {
-    let total = 0;
-    let completed = 0;
+  /**
+   * Build a progress percentage prefix like `  4%` for subagent lines.
+   *
+   * Each dispatched subagent contributes an equal share of the total progress
+   * (e.g. 25% each when there are 4 subagents). Within its share, a subagent's
+   * contribution is proportional to its own completed / total ratio.
+   * This prevents the percentage from jumping backwards when a new subagent
+   * starts reporting its (initially incomplete) todos.
+   */
+  private subagentProgressPrefix(): string {
+    const numSubagents = this.dispatchedSubagents.length;
+    if (numSubagents === 0) return '   ';
+
+    const weightPerSubagent = 1 / numSubagents;
+    let totalProgress = 0;
+
     for (const stateMap of this.subagentTodos.values()) {
+      let subTotal = 0;
+      let subCompleted = 0;
       for (const status of stateMap.values()) {
-        if (status !== 'cancelled') total++;
-        if (status === 'completed') completed++;
+        if (status !== 'cancelled') subTotal++;
+        if (status === 'completed') subCompleted++;
+      }
+      if (subTotal > 0) {
+        totalProgress += (subCompleted / subTotal) * weightPerSubagent;
       }
     }
-    this.subagentTotalTodos = total;
-    this.subagentCompletedTodos = completed;
-  }
 
-  /** Build a progress percentage prefix like `  4%` for subagent lines. */
-  private subagentProgressPrefix(): string {
-    if (this.subagentTotalTodos === 0) return '   ';
-    const pct = Math.round((this.subagentCompletedTodos / this.subagentTotalTodos) * 100);
+    const pct = Math.round(totalProgress * 100);
     return pc.dim(`${String(pct).padStart(3)}%`);
   }
 
@@ -151,6 +159,8 @@ export class TodoProgressRenderer {
     }
     const stateMap = this.subagentTodos.get(nsKey)!;
 
+    // First pass: update all state so the percentage reflects the full batch.
+    const transitions: Array<{ todo: AgentTodo; prevStatus: string | undefined }> = [];
     for (const todo of todos) {
       const key = todo.content;
       const prevStatus = stateMap.get(key);
@@ -158,14 +168,17 @@ export class TodoProgressRenderer {
 
       if (prevStatus === nextStatus) continue;
       stateMap.set(key, nextStatus);
-      this.recomputeSubagentCounts();
+      transitions.push({ todo, prevStatus });
+    }
 
-      if (nextStatus === 'completed' && prevStatus !== 'completed') {
+    // Second pass: print status transitions with accurate percentages.
+    for (const { todo, prevStatus } of transitions) {
+      if (todo.status === 'completed' && prevStatus !== 'completed') {
         this.printHeaderOnce();
         const pct = this.subagentProgressPrefix();
         const label = `  ${pct} ${pc.cyan(`[${displayName}]`)} ${pc.green('✓')} ${todo.content}`;
         this.persistLine(' ', label);
-      } else if (nextStatus === 'in_progress' && prevStatus !== 'in_progress') {
+      } else if (todo.status === 'in_progress' && prevStatus !== 'in_progress') {
         this.printHeaderOnce();
         const pct = this.subagentProgressPrefix();
         const label = `  ${pct} ${pc.cyan(`[${displayName}]`)} ${pc.yellow('▸')} ${pc.dim(todo.content)}`;

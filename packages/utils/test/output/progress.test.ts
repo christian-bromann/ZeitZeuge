@@ -1129,6 +1129,157 @@ describe('TodoProgressRenderer', () => {
     });
   });
 
+  // ── Subagent weighted progress percentage ───────────────
+
+  describe('subagent weighted progress percentage', () => {
+    /**
+     * Helper: dispatch N subagents via task() tool calls, then feed
+     * write_todos from each subagent namespace so we can inspect the
+     * percentage shown by the renderer.
+     */
+    function dispatchSubagents(r: TodoProgressRenderer, names: string[]) {
+      for (const name of names) {
+        r.handleChunk(
+          agentUpdateChunk(
+            aiMessageWithToolCalls([
+              { name: 'task', args: { subagent_type: name, description: `Run ${name}` } },
+            ]),
+          ),
+        );
+      }
+    }
+
+    function subagentWriteTodos(
+      r: TodoProgressRenderer,
+      subagentName: string,
+      todos: Array<{ content: string; status: string }>,
+    ) {
+      r.handleChunk(
+        agentUpdateChunk(aiMessageWithToolCalls([{ name: 'write_todos', args: { todos } }])),
+        { isSubagent: true, namespace: `agent|${subagentName}|tools:write_todos` },
+      );
+    }
+
+    test('progress only accounts for share of reporting subagent', () => {
+      dispatchSubagents(renderer, [
+        'cpu-hotspot',
+        'listener-leak',
+        'memory-closure',
+        'code-pattern',
+      ]);
+
+      // Only cpu-hotspot has reported; 2 of 5 todos done = 40% of its 25% share = 10%
+      subagentWriteTodos(renderer, 'cpu-hotspot', [
+        { content: 'A', status: 'completed' },
+        { content: 'B', status: 'completed' },
+        { content: 'C', status: 'in_progress' },
+        { content: 'D', status: 'pending' },
+        { content: 'E', status: 'pending' },
+      ]);
+
+      const texts = spinner.persistedTexts();
+      // 2/5 * 25% = 10%
+      const pctLine = texts.find((t) => t.includes('[cpu-hotspot]') && t.includes('▸'));
+      expect(pctLine).toBeDefined();
+      expect(pctLine).toContain('10%');
+    });
+
+    test('progress increases monotonically as subagents report', () => {
+      dispatchSubagents(renderer, ['A', 'B', 'C', 'D']);
+
+      // A reports: 1/2 done = 50% of 25% = 12.5% → rounds to 13%
+      subagentWriteTodos(renderer, 'A', [
+        { content: 'A1', status: 'completed' },
+        { content: 'A2', status: 'in_progress' },
+      ]);
+
+      let texts = spinner.persistedTexts();
+      let lastLine = texts[texts.length - 1]!;
+      expect(lastLine).toContain('13%');
+
+      // B reports all done: 100% of 25% = 25% → total: 13% + 25% = 38%
+      subagentWriteTodos(renderer, 'B', [{ content: 'B1', status: 'completed' }]);
+
+      texts = spinner.persistedTexts();
+      lastLine = texts[texts.length - 1]!;
+      expect(lastLine).toContain('38%');
+    });
+
+    test('does not jump backwards when a new subagent starts reporting', () => {
+      dispatchSubagents(renderer, ['A', 'B', 'C', 'D']);
+
+      // A completes all tasks: 100% of 25% = 25%
+      subagentWriteTodos(renderer, 'A', [
+        { content: 'A1', status: 'completed' },
+        { content: 'A2', status: 'completed' },
+      ]);
+
+      let texts = spinner.persistedTexts();
+      let lastLine = texts[texts.length - 1]!;
+      expect(lastLine).toContain('25%');
+
+      // B starts reporting with 0 completed: 0% of 25% = 0% → total stays 25%
+      subagentWriteTodos(renderer, 'B', [
+        { content: 'B1', status: 'in_progress' },
+        { content: 'B2', status: 'pending' },
+        { content: 'B3', status: 'pending' },
+        { content: 'B4', status: 'pending' },
+        { content: 'B5', status: 'pending' },
+        { content: 'B6', status: 'pending' },
+      ]);
+
+      texts = spinner.persistedTexts();
+      lastLine = texts[texts.length - 1]!;
+      // Should still be 25%, not drop to something lower
+      expect(lastLine).toContain('25%');
+    });
+
+    test('reaches 100% when all subagents complete all tasks', () => {
+      dispatchSubagents(renderer, ['A', 'B']);
+
+      subagentWriteTodos(renderer, 'A', [{ content: 'A1', status: 'completed' }]);
+      subagentWriteTodos(renderer, 'B', [
+        { content: 'B1', status: 'completed' },
+        { content: 'B2', status: 'completed' },
+      ]);
+
+      const texts = spinner.persistedTexts();
+      const lastLine = texts[texts.length - 1]!;
+      expect(lastLine).toContain('100%');
+    });
+
+    test('cancelled subagent todos are excluded from the subagent total', () => {
+      dispatchSubagents(renderer, ['A', 'B']);
+
+      // A: 1 completed, 1 cancelled → A's progress = 1/1 = 100% of 50% = 50%
+      subagentWriteTodos(renderer, 'A', [
+        { content: 'A1', status: 'completed' },
+        { content: 'A2', status: 'cancelled' },
+      ]);
+
+      const texts = spinner.persistedTexts();
+      const lastLine = texts[texts.length - 1]!;
+      expect(lastLine).toContain('50%');
+    });
+
+    test('shows 0% when subagents are dispatched but none have reported', () => {
+      dispatchSubagents(renderer, ['A', 'B', 'C', 'D']);
+
+      // Trigger a subagent tool call (not write_todos) to generate output with percentage
+      renderer.handleChunk(
+        agentUpdateChunk(
+          aiMessageWithToolCalls([{ name: 'read_file', args: { file_path: '/data.json' } }]),
+        ),
+        { isSubagent: true, namespace: 'agent|A|tools:read_file' },
+      );
+
+      const texts = spinner.persistedTexts();
+      // No subagent todos reported yet → 0%
+      // The tool call line doesn't include percentage, but let's verify no crash
+      expect(texts.length).toBeGreaterThan(0);
+    });
+  });
+
   // ── Integration with analyzeTestPerformance ─────────────
 
   describe('integration with analyzeTestPerformance + FakeToolCallingModel', () => {

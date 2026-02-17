@@ -195,6 +195,7 @@ async function main(): Promise<void> {
         url,
         heapSummary,
         traceResult: captureResult.trace,
+        workspaceFiles: workspace.files,
       });
       agentSpinner.succeed(`Analysis complete — ${findings.length} findings`);
     } catch (err) {

@@ -1,7 +1,11 @@
 import { test, expect, describe } from 'bun:test';
 
-import { extractFunctionName, deduplicateFindings, rankFindings } from './deduplication.js';
-import type { Finding } from '@zeitzeuge/utils';
+import {
+  extractFunctionName,
+  deduplicateFindings,
+  rankFindings,
+  type Finding,
+} from '@zeitzeuge/utils';
 
 function makeFinding(overrides: Partial<Finding> = {}): Finding {
   return {

@@ -3,18 +3,23 @@ import { toolStrategy } from 'langchain';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { Ora } from 'ora';
 
+import {
+  FindingsSchema,
+  invokeWithTodoStreaming,
+  insertFileListIntoPrompt,
+  buildFileListPromptSection,
+  deduplicateFindings,
+  rankFindings,
+  type Finding,
+  type PerformanceMetrics,
+  type FileListConfig,
+} from '@zeitzeuge/utils';
+
 import { VITEST_SYSTEM_PROMPT } from './prompts.js';
 import { CPU_HOTSPOT_PROMPT } from './prompts/cpu-hotspot.js';
 import { LISTENER_LEAK_PROMPT } from './prompts/listener-leak.js';
 import { MEMORY_CLOSURE_PROMPT } from './prompts/memory-closure.js';
 import { CODE_PATTERN_PROMPT } from './prompts/code-pattern.js';
-import { deduplicateFindings, rankFindings } from './deduplication.js';
-import {
-  FindingsSchema,
-  invokeWithTodoStreaming,
-  type Finding,
-  type PerformanceMetrics,
-} from '@zeitzeuge/utils';
 
 /** Context for building a dynamic Vitest user message. */
 export interface VitestAnalysisContext {
@@ -28,75 +33,44 @@ export interface VitestAnalysisContext {
 }
 
 /**
- * Build the file-list section that gets injected near the TOP of each subagent's
- * system prompt (right after the intro, before focus areas).
+ * Build the Vitest-specific file-list section using the shared utility.
  *
- * This ensures subagents see the exact file paths FIRST, before any analysis
- * instructions, so they read files directly without ls/glob discovery.
+ * Adapts the VitestAnalysisContext into the generic FileListConfig format
+ * and delegates to the shared buildFileListPromptSection.
  */
-function buildFileListPromptSection(ctx: VitestAnalysisContext): string {
+function buildVitestFileListSection(ctx: VitestAnalysisContext): string {
   const { sourceFiles, testFiles, hasListenerTracking, hasHeapProfiles } = ctx;
 
-  const lines: string[] = [
-    '## FILES IN THIS WORKSPACE — Read these directly. Do NOT use ls or glob.',
-    '',
-    '### Data files',
-    '- /hot-functions/application.json (hot functions with selfTime, selfPercent, sourceSnippet)',
-    '- /scripts/application.json (per-script time breakdown)',
-    '- /profiles/index.json (manifest of CPU profiles)',
+  const dataFiles: FileListConfig['dataFiles'] = [
+    {
+      path: '/hot-functions/application.json',
+      description: '(hot functions with selfTime, selfPercent, sourceSnippet)',
+    },
+    { path: '/scripts/application.json', description: '(per-script time breakdown)' },
+    { path: '/profiles/index.json', description: '(manifest of CPU profiles)' },
   ];
 
   if (hasListenerTracking) {
-    lines.push('- /listener-tracking.json (event listener add/remove counts and exceedances)');
+    dataFiles.push({
+      path: '/listener-tracking.json',
+      description: '(event listener add/remove counts and exceedances)',
+    });
   }
 
   if (hasHeapProfiles) {
-    lines.push('- /heap-profiles/index.json');
+    dataFiles.push({ path: '/heap-profiles/index.json' });
   }
 
-  lines.push('- /summary.json (overall test run stats)', '- /metrics/current.json');
-
-  if (sourceFiles && sourceFiles.length > 0) {
-    lines.push('', '### Application source files — you MUST read ALL of these in your FIRST turn');
-    for (const f of sourceFiles) {
-      lines.push(`- ${f}`);
-    }
-  }
-
-  if (testFiles && testFiles.length > 0) {
-    lines.push('', '### Test files');
-    for (const f of testFiles) {
-      lines.push(`- ${f}`);
-    }
-  }
-
-  lines.push('', '> IMPORTANT: The file paths above are COMPLETE. Do NOT use ls or glob to');
-  lines.push('> discover files. Just call read_file for each path listed above.');
-
-  return lines.join('\n');
-}
-
-/**
- * Insert the file list section near the TOP of a subagent prompt,
- * right after the intro paragraph(s) and before the first ## heading.
- *
- * This ensures the file list is one of the first things the agent reads,
- * not buried at the bottom of a long prompt.
- */
-function insertFileListIntoPrompt(prompt: string, fileSection: string): string {
-  if (!fileSection) return prompt;
-
-  // Find the first ## heading in the prompt
-  const firstHeadingIdx = prompt.indexOf('\n## ');
-  if (firstHeadingIdx === -1) {
-    // No headings found, append at end
-    return prompt + '\n\n' + fileSection;
-  }
-
-  // Insert the file list between the intro paragraphs and the first heading
-  return (
-    prompt.slice(0, firstHeadingIdx) + '\n\n' + fileSection + '\n' + prompt.slice(firstHeadingIdx)
+  dataFiles.push(
+    { path: '/summary.json', description: '(overall test run stats)' },
+    { path: '/metrics/current.json' },
   );
+
+  return buildFileListPromptSection({
+    dataFiles,
+    sourceFiles,
+    testFiles,
+  });
 }
 
 /**
@@ -158,7 +132,7 @@ CPU: app ${metrics.cpu.applicationPercent}%, deps ${metrics.cpu.dependencyPercen
  * directly without ls/glob discovery.
  */
 function buildSubagents(ctx?: VitestAnalysisContext): SubAgent[] {
-  const fileSection = ctx ? buildFileListPromptSection(ctx) : '';
+  const fileSection = ctx ? buildVitestFileListSection(ctx) : '';
 
   const inject = (prompt: string) => insertFileListIntoPrompt(prompt, fileSection);
 

@@ -15,6 +15,37 @@ export { initModel } from './models/init.js';
 
 // ── Analysis ──
 export { invokeWithTodoStreaming } from './analysis/agent.js';
+export {
+  deduplicateFindings,
+  rankFindings,
+  extractFunctionName,
+  findingQualityScore,
+  severityRank,
+  confidenceRank,
+} from './analysis/deduplication.js';
+
+// ── Prompts ──
+export {
+  VERIFICATION_RULES,
+  OUTPUT_FORMAT,
+  FINDING_CATEGORIES,
+  PARALLEL_TOOL_CALLS,
+  FULL_RESPONSE_REQUIREMENT,
+  STRUCTURED_OUTPUT_FIELDS,
+} from './prompts/shared.js';
+export {
+  buildFileListPromptSection,
+  insertFileListIntoPrompt,
+  type FileListConfig,
+  type FileListEntry,
+} from './prompts/file-list.js';
+
+// ── Workspace ──
+export {
+  createWorkspaceFromFiles,
+  listWorkspaceFiles,
+  type WorkspaceBuilderResult,
+} from './workspace/builder.js';
 
 // ── Output ──
 export { TodoProgressRenderer, type ChunkMeta } from './output/progress.js';

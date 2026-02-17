@@ -1,10 +1,11 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import type { BackendProtocol } from 'deepagents';
 
-import { FilesystemBackend, type BackendProtocol } from 'deepagents';
-
-import type { HeapSummary, TraceResult, NetworkRequest } from '@zeitzeuge/utils';
+import {
+  createWorkspaceFromFiles,
+  type HeapSummary,
+  type TraceResult,
+  type NetworkRequest,
+} from '@zeitzeuge/utils';
 
 export interface WorkspaceOptions {
   heapSummary: HeapSummary;
@@ -19,16 +20,18 @@ export interface WorkspaceResult {
   backend: BackendProtocol;
   /** Clean up the temporary directory when done */
   cleanup: () => void;
+  /** All workspace file paths, for file list injection */
+  files: string[];
 }
 
 /**
  * Create a workspace populated with heap snapshot data, trace data,
  * and actual network asset content.
  *
- * Uses FilesystemBackend with virtualMode so the agent's absolute paths
- * (e.g. /heap/summary.json) map to files inside the temp directory.
- * This avoids the VfsSandbox shell-command path issues where absolute
- * paths resolve against the real filesystem instead of the workspace.
+ * Uses the shared createWorkspaceFromFiles utility, which creates a
+ * temp directory with FilesystemBackend in virtualMode so the agent's
+ * absolute paths (e.g. /heap/summary.json) map to files inside the
+ * temp directory.
  */
 export async function createWorkspace(options: WorkspaceOptions): Promise<WorkspaceResult> {
   const { heapSummary, traceResult, url, maxAssetSize = 10 * 1024 * 1024 } = options;
@@ -128,7 +131,7 @@ export async function createWorkspace(options: WorkspaceOptions): Promise<Worksp
     );
 
     files['/trace/runtime/blocking-functions.json'] = JSON.stringify(
-      rt.blockingFunctions.slice(0, 50), // Top 50 by duration
+      rt.blockingFunctions.slice(0, 50),
       null,
       2,
     );
@@ -143,14 +146,11 @@ export async function createWorkspace(options: WorkspaceOptions): Promise<Worksp
   }
 
   // ── Raw trace events (from Chrome Tracing domain) ──
-  // Store the actual raw events so the agent can investigate specific traces.
-  // Capped at 5MB to avoid oversized workspace.
   if (traceResult.rawTraceEvents && traceResult.rawTraceEvents.length > 0) {
     const rawJson = JSON.stringify(traceResult.rawTraceEvents);
     if (rawJson.length < 5 * 1024 * 1024) {
       files['/trace/runtime/raw-events.json'] = rawJson;
     } else {
-      // Too large — store a filtered subset: only main-thread events with dur > 0
       const mainTid = traceResult.runtimeTrace?.mainThreadId;
       const filtered = traceResult.rawTraceEvents.filter(
         (e) => e.tid === mainTid && e.dur && e.dur > 0,
@@ -159,45 +159,24 @@ export async function createWorkspace(options: WorkspaceOptions): Promise<Worksp
       if (filteredJson.length < 5 * 1024 * 1024) {
         files['/trace/runtime/raw-events.json'] = filteredJson;
       } else {
-        // Still too large — store only events > 1ms on the main thread
         const important = filtered.filter((e) => (e.dur ?? 0) > 1000);
         files['/trace/runtime/raw-events.json'] = JSON.stringify(important);
       }
     }
   }
 
-  // ── Write all files to a temp directory ──
-  const tempDir = mkdtempSync(join(tmpdir(), 'zeitzeuge-workspace-'));
+  // ── Use shared workspace builder ──
+  const result = createWorkspaceFromFiles(files, 'zeitzeuge-browser-workspace-');
 
-  for (const [filePath, content] of Object.entries(files)) {
-    // Strip leading / to get a relative path for the real filesystem
-    const relPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-    const fullPath = join(tempDir, relPath);
-    mkdirSync(join(fullPath, '..'), { recursive: true });
-    writeFileSync(fullPath, content, 'utf-8');
-  }
-
-  const backend = new FilesystemBackend({
-    rootDir: tempDir,
-    virtualMode: true,
-  });
-
-  const cleanup = () => {
-    try {
-      rmSync(tempDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+  return {
+    backend: result.backend,
+    cleanup: result.cleanup,
+    files: Object.keys(files),
   };
-
-  return { backend, cleanup };
 }
 
 /**
  * Map a network request to its workspace path based on resource type.
- *
- * Returns virtual absolute paths (e.g. /scripts/app.js) that the
- * FilesystemBackend with virtualMode maps to the temp directory.
  */
 export function getAssetPath(req: NetworkRequest): string {
   let filename: string;

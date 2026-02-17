@@ -22,17 +22,7 @@ export {
   MEMORY_CLOSURE_PROMPT,
   CODE_PATTERN_PROMPT,
 } from './prompts.js';
-export { deduplicateFindings, rankFindings, extractFunctionName } from './deduplication.js';
 export type { ZeitZeugeVitestOptions } from './types.js';
-export type { SourceCategory } from '@zeitzeuge/utils';
-export type {
-  PerformanceMetrics,
-  SuiteMetrics,
-  CpuMetrics,
-  FileMetric,
-  TestMetric,
-  HotFunctionMetric,
-} from '@zeitzeuge/utils';
 export { computeMetrics } from './metrics.js';
 
 // Internal APIs re-exported for use by evals and future integrations
@@ -58,3 +48,16 @@ export type {
   CorrelatedHeapProfile,
   VitestWorkspaceOptions,
 } from './types.js';
+
+export {
+  type SourceCategory,
+  type PerformanceMetrics,
+  type SuiteMetrics,
+  type CpuMetrics,
+  type FileMetric,
+  type TestMetric,
+  type HotFunctionMetric,
+  deduplicateFindings,
+  rankFindings,
+  extractFunctionName,
+} from '@zeitzeuge/utils';

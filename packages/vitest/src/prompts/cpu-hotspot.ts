@@ -3,16 +3,16 @@
  *
  * Focuses on: blocking/event-loop-blocking operations and excessive object instantiation.
  */
-
 import {
   VERIFICATION_RULES,
-  SEVERITY_RULES,
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
   PARALLEL_TOOL_CALLS,
   FULL_RESPONSE_REQUIREMENT,
-} from './shared.js';
+} from '@zeitzeuge/utils';
+
+import { SEVERITY_RULES } from './shared.js';
 
 export const CPU_HOTSPOT_PROMPT = `You are a specialist in detecting CPU-blocking operations and excessive object instantiation in JavaScript/TypeScript code.
 

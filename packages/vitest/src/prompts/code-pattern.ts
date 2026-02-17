@@ -3,16 +3,16 @@
  *
  * Focuses on: algorithmic inefficiencies, unnecessary computation, serialization overhead.
  */
-
 import {
   VERIFICATION_RULES,
-  SEVERITY_RULES,
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
   PARALLEL_TOOL_CALLS,
   FULL_RESPONSE_REQUIREMENT,
-} from './shared.js';
+} from '@zeitzeuge/utils';
+
+import { SEVERITY_RULES } from './shared.js';
 
 export const CODE_PATTERN_PROMPT = `You are a specialist in detecting algorithmic inefficiencies, unnecessary computation, and serialization overhead in JavaScript/TypeScript code.
 

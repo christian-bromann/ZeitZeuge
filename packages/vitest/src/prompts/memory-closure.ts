@@ -3,16 +3,16 @@
  *
  * Focuses on: closure-based memory leaks, unbounded data structures, missing cleanup/eviction.
  */
-
 import {
   VERIFICATION_RULES,
-  SEVERITY_RULES,
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
   PARALLEL_TOOL_CALLS,
   FULL_RESPONSE_REQUIREMENT,
-} from './shared.js';
+} from '@zeitzeuge/utils';
+
+import { SEVERITY_RULES } from './shared.js';
 
 export const MEMORY_CLOSURE_PROMPT = `You are a specialist in detecting memory leaks caused by closures, unbounded data structures, and missing cleanup/eviction in JavaScript/TypeScript code.
 

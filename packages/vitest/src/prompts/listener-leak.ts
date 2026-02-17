@@ -3,16 +3,16 @@
  *
  * Focuses on: listener leaks, event handling imbalances, maxListeners exceedances.
  */
-
 import {
   VERIFICATION_RULES,
-  SEVERITY_RULES,
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
   PARALLEL_TOOL_CALLS,
   FULL_RESPONSE_REQUIREMENT,
-} from './shared.js';
+} from '@zeitzeuge/utils';
+
+import { SEVERITY_RULES } from './shared.js';
 
 export const LISTENER_LEAK_PROMPT = `You are a specialist in detecting event listener leaks and event handling imbalances in JavaScript/TypeScript code.
 

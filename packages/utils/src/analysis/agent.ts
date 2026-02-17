@@ -33,9 +33,15 @@ export async function invokeWithTodoStreaming<TTypes extends DeepAgentTypeConfig
 ): Promise<ReturnType<typeof agent.invoke>> {
   const renderer = new TodoProgressRenderer(spinner, { animate: animateProgress });
 
-  // Prevent "MaxListenersExceededWarning" on the internal AbortSignal.
-  // Long-running agent loops with subgraphs can accumulate many
-  // listeners on the same signal; raising the limit avoids the warning.
+  // Prevent "MaxListenersExceededWarning" on internal AbortSignals.
+  // When 4+ subagents stream concurrently, LangGraph and the LLM SDKs
+  // create derived AbortSignal objects (via AbortSignal.any()) whose
+  // max-listener threshold stays at the default 10.  Setting the global
+  // default to 0 (unlimited) ensures every AbortSignal created after
+  // this point inherits an unlimited threshold.
+  //
+  // ToDo(@christian-bromann): this will be fixed in an upcoming LangGraph release.
+  setMaxListeners(0);
   const controller = new AbortController();
   setMaxListeners(0, controller.signal);
 

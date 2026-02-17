@@ -5,9 +5,12 @@
  * they may produce overlapping findings for the same function. This module
  * merges duplicates while preserving findings that describe genuinely
  * different issues (cross-category preservation).
+ *
+ * This module is domain-agnostic — it operates solely on the shared Finding
+ * type and can be used by both the Vitest and CLI analysis agents.
  */
 
-import type { Finding } from '@zeitzeuge/utils';
+import type { Finding } from '../types.js';
 
 // ── Function name extraction ────────────────────────────────
 
@@ -50,17 +53,17 @@ const CONFIDENCE_ORDER: Record<string, number> = {
   low: 2,
 };
 
-function severityRank(s: string | undefined): number {
+export function severityRank(s: string | undefined): number {
   return SEVERITY_ORDER[s ?? 'info'] ?? 3;
 }
 
-function confidenceRank(c: string | undefined): number {
+export function confidenceRank(c: string | undefined): number {
   return CONFIDENCE_ORDER[c ?? ''] ?? 3;
 }
 
 // ── Scoring for "best finding" selection ────────────────────
 
-function findingQualityScore(f: Finding): number {
+export function findingQualityScore(f: Finding): number {
   let score = 0;
 
   // Strongly prefer findings with both before and after code
