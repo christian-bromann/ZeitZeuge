@@ -33,6 +33,7 @@ export function TerminalAnimation({
   className,
 }: TerminalAnimationProps) {
   const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== 'light';
   const [phase, setPhase] = useState<'idle' | 'typing' | 'streaming' | 'done'>('idle');
   const [typedText, setTypedText] = useState('');
   const [visibleLineCount, setVisibleLineCount] = useState(0);
@@ -181,14 +182,14 @@ export function TerminalAnimation({
       {/* Absolute inner shell — locked to the aspect-ratio box */}
       <div
         className="absolute inset-0 flex flex-col rounded-xl border border-border shadow-2xl overflow-hidden"
-        data-theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+        data-theme={isDark ? 'dark' : 'light'}
       >
         {/* macOS title bar */}
         <div
           className="flex items-center shrink-0 px-4 py-2.5 border-b"
           style={{
-            background: resolvedTheme === 'dark' ? '#2d2d2d' : '#e8e8e8',
-            borderColor: resolvedTheme === 'dark' ? '#1a1a1a' : '#d0d0d0',
+            background: isDark ? '#2d2d2d' : '#e8e8e8',
+            borderColor: isDark ? '#1a1a1a' : '#d0d0d0',
           }}
         >
           <div className="flex gap-2">
@@ -198,7 +199,7 @@ export function TerminalAnimation({
           </div>
           <span
             className="flex-1 text-center text-xs font-mono"
-            style={{ color: resolvedTheme === 'dark' ? '#808080' : '#999' }}
+            style={{ color: isDark ? '#808080' : '#999' }}
           >
             alex — vitest run — 80×24
           </span>
@@ -207,7 +208,7 @@ export function TerminalAnimation({
               onClick={replay}
               aria-label="Replay terminal animation"
               className="transition-colors cursor-pointer"
-              style={{ color: resolvedTheme === 'dark' ? '#808080' : '#999' }}
+              style={{ color: isDark ? '#808080' : '#999' }}
             >
               <svg
                 width="14"
@@ -236,8 +237,8 @@ export function TerminalAnimation({
                      font-mono text-[10px] sm:text-[11px] lg:text-[12px] leading-relaxed
                      flex-1 min-h-0"
           style={{
-            background: resolvedTheme === 'dark' ? '#1a1a2e' : '#f5f5f5',
-            color: resolvedTheme === 'dark' ? '#c8c8c8' : '#1e1e1e',
+            background: isDark ? '#1a1a2e' : '#f5f5f5',
+            color: isDark ? '#c8c8c8' : '#1e1e1e',
           }}
         >
           {/* Command line */}
