@@ -44,9 +44,9 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@langchain/core": "^1.1.24",
+    "@langchain/core": "^1.1.25",
     "@zeitzeuge/utils": "workspace:*",
-    "deepagents": "^1.7.6",
+    "deepagents": "^1.8.0",
     "langchain": "^1.2.23",
     "ora": "^9.3.0",
     "puppeteer-core": "^24.37.2",
