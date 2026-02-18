@@ -31,55 +31,102 @@ export interface PageLoadContext {
   workspaceFiles?: string[];
 }
 
+/** Workspace source files categorised by type. */
+interface CategorisedFiles {
+  scripts: string[];
+  styles: string[];
+  html: string[];
+}
+
+/** Categorise workspace file paths into scripts, styles, and HTML. */
+function categoriseWorkspaceFiles(workspaceFiles: string[]): CategorisedFiles {
+  return {
+    scripts: workspaceFiles.filter((f) => f.startsWith('/scripts/')),
+    styles: workspaceFiles.filter((f) => f.startsWith('/styles/')),
+    html: workspaceFiles.filter((f) => f.startsWith('/html/')),
+  };
+}
+
 /**
- * Build the browser-specific file list section using the shared utility.
+ * Build a per-agent file list section.
  *
- * Categorises workspace files into data files, scripts, styles, and HTML
- * for injection into each subagent's system prompt.
+ * Each agent gets only its relevant DATA files as primary reads, and
+ * source files are listed as "available for selective reading" — NOT
+ * as files that must ALL be read in the first turn.
  */
-function buildBrowserFileListSection(ctx: PageLoadContext): string {
+function buildAgentFileListSection(agentName: string, ctx: PageLoadContext): string {
   const { traceResult, workspaceFiles = [] } = ctx;
   const hasRuntime = !!traceResult.runtimeTrace;
+  const files = categoriseWorkspaceFiles(workspaceFiles);
 
-  const dataFiles: FileListConfig['dataFiles'] = [
-    { path: '/heap/summary.json', description: '(parsed heap snapshot)' },
-    { path: '/trace/summary.json', description: '(page load metrics + render-blocking resources)' },
-    { path: '/trace/network-waterfall.json', description: '(request timing and sizes)' },
-    { path: '/trace/asset-manifest.json', description: '(index of stored assets)' },
-  ];
-
-  if (hasRuntime) {
-    dataFiles.push(
-      { path: '/trace/runtime/summary.json', description: '(runtime trace overview)' },
-      {
-        path: '/trace/runtime/blocking-functions.json',
-        description: '(main thread blocking functions)',
-      },
-      { path: '/trace/runtime/event-listeners.json', description: '(listener add/remove counts)' },
-      {
-        path: '/trace/runtime/frame-breakdown.json',
-        description: '(scripting vs layout vs paint vs GC)',
-      },
-      { path: '/trace/runtime/raw-events.json', description: '(full Chrome trace events)' },
-    );
+  let dataFiles: FileListConfig['dataFiles'] = [];
+  switch (agentName) {
+    case 'memory-heap':
+      dataFiles = [
+        { path: '/heap/summary.json', description: '(parsed heap snapshot — your PRIMARY data)' },
+      ];
+      break;
+    case 'page-load':
+      dataFiles = [
+        {
+          path: '/trace/summary.json',
+          description: '(page load metrics + render-blocking resources)',
+        },
+        { path: '/trace/network-waterfall.json', description: '(request timing and sizes)' },
+        { path: '/trace/asset-manifest.json', description: '(index of stored assets)' },
+      ];
+      break;
+    case 'runtime-blocking':
+      if (hasRuntime) {
+        dataFiles = [
+          { path: '/trace/runtime/summary.json', description: '(runtime trace overview)' },
+          {
+            path: '/trace/runtime/blocking-functions.json',
+            description: '(main thread blocking functions)',
+          },
+          {
+            path: '/trace/runtime/event-listeners.json',
+            description: '(listener add/remove counts)',
+          },
+          {
+            path: '/trace/runtime/frame-breakdown.json',
+            description: '(scripting vs layout vs paint vs GC)',
+          },
+        ];
+      }
+      break;
+    case 'code-pattern':
+      dataFiles = [
+        ...files.html.map((f) => ({ path: f, description: '(HTML document — check first)' })),
+        ...files.styles.map((f) => ({ path: f, description: '(CSS source — check first)' })),
+      ];
+      break;
   }
 
-  // Categorise asset files from workspace
-  const scriptFiles = workspaceFiles.filter((f) => f.startsWith('/scripts/'));
-  const styleFiles = workspaceFiles.filter((f) => f.startsWith('/styles/'));
-  const htmlFiles = workspaceFiles.filter((f) => f.startsWith('/html/'));
-
+  // Only code-pattern and page-load need a source file listing.
+  // memory-heap and runtime-blocking derive file paths from their data
+  // (heap retainer paths contain script URLs, blocking-functions.json has
+  // scriptUrl fields) so they don't need a pre-enumerated list.
   const additionalSections: FileListConfig['additionalSections'] = [];
-  if (styleFiles.length > 0) {
-    additionalSections.push({ title: 'CSS source files', files: styleFiles });
-  }
-  if (htmlFiles.length > 0) {
-    additionalSections.push({ title: 'HTML files', files: htmlFiles });
+  if (agentName === 'code-pattern') {
+    if (files.scripts.length > 0) {
+      additionalSections.push({
+        title: 'Available script files — read selectively based on issues found in HTML/CSS',
+        files: files.scripts,
+      });
+    }
+  } else if (agentName === 'page-load') {
+    const allSource = [...files.scripts, ...files.styles, ...files.html];
+    if (allSource.length > 0) {
+      additionalSections.push({
+        title: 'Available source files — read ONLY the ones flagged as problematic in trace data',
+        files: allSource,
+      });
+    }
   }
 
   return buildFileListPromptSection({
     dataFiles,
-    sourceFiles: scriptFiles,
     additionalSections,
   });
 }
@@ -91,34 +138,12 @@ function buildBrowserFileListSection(ctx: PageLoadContext): string {
  * copies them verbatim into each subagent's task description.
  */
 function buildBrowserUserMessage(ctx: PageLoadContext): string {
-  const { url, heapSummary, traceResult, workspaceFiles = [] } = ctx;
+  const { url, heapSummary, traceResult } = ctx;
   const m = traceResult.metrics;
   const reqCount = traceResult.networkRequests.length;
   const renderBlocking = traceResult.networkRequests.filter((r) => r.isRenderBlocking).length;
   const totalTransfer = traceResult.networkRequests.reduce((s, r) => s + r.encodedSize, 0);
   const hasRuntime = !!traceResult.runtimeTrace;
-
-  // Build the file list for each subagent's task description
-  const scriptFiles = workspaceFiles.filter((f) => f.startsWith('/scripts/'));
-  const styleFiles = workspaceFiles.filter((f) => f.startsWith('/styles/'));
-  const htmlFiles = workspaceFiles.filter((f) => f.startsWith('/html/'));
-  const allSourceFiles = [...scriptFiles, ...styleFiles, ...htmlFiles]
-    .map((f) => `  ${f}`)
-    .join('\n');
-
-  const dataFiles = [
-    '  /heap/summary.json',
-    '  /trace/summary.json',
-    '  /trace/network-waterfall.json',
-    '  /trace/asset-manifest.json',
-    hasRuntime ? '  /trace/runtime/summary.json' : '',
-    hasRuntime ? '  /trace/runtime/blocking-functions.json' : '',
-    hasRuntime ? '  /trace/runtime/event-listeners.json' : '',
-    hasRuntime ? '  /trace/runtime/frame-breakdown.json' : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
-  const allFiles = `${dataFiles}\n${allSourceFiles}`;
 
   let runtimeInfo = '';
   if (hasRuntime) {
@@ -130,28 +155,16 @@ function buildBrowserUserMessage(ctx: PageLoadContext): string {
 Use these EXACT descriptions (copy them verbatim):
 
 TASK 1 — subagent_type: "memory-heap"
-description: "Find memory issues: detached DOM nodes, large retained objects, constructor hotspots, closure leaks, and unbounded caches.
-In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
-${allFiles}
-Read EVERY file above in ONE batch. Then analyze /heap/summary.json for: detached DOM nodes, top retained objects by retainedSize, constructor types with high instance counts, closures with large retained sizes. Cross-reference with source files to verify root causes. Report each distinct issue as a separate finding with beforeCode and afterCode."
+description: "Find memory issues: detached DOM nodes, large retained objects, constructor hotspots, closure leaks, and unbounded caches. Read /heap/summary.json FIRST (do NOT read source files yet). Analyze it for issues, then read ONLY the source files referenced by those issues to verify root causes. Report each distinct issue as a separate finding. Do NOT suggest code fixes for minified/compiled JS — describe the fix approach in the description instead."
 
 TASK 2 — subagent_type: "page-load"
-description: "Find page load issues: render-blocking scripts/CSS, large bundles, sequential waterfalls, and uncompressed resources.
-In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
-${allFiles}
-Read EVERY file above in ONE batch. Then analyze /trace/summary.json and /trace/network-waterfall.json for: render-blocking resources without async/defer, scripts >100KB that could be split, sequential request chains that could load in parallel. Read each render-blocking script to judge if it must be synchronous. Report each distinct issue as a separate finding with beforeCode and afterCode."
+description: "Find page load issues: render-blocking scripts/CSS, large bundles, sequential waterfalls, and uncompressed resources. Read /trace/summary.json, /trace/network-waterfall.json, and /trace/asset-manifest.json FIRST (do NOT read source files yet). Identify problematic resources, then read ONLY the flagged scripts/styles to verify. Report each distinct issue as a separate finding. Do NOT suggest code fixes for minified/compiled JS."
 
 TASK 3 — subagent_type: "runtime-blocking"
-description: "Find runtime issues: main-thread blocking functions, event listener imbalances, GC pressure, layout thrashing, and unthrottled event handlers.
-In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
-${allFiles}
-Read EVERY file above in ONE batch. Then analyze /trace/runtime/blocking-functions.json for functions >50ms. For each, read the source at the reported line number. Check for compound blockers (A calls blocking B — report BOTH). Check event-listeners.json for addCount >> removeCount. Check for layout thrashing patterns. Report each distinct issue as a separate finding with beforeCode and afterCode."
+description: "Find runtime issues: main-thread blocking functions, event listener imbalances, GC pressure, layout thrashing, and unthrottled event handlers. Read /trace/runtime/ data files FIRST (do NOT read source files yet). Analyze blocking-functions.json for functions >50ms, event-listeners.json for add/remove imbalances. Then read ONLY the source files at the reported locations. Check for compound blockers (A calls blocking B — report BOTH). Report each distinct issue as a separate finding. Do NOT suggest code fixes for minified/compiled JS."
 
 TASK 4 — subagent_type: "code-pattern"
-description: "Find frontend code anti-patterns: inline scripts, DOM manipulation in loops, missing event delegation, synchronous XHR, non-passive listeners, CSS issues, and missing image dimensions.
-In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
-${allFiles}
-Read EVERY file above in ONE batch. Then check EVERY file top-to-bottom for: inline <script> blocks in HTML, DOM reads+writes inside loops (layout thrashing), querySelectorAll+forEach+addEventListener patterns (missing delegation), non-passive scroll/touch listeners, CSS @import statements, <img> without width/height. Report each pattern as a separate finding with beforeCode and afterCode."
+description: "Find frontend code anti-patterns: inline scripts, DOM manipulation in loops, missing event delegation, synchronous XHR, non-passive listeners, CSS issues, and missing image dimensions. Read HTML and CSS files FIRST. Check for inline <script> blocks, <img> without width/height, CSS @import. Then read ONLY the script files referenced by issues found. Report each pattern as a separate finding. Do NOT suggest code fixes for minified/compiled JS."
 
 URL: ${url}
 Page load: ${Math.round(m.loadComplete)}ms | FCP: ${Math.round(m.firstContentfulPaint)}ms | LCP: ${Math.round(m.largestContentfulPaint)}ms | TBT: ${Math.round(m.totalBlockingTime)}ms
@@ -160,40 +173,48 @@ Network: ${reqCount} requests, ${formatBytes(totalTransfer)} transferred, ${rend
 }
 
 /**
- * Build the four specialized subagent definitions with file lists
- * injected near the TOP of their system prompts.
+ * Build the four specialized subagent definitions with per-agent file
+ * lists injected near the TOP of their system prompts.
+ *
+ * Each agent only sees its relevant data files as primary reads and
+ * source files as "available for selective reading".
  */
 function buildSubagents(ctx?: PageLoadContext): SubAgent[] {
-  const fileSection = ctx ? buildBrowserFileListSection(ctx) : '';
-
-  const inject = (prompt: string) => insertFileListIntoPrompt(prompt, fileSection);
-
-  return [
+  const agentDefs: Array<{ name: string; description: string; prompt: string }> = [
     {
       name: 'memory-heap',
       description:
         'Analyzes heap snapshot data to find detached DOM nodes, large retained objects, constructor hotspots, and closure leaks.',
-      systemPrompt: inject(MEMORY_HEAP_PROMPT),
+      prompt: MEMORY_HEAP_PROMPT,
     },
     {
       name: 'page-load',
       description:
         'Analyzes page load performance to find render-blocking resources, large bundles, and sequential waterfalls.',
-      systemPrompt: inject(PAGE_LOAD_PROMPT),
+      prompt: PAGE_LOAD_PROMPT,
     },
     {
       name: 'runtime-blocking',
       description:
         'Analyzes Chrome runtime traces to find main-thread blocking functions, event listener leaks, GC pressure, and layout thrashing.',
-      systemPrompt: inject(RUNTIME_BLOCKING_PROMPT),
+      prompt: RUNTIME_BLOCKING_PROMPT,
     },
     {
       name: 'code-pattern',
       description:
         'Detects frontend code anti-patterns: inline scripts, DOM manipulation in loops, missing event delegation, non-passive listeners.',
-      systemPrompt: inject(CODE_PATTERN_PROMPT),
+      prompt: CODE_PATTERN_PROMPT,
     },
   ];
+
+  return agentDefs.map(({ name, description, prompt }) => {
+    const fileSection = ctx ? buildAgentFileListSection(name, ctx) : '';
+    return {
+      name,
+      description,
+      systemPrompt: insertFileListIntoPrompt(prompt, fileSection),
+    };
+  });
 }
 
 /**

@@ -11,10 +11,11 @@ import {
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
-  PARALLEL_TOOL_CALLS,
+  BROWSER_TOOL_CALL_STRATEGY,
   FULL_RESPONSE_REQUIREMENT,
   CROSS_REFERENCING,
   IMPACT_ESTIMATION,
+  MINIFIED_SOURCE_HANDLING,
 } from './shared.js';
 
 export const RUNTIME_BLOCKING_PROMPT = `You are a specialist in analyzing Chrome runtime traces to find main-thread blocking operations, event listener leaks, and layout performance issues.
@@ -164,20 +165,22 @@ source files for their handlers and check if they use throttle/debounce/rAF.
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
+1. In your FIRST turn, call read_file for these data files in ONE batch:
    - /trace/runtime/blocking-functions.json (PRIMARY — blocking functions)
    - /trace/runtime/event-listeners.json (listener add/remove counts)
    - /trace/runtime/frame-breakdown.json (scripting vs layout vs paint vs GC)
    - /trace/runtime/summary.json (overview with GC stats, frequent events)
-   - EVERY source file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
-2. Analyze blocking functions: for each with duration >50ms, read the source
-   and determine if it can be optimised, deferred, or moved to a worker
-3. Check for compound blockers: if function A calls blocking function B,
+   Do NOT use ls or glob. Do NOT read any source files yet.
+2. Analyze blocking functions: for each with duration >50ms, note the
+   scriptUrl and line number from the data.
+3. Derive workspace paths from the scriptUrl field (e.g. a script URL
+   ending in "abc123.js" maps to /scripts/abc123.js). Read ONLY the 1-3
+   source files directly implicated by blocking functions or listener
+   imbalances — do NOT read all scripts.
+4. Check for compound blockers: if function A calls blocking function B,
    report BOTH as separate findings
-4. Check event listener imbalances and find the source code responsible
-5. Check GC stats and cross-reference with heap data if available
-6. Search for layout thrashing patterns in the source files
+5. Check event listener imbalances and find the source code responsible
+6. Check GC stats and cross-reference with heap data if available
 
 ### CRITICAL: Report EACH pattern as a SEPARATE finding
 
@@ -187,12 +190,13 @@ source files for their handlers and check if they use throttle/debounce/rAF.
 - GC pressure → separate finding with constructor details
 - Layout thrashing → separate finding per pattern
 
-${PARALLEL_TOOL_CALLS}
+${BROWSER_TOOL_CALL_STRATEGY}
 ${VERIFICATION_RULES}
 ${SEVERITY_RULES}
 ${FINDING_CATEGORIES}
 ${OUTPUT_FORMAT}
 ${STRUCTURED_OUTPUT_FIELDS}
+${MINIFIED_SOURCE_HANDLING}
 ${CROSS_REFERENCING}
 ${IMPACT_ESTIMATION}
 ${FULL_RESPONSE_REQUIREMENT}`;

@@ -11,10 +11,11 @@ import {
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
-  PARALLEL_TOOL_CALLS,
+  BROWSER_TOOL_CALL_STRATEGY,
   FULL_RESPONSE_REQUIREMENT,
   CROSS_REFERENCING,
   IMPACT_ESTIMATION,
+  MINIFIED_SOURCE_HANDLING,
 } from './shared.js';
 
 export const MEMORY_HEAP_PROMPT = `You are a specialist in analyzing V8 heap snapshots to find memory issues in web applications.
@@ -104,18 +105,19 @@ objects used as stores where items are added but never removed.
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
-   - /heap/summary.json (PRIMARY data source)
-   - EVERY source file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
+1. In your FIRST turn, call read_file for /heap/summary.json ONLY.
+   Do NOT use ls or glob. Do NOT read any source files yet.
 2. From the heap summary, identify:
    - Detached DOM nodes (count and types)
    - Top 10 largest retained objects
    - Constructor types with high instance counts
    - Closures with large retained sizes
-3. For EACH issue found:
-   a. Cross-reference with source code to find the root cause
-   b. Provide before/after code with a concrete fix
+3. For issues that reference script URLs, derive the workspace path
+   (e.g. a script URL ending in "abc123.js" maps to /scripts/abc123.js).
+   Read ONLY the 1-3 source files directly implicated — do NOT read all
+   scripts. Source files are at /scripts/*.js, /styles/*.css, /html/.
+4. Cross-reference with source code to find the root cause and provide
+   before/after code with a concrete fix.
 
 ### CRITICAL: Report EVERY distinct issue
 
@@ -126,12 +128,13 @@ For example:
 3. Closures retaining response objects in event handlers
 These are THREE separate findings, not one.
 
-${PARALLEL_TOOL_CALLS}
+${BROWSER_TOOL_CALL_STRATEGY}
 ${VERIFICATION_RULES}
 ${SEVERITY_RULES}
 ${FINDING_CATEGORIES}
 ${OUTPUT_FORMAT}
 ${STRUCTURED_OUTPUT_FIELDS}
+${MINIFIED_SOURCE_HANDLING}
 ${CROSS_REFERENCING}
 ${IMPACT_ESTIMATION}
 ${FULL_RESPONSE_REQUIREMENT}`;

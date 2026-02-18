@@ -11,10 +11,60 @@ export {
   VERIFICATION_RULES,
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
-  PARALLEL_TOOL_CALLS,
   FULL_RESPONSE_REQUIREMENT,
   STRUCTURED_OUTPUT_FIELDS,
 } from '@zeitzeuge/utils';
+
+/**
+ * CLI-specific tool call strategy that replaces the generic PARALLEL_TOOL_CALLS.
+ *
+ * Key difference: tells agents to read DATA files first, then selectively
+ * read source files based on what the data reveals. This avoids the token
+ * explosion from reading all source files upfront.
+ */
+export const BROWSER_TOOL_CALL_STRATEGY = `## CRITICAL: Tool call strategy — data first, source selectively
+
+Your FIRST turn MUST contain read_file calls ONLY for the data files (JSON)
+listed under "Data files" in "FILES IN THIS WORKSPACE" above. Batch them
+into ONE turn. Do NOT read any source files in your first turn.
+
+After analyzing the data, read at most 1-3 source files that are directly
+implicated by the issues you found. Derive paths from script URLs in the data
+(e.g. a URL ending in "abc123.js" → /scripts/abc123.js). If no source file
+is implicated, skip reading source files entirely and report findings from
+the data alone.
+
+FORBIDDEN actions:
+- ls — NEVER call ls.
+- glob — NEVER call glob.
+- Reading ALL source files — only read the specific ones the data points to.
+- Reading source files in the first turn — always read data first.
+- Reading more than 3 source files — focus on the most impactful issues.`;
+
+/**
+ * Guidance for handling minified/compiled JavaScript in the browser workspace.
+ * Source files captured from production pages are almost always bundled and
+ * minified — agents should NOT suggest code fixes in compiled output.
+ */
+export const MINIFIED_SOURCE_HANDLING = `## Handling minified / compiled source files
+
+The JavaScript files in /scripts/ are captured from a PRODUCTION page. They are
+almost always minified, bundled, or compiled (e.g. by webpack, Vite, Turbopack).
+Signs of compiled code: single very long lines, mangled 1-2 character variable
+names, no whitespace or comments.
+
+When source code is minified/compiled:
+- DO report the issue based on the data (heap summary, trace, etc.)
+- DO include \`beforeCode\` showing the relevant minified snippet for reference
+- Do NOT provide an \`afterCode\` fix — the compiled output is not what
+  developers edit. Set \`afterCode\` to an empty string.
+- DO describe the fix approach in the finding's \`description\` field, explaining
+  what the developer should change in their ORIGINAL source code
+- Set \`confidence\` to \`medium\` since you cannot verify the exact original code
+
+Only provide \`afterCode\` when the source is clearly human-authored (readable
+variable names, formatting, comments) — e.g. inline scripts in HTML or
+un-minified CSS.`;
 
 // ── Browser-specific prompt sections ──
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useTheme } from 'next-themes';
-import { COMMAND, TERMINAL_LINES } from './terminal-data';
+import { TABS } from './terminal-data';
 import type { LineDefinition } from './terminal-data';
 
 interface TerminalAnimationProps {
@@ -16,11 +16,23 @@ const TerminalLine = memo(function TerminalLine({ line }: { line: LineDefinition
   if (line.segments) {
     return (
       <div className="whitespace-pre">
-        {line.segments.map((seg, i) => (
-          <span key={i} className={seg.className}>
-            {seg.text}
-          </span>
-        ))}
+        {line.segments.map((seg, i) =>
+          seg.href ? (
+            <a
+              key={i}
+              href={seg.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${seg.className} underline decoration-current/40 hover:decoration-current`}
+            >
+              {seg.text}
+            </a>
+          ) : (
+            <span key={i} className={seg.className}>
+              {seg.text}
+            </span>
+          ),
+        )}
       </div>
     );
   }
@@ -37,6 +49,7 @@ export function TerminalAnimation({
   useEffect(() => setMounted(true), []);
   const isDark = !mounted || resolvedTheme !== 'light';
 
+  const [activeTab, setActiveTab] = useState(0);
   const [phase, setPhase] = useState<'idle' | 'typing' | 'streaming' | 'done'>('idle');
   const [typedText, setTypedText] = useState('');
   const [visibleLineCount, setVisibleLineCount] = useState(0);
@@ -50,27 +63,27 @@ export function TerminalAnimation({
   const onCompleteRef = useRef(onComplete);
   const prefersReducedMotion = useRef(false);
 
-  // Keep onComplete ref current without triggering re-renders
+  const command = TABS[activeTab].command;
+  const lines = TABS[activeTab].lines;
+
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
-  // Detect prefers-reduced-motion on mount
   useEffect(() => {
     prefersReducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Start animation helper
   const startAnimation = useCallback(() => {
     if (prefersReducedMotion.current) {
-      setTypedText(COMMAND);
-      setVisibleLineCount(TERMINAL_LINES.length);
+      setTypedText(TABS[activeTab].command);
+      setVisibleLineCount(TABS[activeTab].lines.length);
       setPhase('done');
       onCompleteRef.current?.();
       return;
     }
     setPhase('typing');
-  }, []);
+  }, [activeTab]);
 
   // IntersectionObserver for autoPlay
   useEffect(() => {
@@ -92,7 +105,7 @@ export function TerminalAnimation({
     return () => observer.disconnect();
   }, [autoPlay, phase, startAnimation]);
 
-  // Phase 1: Typing
+  // Typing phase
   useEffect(() => {
     if (phase !== 'typing') return;
 
@@ -100,13 +113,12 @@ export function TerminalAnimation({
     let timeoutId: ReturnType<typeof setTimeout>;
 
     const typeNext = () => {
-      if (charIndex < COMMAND.length) {
+      if (charIndex < command.length) {
         charIndex++;
-        setTypedText(COMMAND.slice(0, charIndex));
+        setTypedText(command.slice(0, charIndex));
         const jitter = Math.random() * 30 - 15;
         timeoutId = setTimeout(typeNext, 60 + jitter);
       } else {
-        // Command fully typed — pause then start streaming
         timeoutId = setTimeout(() => {
           setPhase('streaming');
         }, 500);
@@ -115,29 +127,29 @@ export function TerminalAnimation({
 
     timeoutId = setTimeout(typeNext, 60);
     return () => clearTimeout(timeoutId);
-  }, [phase]);
+  }, [phase, command]);
 
-  // Phases 2-6: Line streaming via requestAnimationFrame
+  // Streaming phase
   useEffect(() => {
     if (phase !== 'streaming') return;
 
     let lineIndex = 0;
     startTimeRef.current = performance.now();
-    nextLineTimeRef.current = TERMINAL_LINES[0]?.delay ?? 0;
+    nextLineTimeRef.current = lines[0]?.delay ?? 0;
 
     const step = (now: number) => {
       const elapsed = now - startTimeRef.current;
 
-      while (lineIndex < TERMINAL_LINES.length && elapsed >= nextLineTimeRef.current) {
+      while (lineIndex < lines.length && elapsed >= nextLineTimeRef.current) {
         lineIndex++;
         setVisibleLineCount(lineIndex);
 
-        if (lineIndex < TERMINAL_LINES.length) {
-          nextLineTimeRef.current += TERMINAL_LINES[lineIndex].delay;
+        if (lineIndex < lines.length) {
+          nextLineTimeRef.current += lines[lineIndex].delay;
         }
       }
 
-      if (lineIndex < TERMINAL_LINES.length) {
+      if (lineIndex < lines.length) {
         rafRef.current = requestAnimationFrame(step);
       } else {
         setPhase('done');
@@ -147,9 +159,9 @@ export function TerminalAnimation({
 
     rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [phase]);
+  }, [phase, lines]);
 
-  // Auto-scroll when new lines appear
+  // Auto-scroll
   useEffect(() => {
     const el = terminalRef.current;
     if (el && !isUserScrolled.current) {
@@ -170,47 +182,88 @@ export function TerminalAnimation({
     setVisibleLineCount(0);
     isUserScrolled.current = false;
     setPhase('idle');
-    // Use microtask to ensure state resets before restarting
     queueMicrotask(() => {
       startAnimation();
     });
   }, [startAnimation]);
 
+  const switchTab = useCallback(
+    (index: number) => {
+      if (index === activeTab) return;
+      cancelAnimationFrame(rafRef.current);
+      setTypedText('');
+      setVisibleLineCount(0);
+      isUserScrolled.current = false;
+      setPhase('idle');
+      setActiveTab(index);
+    },
+    [activeTab],
+  );
+
+  // Auto-start animation when tab changes (after the idle reset)
+  useEffect(() => {
+    if (phase === 'idle' && activeTab !== undefined) {
+      const id = setTimeout(() => startAnimation(), 50);
+      return () => clearTimeout(id);
+    }
+  }, [activeTab, phase, startAnimation]);
+
   return (
     <div
       className={`relative w-full max-w-3xl mx-auto aspect-4/3 ${className || ''}`}
-      aria-label="Terminal animation showing zeitzeuge Vitest integration"
+      aria-label={`Terminal animation: ${TABS[activeTab].label}`}
       ref={containerRef}
     >
-      {/* Absolute inner shell — locked to the aspect-ratio box */}
       <div
         className="absolute inset-0 flex flex-col rounded-xl border border-border shadow-2xl overflow-hidden"
         data-theme={isDark ? 'dark' : 'light'}
       >
-        {/* macOS title bar */}
+        {/* macOS title bar with tabs */}
         <div
-          className="flex items-center shrink-0 px-4 py-2.5 border-b"
+          className="flex items-center shrink-0 px-4 border-b"
           style={{
             background: isDark ? '#2d2d2d' : '#e8e8e8',
             borderColor: isDark ? '#1a1a1a' : '#d0d0d0',
           }}
         >
-          <div className="flex gap-2">
+          <div className="flex gap-2 mr-3 shrink-0">
             <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
             <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
             <div className="w-3 h-3 rounded-full bg-[#28c840]" />
           </div>
-          <span
-            className="flex-1 text-center text-xs font-mono"
-            style={{ color: isDark ? '#808080' : '#999' }}
-          >
-            alex — vitest run — 80×24
-          </span>
+
+          <div className="flex flex-1 min-w-0" role="tablist" aria-label="Terminal demos">
+            {TABS.map((tab, i) => (
+              <button
+                key={tab.label}
+                role="tab"
+                aria-selected={activeTab === i}
+                aria-controls="terminal-panel"
+                onClick={() => switchTab(i)}
+                className="px-3 sm:px-4 py-2.5 text-[10px] sm:text-xs font-mono transition-colors cursor-pointer truncate"
+                style={{
+                  background: activeTab === i ? (isDark ? '#1a1a2e' : '#f5f5f5') : 'transparent',
+                  color:
+                    activeTab === i
+                      ? isDark
+                        ? '#f5f5f5'
+                        : '#1e1e1e'
+                      : isDark
+                        ? '#808080'
+                        : '#999',
+                  borderRadius: '6px 6px 0 0',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {phase === 'done' && (
             <button
               onClick={replay}
               aria-label="Replay terminal animation"
-              className="transition-colors cursor-pointer"
+              className="transition-colors cursor-pointer shrink-0 ml-2"
               style={{ color: isDark ? '#808080' : '#999' }}
             >
               <svg
@@ -232,9 +285,10 @@ export function TerminalAnimation({
 
         {/* Terminal body */}
         <div
+          id="terminal-panel"
+          role="tabpanel"
           ref={terminalRef}
           onScroll={handleScroll}
-          role="log"
           aria-live={phase === 'done' ? 'off' : 'polite'}
           className="terminal-body p-4 overflow-y-auto overflow-x-hidden
                      font-mono text-[10px] sm:text-[11px] lg:text-[12px] leading-relaxed
@@ -244,7 +298,6 @@ export function TerminalAnimation({
             color: isDark ? '#c8c8c8' : '#1e1e1e',
           }}
         >
-          {/* Command line */}
           {phase !== 'idle' && (
             <div className="whitespace-pre">
               <span className="term-prompt">$ </span>
@@ -253,9 +306,8 @@ export function TerminalAnimation({
             </div>
           )}
 
-          {/* Output lines */}
-          {TERMINAL_LINES.slice(0, visibleLineCount).map((line, i) => (
-            <TerminalLine key={i} line={line} />
+          {lines.slice(0, visibleLineCount).map((line, i) => (
+            <TerminalLine key={`${activeTab}-${i}`} line={line} />
           ))}
         </div>
       </div>

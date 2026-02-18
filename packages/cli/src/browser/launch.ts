@@ -18,7 +18,7 @@ export async function launchBrowser(options: LaunchOptions = {}): Promise<Browse
         ],
       },
     },
-    logLevel: 'warn',
+    logLevel: 'error',
   });
 
   return browser;

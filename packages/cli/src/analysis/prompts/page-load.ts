@@ -11,9 +11,10 @@ import {
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
-  PARALLEL_TOOL_CALLS,
+  BROWSER_TOOL_CALL_STRATEGY,
   FULL_RESPONSE_REQUIREMENT,
   IMPACT_ESTIMATION,
+  MINIFIED_SOURCE_HANDLING,
 } from './shared.js';
 
 export const PAGE_LOAD_PROMPT = `You are a specialist in analyzing page load performance, render-blocking resources, and network waterfall patterns.
@@ -102,12 +103,11 @@ close to \`decodedSize\` (no compression), or where large assets have no caching
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
+1. In your FIRST turn, call read_file for these data files in ONE batch:
    - /trace/summary.json (PRIMARY — timing + render-blocking resources)
    - /trace/network-waterfall.json (request timing and sizes)
    - /trace/asset-manifest.json (index of stored assets)
-   - EVERY source file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
+   Do NOT use ls or glob. Do NOT read source files yet.
 2. From the trace summary, identify:
    - Render-blocking resources (scripts and stylesheets)
    - Long tasks during page load
@@ -115,13 +115,16 @@ close to \`decodedSize\` (no compression), or where large assets have no caching
 3. From the network waterfall, identify:
    - Sequential chains that could be parallelised
    - Resources with high load times
-4. For EACH issue, read the actual source file to verify and provide a fix
+4. Read ONLY the source files flagged as problematic (render-blocking,
+   oversized, etc.) from "Available source files" above. Batch these reads.
+5. For EACH issue, verify with the source and provide before/after code
 
-${PARALLEL_TOOL_CALLS}
+${BROWSER_TOOL_CALL_STRATEGY}
 ${VERIFICATION_RULES}
 ${SEVERITY_RULES}
 ${FINDING_CATEGORIES}
 ${OUTPUT_FORMAT}
 ${STRUCTURED_OUTPUT_FIELDS}
+${MINIFIED_SOURCE_HANDLING}
 ${IMPACT_ESTIMATION}
 ${FULL_RESPONSE_REQUIREMENT}`;

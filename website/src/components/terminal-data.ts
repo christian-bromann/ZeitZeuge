@@ -1,6 +1,7 @@
 export interface LineSegment {
   text: string;
   className: string;
+  href?: string;
 }
 
 export interface LineDefinition {
@@ -10,9 +11,763 @@ export interface LineDefinition {
   segments?: LineSegment[];
 }
 
-export const COMMAND = 'vitest run';
+export interface TerminalTab {
+  label: string;
+  command: string;
+  lines: LineDefinition[];
+}
 
-export const TERMINAL_LINES: LineDefinition[] = [
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CLI terminal data
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const CLI_LINES: LineDefinition[] = [
+  // ── Phase 2 — Header box ──
+  {
+    text: '┌─────────────────────────────────┐',
+    delay: 0,
+    segments: [
+      {
+        text: '┌────────────────────────────────────────────┐',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '│  zeitzeuge v0.6.6                                                    │',
+    delay: 0,
+    segments: [
+      { text: '│  ', className: 'term-muted' },
+      { text: 'zeitzeuge', className: 'term-cyan' },
+      { text: ' v0.6.6', className: 'term-text' },
+      {
+        text: '                                                    │',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '│  Analyzing: https://zeitzeuge.dev                                   │',
+    delay: 0,
+    segments: [
+      { text: '│  Analyzing: ', className: 'term-muted' },
+      { text: 'https://zeitzeuge.dev', className: 'term-text' },
+      {
+        text: '                                    │',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '└───────────────────────────────────────────────────┘',
+    delay: 0,
+    segments: [
+      {
+        text: '└────────────────────────────────────────────┘',
+        className: 'term-muted',
+      },
+    ],
+  },
+  { text: '', delay: 10 },
+
+  // ── Phase 2 — Browser stats ──
+  {
+    text: '✔ Browser launched (headless)',
+    delay: 30,
+    segments: [
+      { text: '✔', className: 'term-success' },
+      { text: ' Browser launched (headless)', className: 'term-text' },
+    ],
+  },
+  {
+    text: '✔ Page loaded in 0.5s',
+    delay: 300,
+    segments: [
+      { text: '✔', className: 'term-success' },
+      { text: ' Page loaded in ', className: 'term-text' },
+      { text: '0.5s', className: 'term-value' },
+    ],
+  },
+  {
+    text: '   Heap snapshot: 5.0 MB',
+    delay: 20,
+    segments: [
+      { text: '   Heap snapshot: ', className: 'term-muted' },
+      { text: '5.0 MB', className: 'term-value' },
+    ],
+  },
+  {
+    text: '   Network requests: 24 captured',
+    delay: 20,
+    segments: [
+      { text: '   Network requests: ', className: 'term-muted' },
+      { text: '24', className: 'term-value' },
+      { text: ' captured', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '   Long tasks: 0 detected',
+    delay: 20,
+    segments: [
+      { text: '   Long tasks: ', className: 'term-muted' },
+      { text: '0', className: 'term-value' },
+      { text: ' detected', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '   Runtime trace: 11,298 events captured',
+    delay: 20,
+    segments: [
+      { text: '   Runtime trace: ', className: 'term-muted' },
+      { text: '11,298', className: 'term-value' },
+      { text: ' events captured', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '✔ Parsed: 64,680 nodes, 284,415 edges',
+    delay: 30,
+    segments: [
+      { text: '✔', className: 'term-success' },
+      { text: ' Parsed: ', className: 'term-text' },
+      { text: '64,680', className: 'term-value' },
+      { text: ' nodes, ', className: 'term-muted' },
+      { text: '284,415', className: 'term-value' },
+      { text: ' edges', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '✔ 20 assets stored in workspace (621.1 KB total)',
+    delay: 30,
+    segments: [
+      { text: '✔', className: 'term-success' },
+      { text: ' 20 assets stored in workspace (', className: 'term-text' },
+      { text: '621.1 KB', className: 'term-value' },
+      { text: ' total)', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '   Runtime trace: summaries + raw events',
+    delay: 120,
+    segments: [{ text: '   Runtime trace: summaries + raw events', className: 'term-muted' }],
+  },
+
+  // ── Phase 3 — Agent analysis ──
+  {
+    text: '  Performance analysis progress:',
+    delay: 400,
+    segments: [{ text: '  Performance analysis progress:', className: 'term-heading' }],
+  },
+  {
+    text: '    ↳ task(subagent_type: "memory-heap", description: "Find memory issues: detached DOM node...")',
+    delay: 200,
+    segments: [
+      { text: '    ↳ ', className: 'term-muted' },
+      { text: 'task(', className: 'term-cyan' },
+      { text: 'subagent_type: ', className: 'term-text' },
+      { text: '"memory-heap"', className: 'term-agent' },
+      {
+        text: ', description: "Find memory issues: detached DOM node...")',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '    ↳ task(subagent_type: "page-load", description: "Find page load issues: render-blockin...")',
+    delay: 200,
+    segments: [
+      { text: '    ↳ ', className: 'term-muted' },
+      { text: 'task(', className: 'term-cyan' },
+      { text: 'subagent_type: ', className: 'term-text' },
+      { text: '"page-load"', className: 'term-agent' },
+      {
+        text: ', description: "Find page load issues: render-blockin...")',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '    ↳ task(subagent_type: "runtime-blocking", description: "Find runtime issues: main-thread bloc...")',
+    delay: 200,
+    segments: [
+      { text: '    ↳ ', className: 'term-muted' },
+      { text: 'task(', className: 'term-cyan' },
+      { text: 'subagent_type: ', className: 'term-text' },
+      { text: '"runtime-blocking"', className: 'term-agent' },
+      {
+        text: ', description: "Find runtime issues: main-thread bloc...")',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '    ↳ task(subagent_type: "code-pattern", description: "Find frontend code anti-patterns: inl...")',
+    delay: 200,
+    segments: [
+      { text: '    ↳ ', className: 'term-muted' },
+      { text: 'task(', className: 'term-cyan' },
+      { text: 'subagent_type: ', className: 'term-text' },
+      { text: '"code-pattern"', className: 'term-agent' },
+      {
+        text: ', description: "Find frontend code anti-patterns: inl...")',
+        className: 'term-muted',
+      },
+    ],
+  },
+
+  // Tool call lines
+  {
+    text: '        ↳ [memory-heap] read_file(file_path: "/heap/summary.json", offset: 0, limit: 200)',
+    delay: 800,
+    segments: [
+      { text: '        ↳ ', className: 'term-muted' },
+      { text: '[memory-heap]', className: 'term-agent' },
+      { text: ' read_file', className: 'term-cyan' },
+      { text: '(file_path: "/heap/summary.json", offset: 0, limit: 200)', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '        ↳ [code-pattern] read_file(file_path: "/html/index", offset: 0, limit: 200)',
+    delay: 200,
+    segments: [
+      { text: '        ↳ ', className: 'term-muted' },
+      { text: '[code-pattern]', className: 'term-agent' },
+      { text: ' read_file', className: 'term-cyan' },
+      { text: '(file_path: "/html/index", offset: 0, limit: 200)', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '        ↳ [page-load] read_file(file_path: "/trace/summary.json", offset: 0, limit: 200)',
+    delay: 200,
+    segments: [
+      { text: '        ↳ ', className: 'term-muted' },
+      { text: '[page-load]', className: 'term-agent' },
+      { text: ' read_file', className: 'term-cyan' },
+      {
+        text: '(file_path: "/trace/summary.json", offset: 0, limit: 200)',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '        ↳ [runtime-blocking] read_file(file_path: "/trace/runtime/blocking-functions.json")',
+    delay: 200,
+    segments: [
+      { text: '        ↳ ', className: 'term-muted' },
+      { text: '[runtime-blocking]', className: 'term-agent' },
+      { text: ' read_file', className: 'term-cyan' },
+      { text: '(file_path: "/trace/runtime/blocking-functions.json")', className: 'term-muted' },
+    ],
+  },
+
+  // Progress updates
+  {
+    text: '      7% [runtime-blocking] ✓ Analyze blocking-functions.json for functions >50ms',
+    delay: 700,
+    segments: [
+      { text: '      7% ', className: 'term-muted' },
+      { text: '[runtime-blocking]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Analyze blocking-functions.json for functions >50ms', className: 'term-text' },
+    ],
+  },
+  {
+    text: '      7% [runtime-blocking] ✓ Analyze event-listeners.json for add/remove imbalances',
+    delay: 120,
+    segments: [
+      { text: '      7% ', className: 'term-muted' },
+      { text: '[runtime-blocking]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Analyze event-listeners.json for add/remove imbalances', className: 'term-text' },
+    ],
+  },
+  {
+    text: '      7% [runtime-blocking] ▸ Compile final findings report',
+    delay: 300,
+    segments: [
+      { text: '      7% ', className: 'term-muted' },
+      { text: '[runtime-blocking]', className: 'term-agent' },
+      { text: ' ▸ ', className: 'term-pending' },
+      { text: 'Compile final findings report', className: 'term-text' },
+    ],
+  },
+  {
+    text: '      7% [code-pattern] ▸ Analyze HTML for inline scripts, missing image dimensions',
+    delay: 300,
+    segments: [
+      { text: '      7% ', className: 'term-muted' },
+      { text: '[code-pattern]', className: 'term-agent' },
+      { text: ' ▸ ', className: 'term-pending' },
+      { text: 'Analyze HTML for inline scripts, missing image dimensions', className: 'term-text' },
+    ],
+  },
+  {
+    text: '      8% [runtime-blocking] ✓ Compile final findings report',
+    delay: 600,
+    segments: [
+      { text: '      8% ', className: 'term-muted' },
+      { text: '[runtime-blocking]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Compile final findings report', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     10% [page-load] ✓ Analyze trace data: summary, waterfall, and asset manifest',
+    delay: 500,
+    segments: [
+      { text: '     10% ', className: 'term-muted' },
+      { text: '[page-load]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      {
+        text: 'Analyze trace data: summary, waterfall, and asset manifest',
+        className: 'term-text',
+      },
+    ],
+  },
+  {
+    text: '     10% [page-load] ▸ Identify key issues from data analysis',
+    delay: 300,
+    segments: [
+      { text: '     10% ', className: 'term-muted' },
+      { text: '[page-load]', className: 'term-agent' },
+      { text: ' ▸ ', className: 'term-pending' },
+      { text: 'Identify key issues from data analysis', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     13% [memory-heap] ✓ Analyze heap summary data for all memory issues',
+    delay: 500,
+    segments: [
+      { text: '     13% ', className: 'term-muted' },
+      { text: '[memory-heap]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Analyze heap summary data for all memory issues', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     13% [memory-heap] ▸ Read source files implicated by heap data',
+    delay: 300,
+    segments: [
+      { text: '     13% ', className: 'term-muted' },
+      { text: '[memory-heap]', className: 'term-agent' },
+      { text: ' ▸ ', className: 'term-pending' },
+      { text: 'Read source files implicated by heap data', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     14% [page-load] ✓ Identify key issues from data analysis',
+    delay: 600,
+    segments: [
+      { text: '     14% ', className: 'term-muted' },
+      { text: '[page-load]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Identify key issues from data analysis', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     14% [page-load] ▸ Read HTML index file to check for render-blocking scripts',
+    delay: 300,
+    segments: [
+      { text: '     14% ', className: 'term-muted' },
+      { text: '[page-load]', className: 'term-agent' },
+      { text: ' ▸ ', className: 'term-pending' },
+      { text: 'Read HTML index file to check for render-blocking scripts', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     21% [code-pattern] ✓ Analyze HTML for inline scripts, missing image dimensions',
+    delay: 700,
+    segments: [
+      { text: '     21% ', className: 'term-muted' },
+      { text: '[code-pattern]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Analyze HTML for inline scripts, missing image dimensions', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     21% [code-pattern] ✓ Analyze CSS for @import, complex selectors, animation issues',
+    delay: 120,
+    segments: [
+      { text: '     21% ', className: 'term-muted' },
+      { text: '[code-pattern]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      {
+        text: 'Analyze CSS for @import, complex selectors, animation issues',
+        className: 'term-text',
+      },
+    ],
+  },
+  {
+    text: '     21% [code-pattern] ▸ Compile all findings with before/after code',
+    delay: 300,
+    segments: [
+      { text: '     21% ', className: 'term-muted' },
+      { text: '[code-pattern]', className: 'term-agent' },
+      { text: ' ▸ ', className: 'term-pending' },
+      { text: 'Compile all findings with before/after code', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     25% [page-load] ✓ Read HTML index file to check for render-blocking scripts',
+    delay: 600,
+    segments: [
+      { text: '     25% ', className: 'term-muted' },
+      { text: '[page-load]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Read HTML index file to check for render-blocking scripts', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     25% [page-load] ▸ Compile all findings with full details',
+    delay: 300,
+    segments: [
+      { text: '     25% ', className: 'term-muted' },
+      { text: '[page-load]', className: 'term-agent' },
+      { text: ' ▸ ', className: 'term-pending' },
+      { text: 'Compile all findings with full details', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     28% [memory-heap] ✓ Report all findings with full details',
+    delay: 700,
+    segments: [
+      { text: '     28% ', className: 'term-muted' },
+      { text: '[memory-heap]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Report all findings with full details', className: 'term-text' },
+    ],
+  },
+  {
+    text: '     30% [page-load] ✓ Compile all findings with full details',
+    delay: 500,
+    segments: [
+      { text: '     30% ', className: 'term-muted' },
+      { text: '[page-load]', className: 'term-agent' },
+      { text: ' ✓ ', className: 'term-success' },
+      { text: 'Compile all findings with full details', className: 'term-text' },
+    ],
+  },
+
+  // ── Phase 4 — Completion + Findings ──
+  {
+    text: '✔ Analysis complete — 28 findings',
+    delay: 800,
+    segments: [
+      { text: '✔', className: 'term-success' },
+      { text: ' Analysis complete — ', className: 'term-heading' },
+      { text: '28 findings', className: 'term-value' },
+    ],
+  },
+  { text: '', delay: 100 },
+  {
+    text: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    delay: 200,
+    segments: [
+      {
+        text: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        className: 'term-muted',
+      },
+    ],
+  },
+  { text: '', delay: 100 },
+
+  // Finding 1 — CRITICAL
+  {
+    text: '🔴 CRITICAL [Render-Blocking]: CPU-Intensive 5M-Iteration Loop Blocks Main Thread',
+    delay: 600,
+    segments: [
+      { text: '🔴 ', className: 'term-text' },
+      { text: 'CRITICAL', className: 'term-critical' },
+      { text: ' [Render-Blocking]: ', className: 'term-muted' },
+      { text: 'CPU-Intensive 5M-Iteration Loop Blocks Main Thread', className: 'term-text' },
+    ],
+  },
+  {
+    text: '   Impact: 500ms',
+    delay: 80,
+    segments: [
+      { text: '   Impact: ', className: 'term-muted' },
+      { text: '500ms', className: 'term-value' },
+    ],
+  },
+  { text: '', delay: 80 },
+  {
+    text: '   An inline <script> contains ohBoyYouFoundThis() that runs a loop of 5 million',
+    delay: 80,
+    segments: [
+      {
+        text: '   An inline <script> contains ohBoyYouFoundThis() that runs a loop of 5 million',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '   iterations — monopolizing the CPU for 200-800ms post-load.',
+    delay: 80,
+    segments: [
+      {
+        text: '   iterations — monopolizing the CPU for 200-800ms post-load.',
+        className: 'term-muted',
+      },
+    ],
+  },
+  { text: '', delay: 80 },
+  {
+    text: '   Suggested fix:',
+    delay: 80,
+    segments: [{ text: '   Suggested fix:', className: 'term-heading' }],
+  },
+  {
+    text: '   ┌───────────────────────────────────────┐',
+    delay: 80,
+    segments: [{ text: '   ┌───────────────────────────────────────┐', className: 'term-muted' }],
+  },
+  {
+    text: '   │ Remove ohBoyYouFoundThis() entirely, or offload to a Web     │',
+    delay: 80,
+    segments: [
+      { text: '   │ ', className: 'term-muted' },
+      { text: 'Remove ohBoyYouFoundThis() entirely, or offload to a Web', className: 'term-text' },
+      { text: '     │', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '   │ Worker to avoid blocking the main thread for 200-800ms.      │',
+    delay: 80,
+    segments: [
+      { text: '   │ ', className: 'term-muted' },
+      { text: 'Worker to avoid blocking the main thread for 200-800ms.', className: 'term-text' },
+      { text: '      │', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '   └─────────────────────────────────────┘',
+    delay: 80,
+    segments: [{ text: '   └───────────────────────────────────────┘', className: 'term-muted' }],
+  },
+  { text: '', delay: 100 },
+
+  // Finding 2 — WARNING
+  {
+    text: '🟡 WARNING [Waterfall Bottleneck]: Sequential RSC Waterfall — 704ms Chain',
+    delay: 400,
+    segments: [
+      { text: '🟡 ', className: 'term-text' },
+      { text: 'WARNING', className: 'term-warning' },
+      { text: ' [Waterfall Bottleneck]: ', className: 'term-muted' },
+      { text: 'Sequential RSC Waterfall — 704ms Chain', className: 'term-text' },
+    ],
+  },
+  {
+    text: '   Impact: 785ms',
+    delay: 80,
+    segments: [
+      { text: '   Impact: ', className: 'term-muted' },
+      { text: '785ms', className: 'term-value' },
+    ],
+  },
+  { text: '', delay: 80 },
+  {
+    text: '   The network waterfall shows a sequential chain of RSC data fetches for the',
+    delay: 80,
+    segments: [
+      {
+        text: '   The network waterfall shows a sequential chain of RSC data fetches for the',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '   /docs route. The initial fetch takes 704ms and blocks 3 dependent fetches.',
+    delay: 80,
+    segments: [
+      {
+        text: '   /docs route. The initial fetch takes 704ms and blocks 3 dependent fetches.',
+        className: 'term-muted',
+      },
+    ],
+  },
+  { text: '', delay: 80 },
+  {
+    text: '   Suggested fix:',
+    delay: 80,
+    segments: [{ text: '   Suggested fix:', className: 'term-heading' }],
+  },
+  {
+    text: '   ┌────────────────────────────────────────┐',
+    delay: 80,
+    segments: [{ text: '   ┌────────────────────────────────────────┐', className: 'term-muted' }],
+  },
+  {
+    text: '   │ Prefetch /docs RSC data using next/link with prefetch={true}     │',
+    delay: 80,
+    segments: [
+      { text: '   │ ', className: 'term-muted' },
+      {
+        text: 'Prefetch /docs RSC data using next/link with prefetch={true}',
+        className: 'term-text',
+      },
+      { text: '   │', className: 'term-muted' },
+    ],
+  },
+  {
+    text: "   │ or router.prefetch('/docs') to eliminate the waterfall.     │",
+    delay: 80,
+    segments: [
+      { text: '   │ ', className: 'term-muted' },
+      { text: "or router.prefetch('/docs') to eliminate the waterfall.", className: 'term-text' },
+      { text: '        │', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '   └────────────────────────────────────────┘',
+    delay: 80,
+    segments: [{ text: '   └────────────────────────────────────────┘', className: 'term-muted' }],
+  },
+  { text: '', delay: 100 },
+
+  // Finding 3 — WARNING
+  {
+    text: '🟡 WARNING [Detached DOM]: 308 Detached DOM Nodes from React Hydration',
+    delay: 400,
+    segments: [
+      { text: '🟡 ', className: 'term-text' },
+      { text: 'WARNING', className: 'term-warning' },
+      { text: ' [Detached DOM]: ', className: 'term-muted' },
+      { text: '308 Detached DOM Nodes from React Hydration', className: 'term-text' },
+    ],
+  },
+  {
+    text: '   Retained size: 41.5 KB',
+    delay: 80,
+    segments: [
+      { text: '   Retained size: ', className: 'term-muted' },
+      { text: '41.5 KB', className: 'term-value' },
+    ],
+  },
+  { text: '', delay: 80 },
+  {
+    text: '   308 detached DOM nodes totaling ~41.5KB retained. Caused by React hydration',
+    delay: 80,
+    segments: [
+      {
+        text: '   308 detached DOM nodes totaling ~41.5KB retained. Caused by React hydration',
+        className: 'term-muted',
+      },
+    ],
+  },
+  {
+    text: '   replacing the server-rendered DOM while framework retains references.',
+    delay: 80,
+    segments: [
+      {
+        text: '   replacing the server-rendered DOM while framework retains references.',
+        className: 'term-muted',
+      },
+    ],
+  },
+  { text: '', delay: 80 },
+  {
+    text: '   Suggested fix:',
+    delay: 80,
+    segments: [{ text: '   Suggested fix:', className: 'term-heading' }],
+  },
+  {
+    text: '   ┌───────────────────────────────────────┐',
+    delay: 80,
+    segments: [{ text: '   ┌───────────────────────────────────────┐', className: 'term-muted' }],
+  },
+  {
+    text: '   │ Upgrade to the latest Next.js version which improves         │',
+    delay: 80,
+    segments: [
+      { text: '   │ ', className: 'term-muted' },
+      { text: 'Upgrade to the latest Next.js version which improves', className: 'term-text' },
+      { text: '         │', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '   │ hydration mismatch cleanup.                                  │',
+    delay: 80,
+    segments: [
+      { text: '   │ ', className: 'term-muted' },
+      { text: 'hydration mismatch cleanup.', className: 'term-text' },
+      { text: '                                  │', className: 'term-muted' },
+    ],
+  },
+  {
+    text: '   └───────────────────────────────────────┘',
+    delay: 80,
+    segments: [{ text: '   └───────────────────────────────────────┘', className: 'term-muted' }],
+  },
+  { text: '', delay: 100 },
+
+  // Truncation
+  {
+    text: '  ...5 more warnings, 22 info',
+    delay: 300,
+    segments: [{ text: '  ...5 more warnings, 22 info', className: 'term-muted' }],
+  },
+  { text: '', delay: 100 },
+
+  // Final separator + summary
+  {
+    text: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    delay: 200,
+    segments: [
+      {
+        text: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        className: 'term-muted',
+      },
+    ],
+  },
+  { text: '', delay: 100 },
+  {
+    text: 'Summary: 1 critical, 5 warning, 22 info',
+    delay: 400,
+    segments: [
+      { text: 'Summary: ', className: 'term-heading' },
+      { text: '1 critical', className: 'term-critical' },
+      { text: ', ', className: 'term-text' },
+      { text: '5 warning', className: 'term-warning' },
+      { text: ', ', className: 'term-text' },
+      { text: '22 info', className: 'term-info' },
+    ],
+  },
+  { text: '', delay: 80 },
+  {
+    text: 'Heap: 3.2 MB | Nodes: 64,680 | Requests: 24 | Long tasks: 0',
+    delay: 80,
+    segments: [
+      { text: 'Heap: ', className: 'term-muted' },
+      { text: '3.2 MB', className: 'term-value' },
+      { text: ' | Nodes: ', className: 'term-muted' },
+      { text: '64,680', className: 'term-value' },
+      { text: ' | Requests: ', className: 'term-muted' },
+      { text: '24', className: 'term-value' },
+      { text: ' | Long tasks: ', className: 'term-muted' },
+      { text: '0', className: 'term-value' },
+    ],
+  },
+  { text: '', delay: 80 },
+  {
+    text: '📄 Report written to /home/alex/project/zeitzeuge-report.md',
+    delay: 80,
+    segments: [
+      { text: '📄 Report written to ', className: 'term-text' },
+      {
+        text: '/home/alex/project/zeitzeuge-report.md',
+        className: 'term-path',
+        href: 'https://gist.github.com/christian-bromann/b3610c443dbacf7222359c0c0be70657',
+      },
+    ],
+  },
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Vitest terminal data (existing)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const VITEST_LINES: LineDefinition[] = [
   // ── Phase 2 — Vitest Header + Test Results ──
   {
     text: ' RUN  v3.2.4 /home/alex/project',
@@ -1203,5 +1958,22 @@ export const TERMINAL_LINES: LineDefinition[] = [
       { text: '  Report written to ', className: 'term-text' },
       { text: '/home/alex/project/zeitzeuge-report.md', className: 'term-path' },
     ],
+  },
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Exported TABS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export const TABS: TerminalTab[] = [
+  {
+    label: 'zeitzeuge CLI',
+    command: 'npx zeitzeuge https://zeitzeuge.dev',
+    lines: CLI_LINES,
+  },
+  {
+    label: 'zeitzeuge Vitest Plugin',
+    command: 'vitest run',
+    lines: VITEST_LINES,
   },
 ];

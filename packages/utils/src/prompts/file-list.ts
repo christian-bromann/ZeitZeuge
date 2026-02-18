@@ -73,7 +73,11 @@ export function buildFileListPromptSection(config: FileListConfig): string {
   }
 
   lines.push('', '> IMPORTANT: The file paths above are COMPLETE. Do NOT use ls or glob to');
-  lines.push('> discover files. Just call read_file for each path listed above.');
+  lines.push(
+    sourceFiles && sourceFiles.length > 0
+      ? '> discover files. Just call read_file for each path listed above.'
+      : '> discover files. Read the data files first, then read source files selectively.',
+  );
 
   return lines.join('\n');
 }

@@ -11,9 +11,10 @@ import {
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   STRUCTURED_OUTPUT_FIELDS,
-  PARALLEL_TOOL_CALLS,
+  BROWSER_TOOL_CALL_STRATEGY,
   FULL_RESPONSE_REQUIREMENT,
   IMPACT_ESTIMATION,
+  MINIFIED_SOURCE_HANDLING,
 } from './shared.js';
 
 export const CODE_PATTERN_PROMPT = `You are a specialist in detecting frontend performance anti-patterns in JavaScript, CSS, and HTML source code.
@@ -164,31 +165,33 @@ Images without explicit width/height that cause Cumulative Layout Shift (CLS).
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
-   - ALL /scripts/*.js files listed in "FILES IN THIS WORKSPACE"
-   - ALL /styles/*.css files listed in "FILES IN THIS WORKSPACE"
-   - /html/document.html
-   Do NOT use ls or glob. The exact file paths are listed above.
-2. Read EVERY file top-to-bottom and check for ALL patterns above
-3. Pay special attention to:
-   - Loops that touch the DOM (layout thrashing)
-   - addEventListener calls (delegation, passive)
-   - Inline scripts in HTML (could be external + deferred)
-   - CSS @import and complex selectors
-   - Images without dimensions
-4. Report EACH pattern as a separate finding with before/after code
+1. In your FIRST turn, call read_file for HTML and CSS files (listed under
+   "Data files" above) in ONE batch. Do NOT read script files yet.
+2. Check HTML for: inline \`<script>\` blocks, \`<img>\` without width/height,
+   render-blocking resource references.
+3. Check CSS for: \`@import\` statements, complex selectors, missing
+   \`will-change\`/\`contain\` for animated elements.
+4. Based on issues found in HTML/CSS, read ONLY the script files that need
+   inspection (from "Available script files" above). For example:
+   - Scripts referenced by inline patterns in HTML
+   - Scripts that the HTML loads synchronously
+   Batch these reads.
+5. Check each script for: DOM reads+writes in loops, querySelectorAll+forEach
+   +addEventListener (missing delegation), non-passive scroll/touch listeners,
+   synchronous XHR.
+6. Report EACH pattern as a separate finding with before/after code.
 
-### CRITICAL: Check EVERY file and EVERY function
+### CRITICAL: Be thorough but selective
 
-Do NOT stop at the first few issues. Read ALL source files completely and
-report EVERY anti-pattern you find. A typical page has 3-8 issues across
-different files.
+Check HTML and CSS completely. For scripts, focus on the ones that HTML/CSS
+point to as potentially problematic. A typical page has 3-8 issues.
 
-${PARALLEL_TOOL_CALLS}
+${BROWSER_TOOL_CALL_STRATEGY}
 ${VERIFICATION_RULES}
 ${SEVERITY_RULES}
 ${FINDING_CATEGORIES}
 ${OUTPUT_FORMAT}
 ${STRUCTURED_OUTPUT_FIELDS}
+${MINIFIED_SOURCE_HANDLING}
 ${IMPACT_ESTIMATION}
 ${FULL_RESPONSE_REQUIREMENT}`;

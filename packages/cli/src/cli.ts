@@ -116,7 +116,8 @@ async function main(): Promise<void> {
       browser = activeBrowser = await launchBrowser({ headless: argv.headless as boolean });
       browserSpinner.succeed(`Browser launched (${argv.headless ? 'headless' : 'headed'})`);
     } catch (err) {
-      browserSpinner.fail('Failed to launch browser');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      browserSpinner.fail(`Failed to launch browser: ${errorMessage}`);
       throw new Error(
         'Could not launch Chrome. Make sure Chrome/Chromium is installed.\n' +
           '  Install: https://www.google.com/chrome/\n' +
@@ -191,12 +192,18 @@ async function main(): Promise<void> {
     const agentSpinner = createSpinner('Analyzing...');
     let findings;
     try {
-      findings = await analyze(model, workspace.backend, agentSpinner, {
-        url,
-        heapSummary,
-        traceResult: captureResult.trace,
-        workspaceFiles: workspace.files,
-      });
+      findings = await analyze(
+        model,
+        workspace.backend,
+        agentSpinner,
+        {
+          url,
+          heapSummary,
+          traceResult: captureResult.trace,
+          workspaceFiles: workspace.files,
+        },
+        { animateProgress: false },
+      );
       agentSpinner.succeed(`Analysis complete — ${findings.length} findings`);
     } catch (err) {
       agentSpinner.fail(`Analysis failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
