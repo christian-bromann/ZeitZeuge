@@ -44,9 +44,11 @@
     "deepagents": "^1.8.0",
     "langchain": "^1.2.23",
     "ora": "^9.3.0",
+    "picocolors": "^1.1.1",
     "puppeteer-core": "^24.37.2",
     "webdriverio": "^9.24.0",
-    "yargs": "^18.0.0"
+    "yargs": "^18.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bun": "latest",
