@@ -1,13 +1,12 @@
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatAnthropic } from '@langchain/anthropic';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
-export function initModel(): BaseChatModel {
+export async function initModel(): Promise<BaseChatModel> {
   const modelOverride = process.env.ZEITZEUGE_MODEL;
   const openaiKey = process.env.OPENAI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
   if (openaiKey) {
+    const { ChatOpenAI } = await import('@langchain/openai');
     return new ChatOpenAI({
       model: modelOverride ?? 'gpt-5.2',
       apiKey: openaiKey,
@@ -15,6 +14,7 @@ export function initModel(): BaseChatModel {
   }
 
   if (anthropicKey) {
+    const { ChatAnthropic } = await import('@langchain/anthropic');
     return new ChatAnthropic({
       model: modelOverride ?? 'claude-opus-4-6',
       apiKey: anthropicKey,

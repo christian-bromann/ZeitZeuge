@@ -107,7 +107,7 @@ async function main(): Promise<void> {
 
     // Step 1: Initialize LLM model
     if (verbose) console.log('[verbose] Detecting API key and initializing model...');
-    const model = initModel();
+    const model = await initModel();
     if (verbose) console.log(`[verbose] Model initialized: ${model.constructor.name}`);
 
     // Step 2: Launch browser

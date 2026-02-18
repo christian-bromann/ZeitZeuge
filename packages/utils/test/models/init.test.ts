@@ -32,47 +32,47 @@ describe('initModel', () => {
     restoreEnv(savedEnv);
   });
 
-  test('when OPENAI_API_KEY is set → returns a ChatOpenAI instance', () => {
+  test('when OPENAI_API_KEY is set → returns a ChatOpenAI instance', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.ZEITZEUGE_MODEL;
 
-    const model = initModel();
+    const model = await initModel();
 
     expect(model).toBeTruthy();
     expect(model.constructor.name).toBe('ChatOpenAI');
   });
 
-  test('when only ANTHROPIC_API_KEY is set → returns a ChatAnthropic instance', () => {
+  test('when only ANTHROPIC_API_KEY is set → returns a ChatAnthropic instance', async () => {
     delete process.env.OPENAI_API_KEY;
     process.env.ANTHROPIC_API_KEY = 'test-key';
     delete process.env.ZEITZEUGE_MODEL;
 
-    const model = initModel();
+    const model = await initModel();
 
     expect(model).toBeTruthy();
     expect(model.constructor.name).toBe('ChatAnthropic');
   });
 
-  test('when both keys are set → prefers OpenAI (returns ChatOpenAI)', () => {
+  test('when both keys are set → prefers OpenAI (returns ChatOpenAI)', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
     process.env.ANTHROPIC_API_KEY = 'test-key';
     delete process.env.ZEITZEUGE_MODEL;
 
-    const model = initModel();
+    const model = await initModel();
 
     expect(model).toBeTruthy();
     expect(model.constructor.name).toBe('ChatOpenAI');
   });
 
-  test('when neither key is set → throws with a helpful error message containing OPENAI_API_KEY and ANTHROPIC_API_KEY', () => {
+  test('when neither key is set → throws with a helpful error message containing OPENAI_API_KEY and ANTHROPIC_API_KEY', async () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.ZEITZEUGE_MODEL;
 
     let err: Error | null = null;
     try {
-      initModel();
+      await initModel();
     } catch (e) {
       err = e as Error;
     }
@@ -81,13 +81,13 @@ describe('initModel', () => {
     expect(err!.message).toContain('ANTHROPIC_API_KEY');
   });
 
-  test("when ZEITZEUGE_MODEL override is set along with OPENAI_API_KEY → the model is initialized (doesn't throw)", () => {
+  test("when ZEITZEUGE_MODEL override is set along with OPENAI_API_KEY → the model is initialized (doesn't throw)", async () => {
     process.env.OPENAI_API_KEY = 'test-key';
     delete process.env.ANTHROPIC_API_KEY;
     process.env.ZEITZEUGE_MODEL = 'gpt-4o-mini';
 
-    expect(() => initModel()).not.toThrow();
-    const model = initModel();
+    await expect(initModel()).resolves.toBeTruthy();
+    const model = await initModel();
     expect(model).toBeTruthy();
   });
 });

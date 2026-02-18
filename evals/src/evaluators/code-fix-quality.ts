@@ -53,7 +53,7 @@ export async function codeFixes({
     };
   }
 
-  const model = initModel();
+  const model = await initModel();
   let correctCount = 0;
   let evaluated = 0;
 

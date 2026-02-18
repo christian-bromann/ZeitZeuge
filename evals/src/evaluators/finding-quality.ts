@@ -112,7 +112,7 @@ export async function findingQuality({
     };
   }
 
-  const model = initModel();
+  const model = await initModel();
   const scores = { accuracy: 0, specificity: 0, actionability: 0, explanation: 0 };
   let evaluated = 0;
 

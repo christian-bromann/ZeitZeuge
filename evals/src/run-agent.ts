@@ -36,7 +36,7 @@ export async function runAgent(inputs: RunAgentInputs): Promise<RunAgentOutput> 
 
   try {
     // 2. Initialize the LLM (respects ANTHROPIC_API_KEY / OPENAI_API_KEY / ZEITZEUGE_MODEL)
-    const model = initModel();
+    const model = await initModel();
 
     // 3. Create a headless spinner (no terminal animation during evals)
     const spinner = ora({ text: 'Analyzing...', isEnabled: false }).start();

@@ -282,7 +282,7 @@ export class ZeitZeugeReporter {
         ora({ text: 'zeitzeuge: Analyzing test performance...', isEnabled: false }).start();
 
       try {
-        const model = initModel();
+        const model = await initModel();
         const findings = await analyzeTestPerformance(
           model,
           workspace.backend,

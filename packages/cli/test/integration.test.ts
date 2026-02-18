@@ -350,14 +350,14 @@ describe('Integration: unified Finding type', () => {
 });
 
 describe('Integration: fail-fast mechanisms', () => {
-  test('initModel throws when no API key is set', () => {
+  test('initModel throws when no API key is set', async () => {
     const savedOpenAI = process.env.OPENAI_API_KEY;
     const savedAnthropic = process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
 
     try {
-      expect(() => initModel()).toThrow('No API key found');
+      await expect(initModel()).rejects.toThrow('No API key found');
     } finally {
       if (savedOpenAI) process.env.OPENAI_API_KEY = savedOpenAI;
       if (savedAnthropic) process.env.ANTHROPIC_API_KEY = savedAnthropic;
