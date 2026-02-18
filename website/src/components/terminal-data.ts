@@ -757,7 +757,7 @@ const CLI_LINES: LineDefinition[] = [
       {
         text: '/home/alex/project/zeitzeuge-report.md',
         className: 'term-path',
-        href: 'https://gist.github.com/christian-bromann/b3610c443dbacf7222359c0c0be70657',
+        href: 'https://gist.github.com/christian-bromann/b3610c443dbacf7222359c0c0be70657#file-cli-md',
       },
     ],
   },
@@ -1956,7 +1956,11 @@ const VITEST_LINES: LineDefinition[] = [
     delay: 80,
     segments: [
       { text: '  Report written to ', className: 'term-text' },
-      { text: '/home/alex/project/zeitzeuge-report.md', className: 'term-path' },
+      {
+        text: '/home/alex/project/zeitzeuge-report.md',
+        className: 'term-path',
+        href: 'https://gist.github.com/christian-bromann/b3610c443dbacf7222359c0c0be70657#file-vitest-report-md',
+      },
     ],
   },
 ];
