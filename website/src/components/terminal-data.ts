@@ -98,11 +98,11 @@ export const TERMINAL_LINES: LineDefinition[] = [
       { text: ' Performance Metrics', className: 'term-heading' },
     ],
   },
-  { text: '', delay: 80 },
-  { text: '  Suite', delay: 400, segments: [{ text: '  Suite', className: 'term-heading' }] },
+  { text: '', delay: 0 },
+  { text: '  Suite', delay: 0 },
   {
     text: '    Total: 38ms · 109 tests (109 pass, 0 fail) · Setup: 0µs',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    Total: ', className: 'term-text' },
       { text: '38ms', className: 'term-value' },
@@ -114,7 +114,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    Avg: 350µs · Median: 130µs · P95: 1ms · Slowest: 10ms',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    Avg: ', className: 'term-text' },
       { text: '350µs', className: 'term-value' },
@@ -128,22 +128,22 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    Slowest file: tests/notification-service.test.ts (13ms)',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    Slowest file: ', className: 'term-text' },
       { text: 'tests/notification-service.test.ts', className: 'term-text' },
       { text: ' (13ms)', className: 'term-muted' },
     ],
   },
-  { text: '', delay: 80 },
+  { text: '', delay: 0 },
   {
     text: '  CPU Breakdown',
-    delay: 400,
+    delay: 0,
     segments: [{ text: '  CPU Breakdown', className: 'term-heading' }],
   },
   {
     text: '    Application: 19ms (2.26%) · Dependencies: 170ms (20.58%) · Test/Framework: 412ms (49.82%)',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    Application: ', className: 'term-text' },
       { text: '19ms', className: 'term-value' },
@@ -158,7 +158,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    GC: 22ms (2.65%) · Idle: 96ms (11.6%)',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    GC: ', className: 'term-text' },
       { text: '22ms', className: 'term-value' },
@@ -168,15 +168,15 @@ export const TERMINAL_LINES: LineDefinition[] = [
       { text: ' (11.6%)', className: 'term-muted' },
     ],
   },
-  { text: '', delay: 80 },
+  { text: '', delay: 0 },
   {
     text: '  Top Hot Functions',
-    delay: 400,
+    delay: 0,
     segments: [{ text: '  Top Hot Functions', className: 'term-heading' }],
   },
   {
     text: '    90ms (10.91%) spawnSync [framework]',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    ', className: 'term-text' },
       { text: '90ms', className: 'term-value' },
@@ -187,12 +187,12 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '      node:internal/child_process:1107',
-    delay: 80,
+    delay: 0,
     segments: [{ text: '      node:internal/child_process:1107', className: 'term-path' }],
   },
   {
     text: '    80ms (9.71%) setProcessTitle [dependency]',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    ', className: 'term-text' },
       { text: '80ms', className: 'term-value' },
@@ -203,7 +203,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '      file:///home/alex/project/node_modules/.bun/vitest@3.2.4/node_modules/vitest/dist/chunks/utils.XdZDrNZV.js:28',
-    delay: 80,
+    delay: 0,
     segments: [
       {
         text: '      file:///home/alex/project/node_modules/.bun/vitest@3.2.4/node_modules/vitest/dist/chunks/utils.XdZDrNZV.js:28',
@@ -213,7 +213,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    68ms (8.2%) compileSourceTextModule [framework]',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    ', className: 'term-text' },
       { text: '68ms', className: 'term-value' },
@@ -224,12 +224,12 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '      node:internal/modules/esm/utils:343',
-    delay: 80,
+    delay: 0,
     segments: [{ text: '      node:internal/modules/esm/utils:343', className: 'term-path' }],
   },
   {
     text: '    22ms (2.65%) (garbage collector)',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    ', className: 'term-text' },
       { text: '22ms', className: 'term-value' },
@@ -239,7 +239,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    19ms (2.32%) internalModuleStat',
-    delay: 80,
+    delay: 0,
     segments: [
       { text: '    ', className: 'term-text' },
       { text: '19ms', className: 'term-value' },
@@ -247,15 +247,15 @@ export const TERMINAL_LINES: LineDefinition[] = [
       { text: 'internalModuleStat', className: 'term-text' },
     ],
   },
-  { text: '', delay: 80 },
+  { text: '', delay: 0 },
   {
     text: '  Event Listener Tracking',
-    delay: 400,
+    delay: 0,
     segments: [{ text: '  Event Listener Tracking', className: 'term-heading' }],
   },
   {
     text: '    ⚠ EventEmitter.task:changed: 11 listeners (max: 10)',
-    delay: 120,
+    delay: 0,
     segments: [
       { text: '    ⚠', className: 'term-warning' },
       { text: ' EventEmitter.task:changed: 11 listeners (max: 10)', className: 'term-text' },
@@ -263,7 +263,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '      at getAnalytics (/home/alex/project/src/services/analytics-service.ts:27:13)',
-    delay: 120,
+    delay: 0,
     segments: [
       {
         text: '      at getAnalytics (/home/alex/project/src/services/analytics-service.ts:27:13)',
@@ -273,7 +273,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '      at /home/alex/project/tests/analytics-service.test.ts:137:5',
-    delay: 120,
+    delay: 0,
     segments: [
       {
         text: '      at /home/alex/project/tests/analytics-service.test.ts:137:5',
@@ -283,7 +283,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    ⚠ EventEmitter "task:changed": 15 adds, 0 removes (15 not cleaned up)',
-    delay: 120,
+    delay: 0,
     segments: [
       { text: '    ⚠', className: 'term-warning' },
       {
@@ -294,7 +294,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    ⚠ EventEmitter "message": 14 adds, 0 removes (14 not cleaned up)',
-    delay: 120,
+    delay: 0,
     segments: [
       { text: '    ⚠', className: 'term-warning' },
       {
@@ -305,7 +305,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    ⚠ EventEmitter "end": 7 adds, 0 removes (7 not cleaned up)',
-    delay: 120,
+    delay: 0,
     segments: [
       { text: '    ⚠', className: 'term-warning' },
       { text: ' EventEmitter "end": 7 adds, 0 removes (7 not cleaned up)', className: 'term-text' },
@@ -313,7 +313,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    ⚠ EventEmitter "SIGTERM": 7 adds, 0 removes (7 not cleaned up)',
-    delay: 120,
+    delay: 0,
     segments: [
       { text: '    ⚠', className: 'term-warning' },
       {
@@ -324,7 +324,7 @@ export const TERMINAL_LINES: LineDefinition[] = [
   },
   {
     text: '    ⚠ EventEmitter "uncaughtException": 7 adds, 0 removes (7 not cleaned up)',
-    delay: 120,
+    delay: 0,
     segments: [
       { text: '    ⚠', className: 'term-warning' },
       {

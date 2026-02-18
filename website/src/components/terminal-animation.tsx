@@ -33,7 +33,10 @@ export function TerminalAnimation({
   className,
 }: TerminalAnimationProps) {
   const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme !== 'light';
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = !mounted || resolvedTheme !== 'light';
+
   const [phase, setPhase] = useState<'idle' | 'typing' | 'streaming' | 'done'>('idle');
   const [typedText, setTypedText] = useState('');
   const [visibleLineCount, setVisibleLineCount] = useState(0);
@@ -175,7 +178,7 @@ export function TerminalAnimation({
 
   return (
     <div
-      className={`relative w-full max-w-3xl mx-auto aspect-[4/3] ${className || ''}`}
+      className={`relative w-full max-w-3xl mx-auto aspect-4/3 ${className || ''}`}
       aria-label="Terminal animation showing zeitzeuge Vitest integration"
       ref={containerRef}
     >
