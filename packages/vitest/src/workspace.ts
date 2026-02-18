@@ -5,10 +5,8 @@
  * (e.g. /summary.json) map to files inside a temp directory.
  */
 
-import { FilesystemBackend, type BackendProtocol } from 'deepagents';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import type { BackendProtocol } from 'deepagents';
+import { createWorkspaceFromFiles } from '@zeitzeuge/utils';
 
 import type { CorrelatedProfile, HotFunction, VitestWorkspaceOptions } from './types.js';
 
@@ -388,29 +386,7 @@ export async function createVitestWorkspace(
   }
 
   // ── Write all files to a temp directory ──
-  const tempDir = mkdtempSync(join(tmpdir(), 'zeitzeuge-vitest-workspace-'));
-
-  for (const [filePath, content] of Object.entries(files)) {
-    const relPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-    const fullPath = join(tempDir, relPath);
-    mkdirSync(join(fullPath, '..'), { recursive: true });
-    writeFileSync(fullPath, content, 'utf-8');
-  }
-
-  const backend = new FilesystemBackend({
-    rootDir: tempDir,
-    virtualMode: true,
-  });
-
-  const cleanup = () => {
-    try {
-      const { rmSync } = require('node:fs');
-      rmSync(tempDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
-  };
-
+  const { backend, cleanup } = createWorkspaceFromFiles(files, 'zeitzeuge-vitest-workspace-');
   return { backend, cleanup, sourceFiles: sourceFilesList, testFiles: testFilesList };
 }
 

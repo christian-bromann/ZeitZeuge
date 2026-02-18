@@ -32,7 +32,7 @@
     }
   },
   "scripts": {
-    "build:js": "bun build src/cli.ts --outdir dist --target node --format esm --packages external",
+    "build:js": "bun build.ts",
     "build:types": "bunx tsc -p tsconfig.build.json",
     "build": "bun run build:js && bun run build:types",
     "dev": "bun run src/cli.ts",
@@ -45,7 +45,6 @@
   },
   "dependencies": {
     "@langchain/core": "^1.1.25",
-    "@zeitzeuge/utils": "workspace:*",
     "deepagents": "^1.8.0",
     "langchain": "^1.2.23",
     "ora": "^9.3.0",
@@ -56,6 +55,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/yargs": "^17",
+    "@zeitzeuge/utils": "workspace:*",
     "lint-staged": "^16.2.7",
     "oxfmt": "^0.32.0",
     "oxlint": "^1.47.0",
