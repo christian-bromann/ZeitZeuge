@@ -1,6 +1,6 @@
 {
   "name": "zeitzeuge",
-  "version": "0.6.6",
+  "version": "0.7.0",
   "description": "A deepagent to witnessing slowdowns in your test runs.",
   "keywords": [
     "analysis",
