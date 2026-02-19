@@ -204,7 +204,10 @@ export class TodoProgressRenderer {
         // When the main agent dispatches subagents, remember their names.
         if (!isSubagent && tc.name === 'task') {
           const subagentType = tc.args.subagent_type;
-          if (typeof subagentType === 'string') {
+          if (
+            typeof subagentType === 'string' &&
+            !this.dispatchedSubagents.includes(subagentType)
+          ) {
             this.dispatchedSubagents.push(subagentType);
           }
         }

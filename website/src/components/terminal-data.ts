@@ -261,60 +261,60 @@ const CLI_LINES: LineDefinition[] = [
 
   // Progress updates
   {
-    text: '      7% [runtime-blocking] ✓ Analyze blocking-functions.json for functions >50ms',
+    text: '      8% [runtime-blocking] ✓ Analyze blocking-functions.json for functions >50ms',
     delay: 700,
     segments: [
-      { text: '      7% ', className: 'term-muted' },
+      { text: '      8% ', className: 'term-muted' },
       { text: '[runtime-blocking]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Analyze blocking-functions.json for functions >50ms', className: 'term-text' },
     ],
   },
   {
-    text: '      7% [runtime-blocking] ✓ Analyze event-listeners.json for add/remove imbalances',
+    text: '     17% [runtime-blocking] ✓ Analyze event-listeners.json for add/remove imbalances',
     delay: 120,
     segments: [
-      { text: '      7% ', className: 'term-muted' },
+      { text: '     17% ', className: 'term-muted' },
       { text: '[runtime-blocking]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Analyze event-listeners.json for add/remove imbalances', className: 'term-text' },
     ],
   },
   {
-    text: '      7% [runtime-blocking] ▸ Compile final findings report',
+    text: '     17% [runtime-blocking] ▸ Compile final findings report',
     delay: 300,
     segments: [
-      { text: '      7% ', className: 'term-muted' },
+      { text: '     17% ', className: 'term-muted' },
       { text: '[runtime-blocking]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Compile final findings report', className: 'term-text' },
     ],
   },
   {
-    text: '      7% [code-pattern] ▸ Analyze HTML for inline scripts, missing image dimensions',
+    text: '     17% [code-pattern] ▸ Analyze HTML for inline scripts, missing image dimensions',
     delay: 300,
     segments: [
-      { text: '      7% ', className: 'term-muted' },
+      { text: '     17% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Analyze HTML for inline scripts, missing image dimensions', className: 'term-text' },
     ],
   },
   {
-    text: '      8% [runtime-blocking] ✓ Compile final findings report',
+    text: '     25% [runtime-blocking] ✓ Compile final findings report',
     delay: 600,
     segments: [
-      { text: '      8% ', className: 'term-muted' },
+      { text: '     25% ', className: 'term-muted' },
       { text: '[runtime-blocking]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Compile final findings report', className: 'term-text' },
     ],
   },
   {
-    text: '     10% [page-load] ✓ Analyze trace data: summary, waterfall, and asset manifest',
+    text: '     31% [page-load] ✓ Analyze trace data: summary, waterfall, and asset manifest',
     delay: 500,
     segments: [
-      { text: '     10% ', className: 'term-muted' },
+      { text: '     31% ', className: 'term-muted' },
       { text: '[page-load]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -324,70 +324,70 @@ const CLI_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     10% [page-load] ▸ Identify key issues from data analysis',
+    text: '     31% [page-load] ▸ Identify key issues from data analysis',
     delay: 300,
     segments: [
-      { text: '     10% ', className: 'term-muted' },
+      { text: '     31% ', className: 'term-muted' },
       { text: '[page-load]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Identify key issues from data analysis', className: 'term-text' },
     ],
   },
   {
-    text: '     13% [memory-heap] ✓ Analyze heap summary data for all memory issues',
+    text: '     40% [memory-heap] ✓ Analyze heap summary data for all memory issues',
     delay: 500,
     segments: [
-      { text: '     13% ', className: 'term-muted' },
+      { text: '     40% ', className: 'term-muted' },
       { text: '[memory-heap]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Analyze heap summary data for all memory issues', className: 'term-text' },
     ],
   },
   {
-    text: '     13% [memory-heap] ▸ Read source files implicated by heap data',
+    text: '     40% [memory-heap] ▸ Read source files implicated by heap data',
     delay: 300,
     segments: [
-      { text: '     13% ', className: 'term-muted' },
+      { text: '     40% ', className: 'term-muted' },
       { text: '[memory-heap]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Read source files implicated by heap data', className: 'term-text' },
     ],
   },
   {
-    text: '     14% [page-load] ✓ Identify key issues from data analysis',
+    text: '     46% [page-load] ✓ Identify key issues from data analysis',
     delay: 600,
     segments: [
-      { text: '     14% ', className: 'term-muted' },
+      { text: '     46% ', className: 'term-muted' },
       { text: '[page-load]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Identify key issues from data analysis', className: 'term-text' },
     ],
   },
   {
-    text: '     14% [page-load] ▸ Read HTML index file to check for render-blocking scripts',
+    text: '     46% [page-load] ▸ Read HTML index file to check for render-blocking scripts',
     delay: 300,
     segments: [
-      { text: '     14% ', className: 'term-muted' },
+      { text: '     46% ', className: 'term-muted' },
       { text: '[page-load]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Read HTML index file to check for render-blocking scripts', className: 'term-text' },
     ],
   },
   {
-    text: '     21% [code-pattern] ✓ Analyze HTML for inline scripts, missing image dimensions',
+    text: '     54% [code-pattern] ✓ Analyze HTML for inline scripts, missing image dimensions',
     delay: 700,
     segments: [
-      { text: '     21% ', className: 'term-muted' },
+      { text: '     54% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Analyze HTML for inline scripts, missing image dimensions', className: 'term-text' },
     ],
   },
   {
-    text: '     21% [code-pattern] ✓ Analyze CSS for @import, complex selectors, animation issues',
+    text: '     63% [code-pattern] ✓ Analyze CSS for @import, complex selectors, animation issues',
     delay: 120,
     segments: [
-      { text: '     21% ', className: 'term-muted' },
+      { text: '     63% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -397,50 +397,50 @@ const CLI_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     21% [code-pattern] ▸ Compile all findings with before/after code',
+    text: '     63% [code-pattern] ▸ Compile all findings with before/after code',
     delay: 300,
     segments: [
-      { text: '     21% ', className: 'term-muted' },
+      { text: '     63% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Compile all findings with before/after code', className: 'term-text' },
     ],
   },
   {
-    text: '     25% [page-load] ✓ Read HTML index file to check for render-blocking scripts',
+    text: '     69% [page-load] ✓ Read HTML index file to check for render-blocking scripts',
     delay: 600,
     segments: [
-      { text: '     25% ', className: 'term-muted' },
+      { text: '     69% ', className: 'term-muted' },
       { text: '[page-load]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Read HTML index file to check for render-blocking scripts', className: 'term-text' },
     ],
   },
   {
-    text: '     25% [page-load] ▸ Compile all findings with full details',
+    text: '     69% [page-load] ▸ Compile all findings with full details',
     delay: 300,
     segments: [
-      { text: '     25% ', className: 'term-muted' },
+      { text: '     69% ', className: 'term-muted' },
       { text: '[page-load]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Compile all findings with full details', className: 'term-text' },
     ],
   },
   {
-    text: '     28% [memory-heap] ✓ Report all findings with full details',
+    text: '     83% [memory-heap] ✓ Report all findings with full details',
     delay: 700,
     segments: [
-      { text: '     28% ', className: 'term-muted' },
+      { text: '     83% ', className: 'term-muted' },
       { text: '[memory-heap]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Report all findings with full details', className: 'term-text' },
     ],
   },
   {
-    text: '     30% [page-load] ✓ Compile all findings with full details',
+    text: '    100% [page-load] ✓ Compile all findings with full details',
     delay: 500,
     segments: [
-      { text: '     30% ', className: 'term-muted' },
+      { text: '    100% ', className: 'term-muted' },
       { text: '[page-load]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Compile all findings with full details', className: 'term-text' },
@@ -1257,20 +1257,20 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '    100% [code-pattern] ✓ Read all source files and profiling data',
+    text: '      8% [code-pattern] ✓ Read all source files and profiling data',
     delay: 500,
     segments: [
-      { text: '    100% ', className: 'term-muted' },
+      { text: '      8% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Read all source files and profiling data', className: 'term-text' },
     ],
   },
   {
-    text: '     50% [code-pattern] ▸ Analyze all application source files for performance issues',
+    text: '      8% [code-pattern] ▸ Analyze all application source files for performance issues',
     delay: 300,
     segments: [
-      { text: '     50% ', className: 'term-muted' },
+      { text: '      8% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       {
@@ -1280,10 +1280,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     67% [code-pattern] ✓ Analyze all application source files for performance issues',
+    text: '     17% [code-pattern] ✓ Analyze all application source files for performance issues',
     delay: 120,
     segments: [
-      { text: '     67% ', className: 'term-muted' },
+      { text: '     17% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1293,10 +1293,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     67% [code-pattern] ▸ Compile and report all findings with beforeCode/afterCode',
+    text: '     17% [code-pattern] ▸ Compile and report all findings with beforeCode/afterCode',
     delay: 300,
     segments: [
-      { text: '     67% ', className: 'term-muted' },
+      { text: '     17% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Compile and report all findings with beforeCode/afterCode', className: 'term-text' },
@@ -1339,20 +1339,20 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     75% [cpu-hotspot] ✓ Read all source/data files (DONE)',
+    text: '     21% [cpu-hotspot] ✓ Read all source/data files (DONE)',
     delay: 500,
     segments: [
-      { text: '     75% ', className: 'term-muted' },
+      { text: '     21% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Read all source/data files (DONE)', className: 'term-text' },
     ],
   },
   {
-    text: '     60% [cpu-hotspot] ▸ Analyze hot-functions and application source for blocking operations',
+    text: '     21% [cpu-hotspot] ▸ Analyze hot-functions and application source for blocking operations',
     delay: 300,
     segments: [
-      { text: '     60% ', className: 'term-muted' },
+      { text: '     21% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       {
@@ -1362,20 +1362,20 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     50% [cpu-hotspot] ▸ Analyze for excessive object instantiation',
+    text: '     21% [cpu-hotspot] ▸ Analyze for excessive object instantiation',
     delay: 300,
     segments: [
-      { text: '     50% ', className: 'term-muted' },
+      { text: '     21% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Analyze for excessive object instantiation', className: 'term-text' },
     ],
   },
   {
-    text: '     43% [cpu-hotspot] ▸ Identify compound blockers (callers of blocking functions)',
+    text: '     21% [cpu-hotspot] ▸ Identify compound blockers (callers of blocking functions)',
     delay: 300,
     segments: [
-      { text: '     43% ', className: 'term-muted' },
+      { text: '     21% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       {
@@ -1385,10 +1385,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     44% [cpu-hotspot] ✓ Analyze hot-functions and application source for blocking operations',
+    text: '     25% [cpu-hotspot] ✓ Analyze hot-functions and application source for blocking operations',
     delay: 120,
     segments: [
-      { text: '     44% ', className: 'term-muted' },
+      { text: '     25% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1398,20 +1398,20 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     56% [cpu-hotspot] ✓ Analyze for excessive object instantiation',
+    text: '     29% [cpu-hotspot] ✓ Analyze for excessive object instantiation',
     delay: 120,
     segments: [
-      { text: '     56% ', className: 'term-muted' },
+      { text: '     29% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Analyze for excessive object instantiation', className: 'term-text' },
     ],
   },
   {
-    text: '     67% [cpu-hotspot] ✓ Identify compound blockers (callers of blocking functions)',
+    text: '     33% [cpu-hotspot] ✓ Identify compound blockers (callers of blocking functions)',
     delay: 120,
     segments: [
-      { text: '     67% ', className: 'term-muted' },
+      { text: '     33% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1421,20 +1421,20 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     78% [cpu-hotspot] ✓ Check listener tracking data for leaks/exceedances',
+    text: '     38% [cpu-hotspot] ✓ Check listener tracking data for leaks/exceedances',
     delay: 120,
     segments: [
-      { text: '     78% ', className: 'term-muted' },
+      { text: '     38% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Check listener tracking data for leaks/exceedances', className: 'term-text' },
     ],
   },
   {
-    text: '     78% [cpu-hotspot] ▸ Compile all findings with beforeCode/afterCode',
+    text: '     38% [cpu-hotspot] ▸ Compile all findings with beforeCode/afterCode',
     delay: 300,
     segments: [
-      { text: '     78% ', className: 'term-muted' },
+      { text: '     38% ', className: 'term-muted' },
       { text: '[cpu-hotspot]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Compile all findings with beforeCode/afterCode', className: 'term-text' },
@@ -1471,10 +1471,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     80% [memory-closure] ✓ Analyze notification-service.ts for unbounded data structures and closure leaks',
+    text: '     42% [memory-closure] ✓ Analyze notification-service.ts for unbounded data structures and closure leaks',
     delay: 500,
     segments: [
-      { text: '     80% ', className: 'term-muted' },
+      { text: '     42% ', className: 'term-muted' },
       { text: '[memory-closure]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1484,20 +1484,20 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     82% [memory-closure] ✓ Analyze db.ts for unbounded audit log',
+    text: '     46% [memory-closure] ✓ Analyze db.ts for unbounded audit log',
     delay: 120,
     segments: [
-      { text: '     82% ', className: 'term-muted' },
+      { text: '     46% ', className: 'term-muted' },
       { text: '[memory-closure]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Analyze db.ts for unbounded audit log', className: 'term-text' },
     ],
   },
   {
-    text: '     83% [memory-closure] ✓ Analyze task-service.ts for unbounded audit log and closure patterns',
+    text: '     50% [memory-closure] ✓ Analyze task-service.ts for unbounded audit log and closure patterns',
     delay: 120,
     segments: [
-      { text: '     83% ', className: 'term-muted' },
+      { text: '     50% ', className: 'term-muted' },
       { text: '[memory-closure]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1507,10 +1507,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     85% [memory-closure] ✓ Analyze notification-service.ts for event listener leak (subscribe without unsubscribe)',
+    text: '     54% [memory-closure] ✓ Analyze notification-service.ts for event listener leak (subscribe without unsubscribe)',
     delay: 120,
     segments: [
-      { text: '     85% ', className: 'term-muted' },
+      { text: '     54% ', className: 'term-muted' },
       { text: '[memory-closure]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1520,10 +1520,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     86% [memory-closure] ✓ Cross-reference with listener-tracking.json for exceedances',
+    text: '     58% [memory-closure] ✓ Cross-reference with listener-tracking.json for exceedances',
     delay: 120,
     segments: [
-      { text: '     86% ', className: 'term-muted' },
+      { text: '     58% ', className: 'term-muted' },
       { text: '[memory-closure]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1533,10 +1533,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     80% [memory-closure] ▸ Write up all findings with verbatim beforeCode and afterCode',
+    text: '     58% [memory-closure] ▸ Write up all findings with verbatim beforeCode and afterCode',
     delay: 300,
     segments: [
-      { text: '     80% ', className: 'term-muted' },
+      { text: '     58% ', className: 'term-muted' },
       { text: '[memory-closure]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       {
@@ -1546,20 +1546,20 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     81% [listener-leak] ✓ Read all data and source files',
+    text: '     63% [listener-leak] ✓ Read all data and source files',
     delay: 500,
     segments: [
-      { text: '     81% ', className: 'term-muted' },
+      { text: '     63% ', className: 'term-muted' },
       { text: '[listener-leak]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Read all data and source files', className: 'term-text' },
     ],
   },
   {
-    text: '     82% [listener-leak] ✓ Analyze listener-tracking.json for exceedances and imbalances',
+    text: '     67% [listener-leak] ✓ Analyze listener-tracking.json for exceedances and imbalances',
     delay: 120,
     segments: [
-      { text: '     82% ', className: 'term-muted' },
+      { text: '     67% ', className: 'term-muted' },
       { text: '[listener-leak]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1569,10 +1569,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     83% [listener-leak] ✓ Identify Pattern A: subscribe() in notification-service.ts accumulates listeners',
+    text: '     71% [listener-leak] ✓ Identify Pattern A: subscribe() in notification-service.ts accumulates listeners',
     delay: 120,
     segments: [
-      { text: '     83% ', className: 'term-muted' },
+      { text: '     71% ', className: 'term-muted' },
       { text: '[listener-leak]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1582,10 +1582,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     84% [listener-leak] ✓ Identify Pattern B: subscribe() returns void — no unsubscribe mechanism',
+    text: '     75% [listener-leak] ✓ Identify Pattern B: subscribe() returns void — no unsubscribe mechanism',
     delay: 120,
     segments: [
-      { text: '     84% ', className: 'term-muted' },
+      { text: '     75% ', className: 'term-muted' },
       { text: '[listener-leak]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1595,10 +1595,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     85% [listener-leak] ✓ Identify Pattern C: task:changed maxListeners exceedance (11 > 10 threshold)',
+    text: '     79% [listener-leak] ✓ Identify Pattern C: task:changed maxListeners exceedance (11 > 10 threshold)',
     delay: 120,
     segments: [
-      { text: '     85% ', className: 'term-muted' },
+      { text: '     79% ', className: 'term-muted' },
       { text: '[listener-leak]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1608,10 +1608,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     86% [listener-leak] ✓ Identify task-service.test.ts adds listeners without cleanup',
+    text: '     83% [listener-leak] ✓ Identify task-service.test.ts adds listeners without cleanup',
     delay: 120,
     segments: [
-      { text: '     86% ', className: 'term-muted' },
+      { text: '     83% ', className: 'term-muted' },
       { text: '[listener-leak]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1621,30 +1621,30 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     82% [listener-leak] ▸ Write complete analysis with all findings',
+    text: '     83% [listener-leak] ▸ Write complete analysis with all findings',
     delay: 300,
     segments: [
-      { text: '     82% ', className: 'term-muted' },
+      { text: '     83% ', className: 'term-muted' },
       { text: '[listener-leak]', className: 'term-agent' },
       { text: ' ▸ ', className: 'term-pending' },
       { text: 'Write complete analysis with all findings', className: 'term-text' },
     ],
   },
   {
-    text: '     86% [listener-leak] ✓ Write complete analysis with all findings',
+    text: '     88% [listener-leak] ✓ Write complete analysis with all findings',
     delay: 120,
     segments: [
-      { text: '     86% ', className: 'term-muted' },
+      { text: '     88% ', className: 'term-muted' },
       { text: '[listener-leak]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Write complete analysis with all findings', className: 'term-text' },
     ],
   },
   {
-    text: '     91% [memory-closure] ✓ Write up all findings with verbatim beforeCode and afterCode',
+    text: '     92% [memory-closure] ✓ Write up all findings with verbatim beforeCode and afterCode',
     delay: 120,
     segments: [
-      { text: '     91% ', className: 'term-muted' },
+      { text: '     92% ', className: 'term-muted' },
       { text: '[memory-closure]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       {
@@ -1654,10 +1654,10 @@ const VITEST_LINES: LineDefinition[] = [
     ],
   },
   {
-    text: '     95% [code-pattern] ✓ Compile and report all findings with beforeCode/afterCode',
+    text: '     96% [code-pattern] ✓ Compile and report all findings with beforeCode/afterCode',
     delay: 120,
     segments: [
-      { text: '     95% ', className: 'term-muted' },
+      { text: '     96% ', className: 'term-muted' },
       { text: '[code-pattern]', className: 'term-agent' },
       { text: ' ✓ ', className: 'term-success' },
       { text: 'Compile and report all findings with beforeCode/afterCode', className: 'term-text' },
