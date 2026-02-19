@@ -14,9 +14,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const doc = await getDoc(slug);
   if (!doc) return {};
+
+  const ogUrl = `/og?title=${encodeURIComponent(doc.title)}${doc.description ? `&description=${encodeURIComponent(doc.description)}` : ''}`;
+
   return {
     title: doc.title,
     description: doc.description,
+    openGraph: {
+      title: doc.title,
+      description: doc.description,
+      images: [{ url: ogUrl, width: 1200, height: 630, alt: doc.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: doc.title,
+      description: doc.description,
+      images: [ogUrl],
+    },
   };
 }
 
