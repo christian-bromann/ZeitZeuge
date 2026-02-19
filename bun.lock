@@ -84,7 +84,7 @@
     },
     "packages/vitest": {
       "name": "@zeitzeuge/vitest",
-      "version": "0.2.2",
+      "version": "0.3.0",
       "dependencies": {
         "@langchain/core": "^1.1.25",
         "@langchain/node-vfs": "^0.1.1",
