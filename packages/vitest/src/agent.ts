@@ -43,6 +43,10 @@ function buildVitestFileListSection(ctx: VitestAnalysisContext): string {
 
   const dataFiles: FileListConfig['dataFiles'] = [
     {
+      path: '/src/index.json',
+      description: '(source file -> hot function mapping — read this first)',
+    },
+    {
       path: '/hot-functions/application.json',
       description: '(hot functions with selfTime, selfPercent, sourceSnippet)',
     },
@@ -87,6 +91,7 @@ function buildVitestUserMessage(ctx: VitestAnalysisContext): string {
   // Build the file list that each subagent needs to read
   const srcFiles = sourceFiles.map((f) => `  ${f}`).join('\n');
   const dataFiles = [
+    '  /src/index.json',
     '  /hot-functions/application.json',
     '  /scripts/application.json',
     hasListenerTracking ? '  /listener-tracking.json' : '',

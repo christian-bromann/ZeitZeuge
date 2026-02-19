@@ -157,17 +157,21 @@ window.addEventListener('scroll', () => {
 
 ## Your workflow
 
-1. In your FIRST turn, run the blocking functions analysis script:
-   execute_command: node skills/browser-analysis/helpers/analyze-blockers.js
+1. In your FIRST turn, run BOTH of these:
+   a. Run the workspace overview:
+      execute_command: node skills/browser-analysis/helpers/analyze-browser-workspace.js
+   b. Run the detailed blocking functions analysis:
+      execute_command: node skills/browser-analysis/helpers/analyze-blockers.js
    Do NOT use ls, glob, or read_file on trace data files directly.
-2. From the script output, note blocking functions, their durations, script
-   locations, and compound blockers.
+2. From the script outputs, note blocking functions, their durations, script
+   locations, and compound blockers. Also note listener imbalances and GC stats
+   from the workspace overview.
 3. Derive workspace paths from scriptUrl (e.g. URL ending in "abc123.js" →
    scripts/abc123.js). Read ONLY the 1-3 source files directly implicated.
 4. Check for compound blockers: if function A calls blocking function B,
    report BOTH as separate findings.
-5. For listener imbalances and GC stats, write a custom script using the
-   data-scripting skill to query trace/runtime/event-listeners.json and
+5. For deeper listener imbalance or GC analysis, write a custom script using
+   the data-scripting skill to query trace/runtime/event-listeners.json and
    trace/runtime/summary.json.
 
 ### CRITICAL: Report EACH pattern as a SEPARATE finding

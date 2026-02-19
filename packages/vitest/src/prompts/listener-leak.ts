@@ -67,14 +67,16 @@ The Pattern C finding should have:
 
 ## Your workflow (follow this EXACTLY)
 
-1. In your FIRST turn, do BOTH of these:
-   a. Run the listener analysis script:
+1. In your FIRST turn, do ALL of these in ONE batch:
+   a. Run the workspace overview script:
+      execute_command: node skills/profile-analysis/helpers/analyze-workspace.js
+   b. Run the detailed listener analysis script:
       execute_command: node skills/profile-analysis/helpers/analyze-listeners.js
-   b. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.
+   c. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.
    Do NOT use ls or glob. Batch everything into ONE turn.
-2. From the script output, identify:
-   - exceedances (listener count > maxListeners threshold)
-   - add/remove imbalances (addCount >> removeCount)
+2. From the script outputs, identify:
+   - exceedances (listenerCount > maxListeners threshold)
+   - add/remove imbalances (addCount with zero removeCount = leak candidates)
 3. In the source files you already read, find the .on() / .addEventListener() calls
    and check if corresponding removal exists.
 4. For each issue found, provide before/after code.

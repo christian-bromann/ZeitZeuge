@@ -10,23 +10,40 @@ description: Use this skill when analyzing V8 CPU profiles, hot functions, event
 Pre-built scripts for analyzing Vitest performance data. Run these
 directly or use them as templates for custom analysis.
 
-## Available scripts
+## START HERE — Workspace overview
 
-### Analyze hot functions
+Run this FIRST to get a prioritized summary of the workspace:
+
+execute_command: node skills/profile-analysis/helpers/analyze-workspace.js
+
+Reads summary.json, src/index.json, hot-functions/application.json,
+listener-tracking.json exceedances, and timing/slow-tests.json. Outputs:
+- Suite stats (test count, duration, GC)
+- Which source files have hot functions (from src/index.json)
+- Application hot functions with source snippets
+- Listener exceedances and imbalances
+- Slow tests
+- Full list of source and test files
+
+Use this output to decide which source files to read with read_file.
+
+## Additional scripts
+
+### Analyze hot functions (detailed)
 execute_command: node skills/profile-analysis/helpers/analyze-hotfunctions.js [--threshold 1]
 
 Reads hot-functions/application.json, groups by file, and outputs:
 - Per-file CPU time breakdown
 - Hot functions above threshold (default 1% selfPercent)
 - Caller chains for compound blocker detection
-- Total application vs. GC breakdown
 
-### Analyze listener tracking
+### Analyze listener tracking (detailed)
 execute_command: node skills/profile-analysis/helpers/analyze-listeners.js
 
-Reads listener-tracking.json, outputs:
-- Event types with add/remove imbalances
-- MaxListeners exceedances with stack traces
+Reads listener-tracking.json (emitterCounts + exceedances), outputs:
+- Per-event add/remove counts
+- Events with adds but zero removes (leak candidates)
+- MaxListeners exceedances with stack traces and listener counts
 - Suggested source files to investigate
 
 ### Find closure and leak patterns
@@ -38,10 +55,18 @@ Searches all src/ files for common leak patterns:
 - .on()/.addEventListener() without corresponding removal
 - Unbounded caches without TTL or maxSize
 
+## Key data files
+
+- src/index.json — maps source files to their hot functions (READ THIS FIRST)
+- hot-functions/application.json — application hot functions with source snippets
+- listener-tracking.json — emitterCounts and exceedances
+- metrics/current.json — comprehensive aggregate metrics (large)
+- profiles/<file>.json — per-test-file profile summaries
+
 ## Writing custom scripts
 
 Read skills/data-scripting/schemas.md for JSON structures.
-All source files are under src/ and can be read with fs.readFileSync.
+All source files are under src/ and test files under tests/.
 `;
 
 const ANALYZE_HOTFUNCTIONS_JS = `'use strict';
@@ -148,23 +173,45 @@ try {
   process.exit(0);
 }
 
-const byEventType = data.byEventType || [];
-const exceedances = data.exceedances || [];
-const summaryData = data.summary || {};
+var emitterCounts = data.emitterCounts || {};
+var eventTargetCounts = data.eventTargetCounts || {};
+var exceedances = data.exceedances || [];
+
+var totalAdds = 0, totalRemoves = 0;
+var entries = Object.entries(emitterCounts);
+for (var i = 0; i < entries.length; i++) {
+  totalAdds += entries[i][1].addCount || 0;
+  totalRemoves += entries[i][1].removeCount || 0;
+}
 
 console.log('=== Listener Tracking Summary ===\\n');
-console.log(\`Total adds: \${summaryData.totalAdds || 0}\`);
-console.log(\`Total removes: \${summaryData.totalRemoves || 0}\`);
-console.log(\`Active listeners: \${summaryData.activeCount || 0}\\n\`);
+console.log('Total adds: ' + totalAdds);
+console.log('Total removes: ' + totalRemoves);
+console.log('Net active (adds - removes): ' + (totalAdds - totalRemoves) + '\\n');
 
-const imbalances = byEventType.filter(e => e.addCount > (e.removeCount || 0) * 2);
-console.log('=== Add/Remove Imbalances ===\\n');
+console.log('=== Per-Event Breakdown ===\\n');
+var sorted = entries.slice().sort(function (a, b) {
+  return (b[1].addCount || 0) - (a[1].addCount || 0);
+});
+for (var i = 0; i < sorted.length; i++) {
+  var name = sorted[i][0];
+  var info = sorted[i][1];
+  var net = (info.addCount || 0) - (info.removeCount || 0);
+  console.log('  ' + name + '  adds=' + (info.addCount || 0) + '  removes=' + (info.removeCount || 0) + '  net=' + net);
+}
+console.log();
+
+var imbalances = entries.filter(function (e) {
+  return (e[1].addCount || 0) > 0 && (e[1].removeCount || 0) === 0;
+});
+console.log('=== Add/Remove Imbalances (adds > 0 with zero removes) ===\\n');
 if (imbalances.length === 0) {
   console.log('No significant add/remove imbalances detected.\\n');
 } else {
-  for (const e of imbalances) {
-    console.log(\`\${e.eventType} on \${e.targetType || '(unknown target)'}\`);
-    console.log(\`  adds=\${e.addCount}  removes=\${e.removeCount || 0}  active=\${e.activeCount || 0}\`);
+  for (var i = 0; i < imbalances.length; i++) {
+    var name = imbalances[i][0];
+    var info = imbalances[i][1];
+    console.log('  ' + name + '  adds=' + (info.addCount || 0) + '  removes=0  *** LEAK CANDIDATE ***');
   }
   console.log();
 }
@@ -173,46 +220,167 @@ console.log('=== MaxListeners Exceedances ===\\n');
 if (exceedances.length === 0) {
   console.log('No maxListeners exceedances.\\n');
 } else {
-  for (const e of exceedances) {
-    console.log(\`\${e.eventType} on \${e.targetType || '(unknown target)'}  count=\${e.count}  threshold=\${e.threshold}\`);
+  for (var i = 0; i < exceedances.length; i++) {
+    var e = exceedances[i];
+    console.log(e.eventType + ' on ' + (e.targetType || '(unknown)') + '  listenerCount=' + e.listenerCount + '  threshold=' + e.threshold);
     if (e.stack) {
       console.log('  Stack trace:');
-      for (const line of e.stack.split('\\n').slice(0, 5)) {
-        console.log(\`    \${line.trim()}\`);
+      var lines = e.stack.split('\\n').slice(0, 5);
+      for (var j = 0; j < lines.length; j++) {
+        console.log('    ' + lines[j].trim());
       }
     }
     console.log();
   }
 }
 
-const filePattern = /(?:\\/src\\/[^\\s:)]+|[a-zA-Z0-9_\\-./]+\\.[jt]sx?)/g;
-const suggestedFiles = new Set();
+var filePattern = /(?:src\\/[^\\s:)]+|[a-zA-Z0-9_\\-./]+\\.[jt]sx?)/g;
+var suggestedFiles = {};
 
-for (const e of exceedances) {
-  if (e.stack) {
-    for (const match of e.stack.matchAll(filePattern)) {
-      suggestedFiles.add(match[0]);
-    }
-  }
-}
-for (const e of byEventType) {
-  if (e.stackSnippets) {
-    for (const snippet of e.stackSnippets) {
-      for (const match of snippet.matchAll(filePattern)) {
-        suggestedFiles.add(match[0]);
-      }
+for (var i = 0; i < exceedances.length; i++) {
+  if (exceedances[i].stack) {
+    var matches = exceedances[i].stack.match(filePattern);
+    if (matches) {
+      for (var j = 0; j < matches.length; j++) suggestedFiles[matches[j]] = true;
     }
   }
 }
 
+var fileList = Object.keys(suggestedFiles);
 console.log('=== Suggested Files to Investigate ===\\n');
-if (suggestedFiles.size === 0) {
+if (fileList.length === 0) {
   console.log('No file paths extracted from stack traces.');
 } else {
-  for (const f of suggestedFiles) {
-    console.log(\`  \${f}\`);
+  for (var i = 0; i < fileList.length; i++) {
+    console.log('  ' + fileList[i]);
   }
 }
+`;
+
+const ANALYZE_WORKSPACE_JS = `'use strict';
+
+var fs = require('fs');
+
+function tryRead(path) {
+  try { return JSON.parse(fs.readFileSync(path, 'utf8')); }
+  catch (_) { return null; }
+}
+
+var summary = tryRead('summary.json');
+var srcIndex = tryRead('src/index.json');
+var hotApp = tryRead('hot-functions/application.json');
+var listeners = tryRead('listener-tracking.json');
+var slowTests = tryRead('timing/slow-tests.json');
+
+console.log('=== Workspace Overview ===\\n');
+
+if (summary) {
+  console.log('Suite: ' + summary.totalTests + ' tests, ' + summary.totalDuration + 'ms total');
+  console.log('Pass: ' + summary.passCount + '  Fail: ' + summary.failCount);
+  if (summary.totalGcTime != null) console.log('GC: ' + summary.totalGcTime.toFixed(1) + 'ms (' + (summary.gcPercentage || 0).toFixed(2) + '%)');
+  console.log();
+}
+
+console.log('=== Source Files with Hot Functions (src/index.json) ===\\n');
+if (srcIndex && typeof srcIndex === 'object') {
+  var files = Object.keys(srcIndex);
+  if (files.length === 0) {
+    console.log('No application source files have hot functions.\\n');
+  } else {
+    for (var i = 0; i < files.length; i++) {
+      var fns = srcIndex[files[i]];
+      if (Array.isArray(fns) && fns.length > 0) {
+        var names = fns.map(function (f) { return f.functionName + ' (' + (f.selfTime || 0).toFixed(1) + 'ms, ' + (f.selfPercent || 0).toFixed(1) + '%)'; });
+        console.log('  ' + files[i]);
+        for (var j = 0; j < names.length; j++) console.log('    -> ' + names[j]);
+      } else {
+        console.log('  ' + files[i] + '  (no hot functions)');
+      }
+    }
+    console.log();
+  }
+} else {
+  console.log('src/index.json not available.\\n');
+}
+
+console.log('=== Application Hot Functions ===\\n');
+if (Array.isArray(hotApp) && hotApp.length > 0) {
+  hotApp.sort(function (a, b) { return (b.selfTime || 0) - (a.selfTime || 0); });
+  for (var i = 0; i < hotApp.length; i++) {
+    var f = hotApp[i];
+    console.log('  ' + (f.functionName || '(anon)') + '  ' + (f.workspacePath || '?') + ':' + (f.lineNumber || '?'));
+    console.log('    selfTime=' + (f.selfTime || 0).toFixed(2) + 'ms  selfPercent=' + (f.selfPercent || 0).toFixed(2) + '%');
+    if (f.sourceSnippet) {
+      var snipLines = f.sourceSnippet.split('\\n').slice(0, 4);
+      for (var j = 0; j < snipLines.length; j++) console.log('    | ' + snipLines[j]);
+    }
+  }
+  console.log();
+} else {
+  console.log('No application hot functions found.\\n');
+}
+
+console.log('=== Listener Exceedances ===\\n');
+if (listeners && Array.isArray(listeners.exceedances) && listeners.exceedances.length > 0) {
+  for (var i = 0; i < listeners.exceedances.length; i++) {
+    var e = listeners.exceedances[i];
+    console.log('  ' + e.eventType + ' on ' + (e.targetType || '?') + '  listenerCount=' + e.listenerCount + '  threshold=' + e.threshold);
+    if (e.stack) {
+      var lines = e.stack.split('\\n').slice(0, 3);
+      for (var j = 0; j < lines.length; j++) console.log('    ' + lines[j].trim());
+    }
+  }
+  console.log();
+} else {
+  console.log('No maxListeners exceedances.\\n');
+}
+
+if (listeners && listeners.emitterCounts) {
+  var leaky = Object.entries(listeners.emitterCounts).filter(function (e) {
+    return (e[1].addCount || 0) > 0 && (e[1].removeCount || 0) === 0;
+  });
+  if (leaky.length > 0) {
+    console.log('=== Listener Imbalances (adds without removes) ===\\n');
+    for (var i = 0; i < leaky.length; i++) {
+      console.log('  ' + leaky[i][0] + '  adds=' + leaky[i][1].addCount + '  removes=0');
+    }
+    console.log();
+  }
+}
+
+console.log('=== Slow Tests ===\\n');
+if (Array.isArray(slowTests) && slowTests.length > 0) {
+  for (var i = 0; i < Math.min(5, slowTests.length); i++) {
+    var t = slowTests[i];
+    console.log('  ' + (t.name || t.file || '?') + '  ' + (t.duration || 0).toFixed(1) + 'ms');
+  }
+  console.log();
+} else {
+  console.log('No slow tests data.\\n');
+}
+
+console.log('=== All Source Files ===\\n');
+try {
+  var srcFiles = fs.readdirSync('src', { recursive: true });
+  for (var i = 0; i < srcFiles.length; i++) {
+    var full = 'src/' + srcFiles[i];
+    try {
+      if (fs.statSync(full).isFile() && /\\.[jt]sx?$/.test(full)) console.log('  ' + full);
+    } catch (_) {}
+  }
+} catch (_) {
+  console.log('  (could not list src/)');
+}
+try {
+  var testFiles = fs.readdirSync('tests', { recursive: true });
+  for (var i = 0; i < testFiles.length; i++) {
+    var full = 'tests/' + testFiles[i];
+    try {
+      if (fs.statSync(full).isFile() && /\\.[jt]sx?$/.test(full)) console.log('  ' + full);
+    } catch (_) {}
+  }
+} catch (_) {}
+console.log();
 `;
 
 const FIND_LEAKS_JS = `'use strict';
@@ -301,6 +469,7 @@ for (const [pattern, items] of grouped) {
 
 export const PROFILE_ANALYSIS_SKILL_FILES: Record<string, string> = {
   'skills/profile-analysis/SKILL.md': SKILL_MD,
+  'skills/profile-analysis/helpers/analyze-workspace.js': ANALYZE_WORKSPACE_JS,
   'skills/profile-analysis/helpers/analyze-hotfunctions.js': ANALYZE_HOTFUNCTIONS_JS,
   'skills/profile-analysis/helpers/analyze-listeners.js': ANALYZE_LISTENERS_JS,
   'skills/profile-analysis/helpers/find-leaks.js': FIND_LEAKS_JS,

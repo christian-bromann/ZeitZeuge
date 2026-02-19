@@ -114,9 +114,9 @@ Functions named like \`computeCorrelations\`, \`computeTagCorrelations\`, \`find
 
 ## Your workflow
 
-1. In your FIRST turn, do BOTH of these:
-   a. Run the hot functions analysis script:
-      execute_command: node skills/profile-analysis/helpers/analyze-hotfunctions.js
+1. In your FIRST turn, do ALL of these in ONE batch:
+   a. Run the workspace overview script:
+      execute_command: node skills/profile-analysis/helpers/analyze-workspace.js
    b. Call read_file for ALL of these in ONE batch:
       - scripts/application.json
       - EVERY src/ file listed in "FILES IN THIS WORKSPACE" above

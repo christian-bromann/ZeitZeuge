@@ -10,16 +10,37 @@ description: Use this skill when analyzing browser page-load performance data in
 Pre-built scripts for analyzing browser performance data. Run these
 directly or use them as templates for custom analysis.
 
-## Available scripts
+## START HERE — Workspace overview
 
-### Analyze blocking functions
+Run this FIRST to get a prioritized summary of the entire workspace:
+
+execute_command: node skills/browser-analysis/helpers/analyze-browser-workspace.js
+
+Reads trace/summary.json, heap/summary.json, trace/runtime/summary.json,
+blocking-functions.json, event-listeners.json, and network-waterfall.json.
+Outputs:
+- Page load metrics (FCP, LCP, TBT, load time)
+- Heap snapshot overview (total size, detached DOM nodes, closures)
+- Runtime trace summary (blocking function count, GC stats, frame breakdown)
+- Top blocking functions with script locations
+- Listener imbalances
+- Render-blocking resources
+- Large resources (>100KB)
+- Full list of available source files with sizes
+
+Use this output to decide which source files to read and which scripts
+to run for deeper analysis.
+
+## Additional scripts
+
+### Analyze blocking functions (detailed)
 execute_command: node skills/browser-analysis/helpers/analyze-blockers.js [--threshold 50]
 
 Reads trace/runtime/blocking-functions.json, filters by duration threshold
 (default 50ms), and outputs a ranked summary with call stacks and script
 locations. Also identifies compound blockers.
 
-### Analyze network waterfall
+### Analyze network waterfall (detailed)
 execute_command: node skills/browser-analysis/helpers/analyze-waterfall.js
 
 Reads trace/network-waterfall.json and trace/summary.json, outputs:
@@ -28,7 +49,7 @@ Reads trace/network-waterfall.json and trace/summary.json, outputs:
 - Sequential chains that could be parallelized
 - Uncompressed resources
 
-### Analyze heap snapshot
+### Analyze heap snapshot (detailed)
 execute_command: node skills/browser-analysis/helpers/analyze-heap.js
 
 Reads heap/summary.json, outputs:
@@ -42,10 +63,160 @@ execute_command: node skills/browser-analysis/helpers/find-patterns.js [--patter
 
 Searches source files for performance anti-patterns.
 
+## Key data files
+
+- heap/summary.json — parsed V8 heap snapshot (detached nodes, retained objects, closures)
+- trace/summary.json — page load metrics, render-blocking resources, resource breakdown
+- trace/network-waterfall.json — every network request with timing, size, priority
+- trace/asset-manifest.json — index of all assets with stored file paths
+- trace/runtime/summary.json — runtime trace overview (frame breakdown, GC stats)
+- trace/runtime/blocking-functions.json — main-thread blocking functions with call stacks
+- trace/runtime/event-listeners.json — event listener add/remove counts
+- trace/runtime/frame-breakdown.json — time in scripting vs layout vs paint vs GC
+- scripts/*.js — actual JavaScript source files captured during page load
+- styles/*.css — actual CSS source files
+- html/document.html — the HTML document
+
 ## Writing custom scripts
 
 Read skills/data-scripting/schemas.md for JSON structures, then write
 scripts that load and query the data.
+`;
+
+const ANALYZE_BROWSER_WORKSPACE_JS = `'use strict';
+
+var fs = require('fs');
+
+function tryRead(path) {
+  try { return JSON.parse(fs.readFileSync(path, 'utf8')); }
+  catch (_) { return null; }
+}
+
+var traceSummary = tryRead('trace/summary.json');
+var heapSummary = tryRead('heap/summary.json');
+var rtSummary = tryRead('trace/runtime/summary.json');
+var waterfall = tryRead('trace/network-waterfall.json');
+var assetManifest = tryRead('trace/asset-manifest.json');
+var blockingFunctions = tryRead('trace/runtime/blocking-functions.json');
+var eventListeners = tryRead('trace/runtime/event-listeners.json');
+
+console.log('=== Browser Workspace Overview ===\\n');
+
+if (traceSummary) {
+  var t = traceSummary.timing || traceSummary;
+  console.log('URL: ' + (traceSummary.url || '(unknown)'));
+  console.log('Page load: ' + Math.round(t.loadComplete || 0) + 'ms | FCP: ' + Math.round(t.firstContentfulPaint || 0) + 'ms | LCP: ' + Math.round(t.largestContentfulPaint || 0) + 'ms | TBT: ' + Math.round(t.totalBlockingTime || 0) + 'ms');
+  console.log('Requests: ' + (traceSummary.requestCount || 0) + ' | Transfer: ' + ((traceSummary.totalTransferSize || 0) / 1024).toFixed(1) + ' KB | Decoded: ' + ((traceSummary.totalDecodedSize || 0) / 1024).toFixed(1) + ' KB');
+  if (traceSummary.renderBlockingResources && traceSummary.renderBlockingResources.length > 0) {
+    console.log('Render-blocking: ' + traceSummary.renderBlockingResources.length + ' resources');
+  }
+  console.log();
+}
+
+if (heapSummary) {
+  var meta = heapSummary.metadata || {};
+  console.log('=== Heap Summary ===\\n');
+  console.log('Total heap: ' + ((meta.totalSize || 0) / 1024 / 1024).toFixed(2) + ' MB | Nodes: ' + (meta.nodeCount || 0) + ' | Edges: ' + (meta.edgeCount || 0));
+  var detached = heapSummary.detachedNodes || heapSummary.detachedDomNodes;
+  if (detached) {
+    var dCount = detached.count || (Array.isArray(detached) ? detached.length : 0);
+    var dSize = detached.totalSize || 0;
+    console.log('Detached DOM nodes: ' + dCount + (dSize ? ' (' + (dSize / 1024).toFixed(1) + ' KB)' : ''));
+  }
+  var closures = heapSummary.closureStats;
+  if (closures && closures.count) {
+    console.log('Closures: ' + closures.count + ' (' + ((closures.totalSize || 0) / 1024).toFixed(1) + ' KB)');
+  }
+  console.log();
+}
+
+if (rtSummary) {
+  console.log('=== Runtime Trace Summary ===\\n');
+  console.log('Trace duration: ' + Math.round(rtSummary.traceDuration || 0) + 'ms');
+  console.log('Blocking functions: ' + (rtSummary.blockingFunctionCount || 0));
+  console.log('Listener imbalances: ' + (rtSummary.listenerImbalances || 0));
+  console.log('GC pauses: ' + (rtSummary.gcPauseCount || 0) + ' (' + Math.round(rtSummary.gcTotalDuration || 0) + 'ms total)');
+  if (rtSummary.frameBreakdown) {
+    var fb = rtSummary.frameBreakdown;
+    console.log('Frame breakdown: scripting=' + Math.round(fb.scripting || 0) + 'ms  layout=' + Math.round(fb.layout || 0) + 'ms  paint=' + Math.round(fb.paint || 0) + 'ms  gc=' + Math.round(fb.gc || 0) + 'ms');
+  }
+  if (rtSummary.frequentEventTypes && rtSummary.frequentEventTypes.length > 0) {
+    console.log('Frequent events: ' + rtSummary.frequentEventTypes.join(', '));
+  }
+  console.log();
+}
+
+if (Array.isArray(blockingFunctions) && blockingFunctions.length > 0) {
+  console.log('=== Top Blocking Functions ===\\n');
+  var top = blockingFunctions.slice(0, 10);
+  for (var i = 0; i < top.length; i++) {
+    var fn = top[i];
+    console.log('  [' + (fn.duration || 0) + 'ms] ' + (fn.functionName || '(anonymous)') + ' @ ' + (fn.scriptUrl || 'unknown') + ':' + (fn.lineNumber || '?'));
+  }
+  if (blockingFunctions.length > 10) {
+    console.log('  ... and ' + (blockingFunctions.length - 10) + ' more');
+  }
+  console.log();
+}
+
+if (Array.isArray(eventListeners) && eventListeners.length > 0) {
+  var imbalanced = eventListeners.filter(function (l) {
+    return (l.addCount || 0) > (l.removeCount || 0) + 2;
+  });
+  if (imbalanced.length > 0) {
+    console.log('=== Listener Imbalances (adds >> removes) ===\\n');
+    for (var i = 0; i < imbalanced.length; i++) {
+      var l = imbalanced[i];
+      console.log('  ' + l.eventType + ' on ' + (l.targetType || '?') + '  adds=' + l.addCount + '  removes=' + (l.removeCount || 0) + '  active=' + (l.activeCount || 0));
+    }
+    console.log();
+  }
+}
+
+if (traceSummary && traceSummary.renderBlockingResources && traceSummary.renderBlockingResources.length > 0) {
+  console.log('=== Render-Blocking Resources ===\\n');
+  var rbs = traceSummary.renderBlockingResources;
+  for (var i = 0; i < rbs.length; i++) {
+    var r = rbs[i];
+    console.log('  [' + (r.type || '?') + '] ' + (r.url || '?'));
+    console.log('    Size: ' + ((r.size || 0) / 1024).toFixed(1) + ' KB | Duration: ' + Math.round(r.duration || 0) + 'ms' + (r.path ? ' | File: ' + r.path : ''));
+  }
+  console.log();
+}
+
+if (Array.isArray(waterfall)) {
+  var large = waterfall.filter(function (r) {
+    return (r.size || 0) > 100000;
+  });
+  if (large.length > 0) {
+    large.sort(function (a, b) { return (b.size || 0) - (a.size || 0); });
+    console.log('=== Large Resources (>100KB) ===\\n');
+    for (var i = 0; i < Math.min(10, large.length); i++) {
+      var r = large[i];
+      console.log('  [' + (r.type || '?') + '] ' + ((r.size || 0) / 1024).toFixed(1) + 'KB  ' + (r.url || '?'));
+      if (r.path) console.log('    File: ' + r.path);
+    }
+    console.log();
+  }
+}
+
+console.log('=== Available Files ===\\n');
+var dirs = ['scripts', 'styles', 'html', 'other'];
+for (var d = 0; d < dirs.length; d++) {
+  try {
+    var files = fs.readdirSync(dirs[d]);
+    if (files.length > 0) {
+      for (var i = 0; i < files.length; i++) {
+        var full = dirs[d] + '/' + files[i];
+        try {
+          var stat = fs.statSync(full);
+          if (stat.isFile()) console.log('  ' + full + '  (' + (stat.size / 1024).toFixed(1) + ' KB)');
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+}
+console.log();
 `;
 
 const ANALYZE_BLOCKERS_JS = `'use strict';
@@ -504,6 +675,7 @@ results.forEach(function (r) {
 
 export const BROWSER_ANALYSIS_SKILL_FILES: Record<string, string> = {
   'skills/browser-analysis/SKILL.md': SKILL_MD,
+  'skills/browser-analysis/helpers/analyze-browser-workspace.js': ANALYZE_BROWSER_WORKSPACE_JS,
   'skills/browser-analysis/helpers/analyze-blockers.js': ANALYZE_BLOCKERS_JS,
   'skills/browser-analysis/helpers/analyze-waterfall.js': ANALYZE_WATERFALL_JS,
   'skills/browser-analysis/helpers/analyze-heap.js': ANALYZE_HEAP_JS,

@@ -81,9 +81,9 @@ record(obj) {
 
 ## Your workflow (follow this EXACTLY)
 
-1. In your FIRST turn, do ALL of these:
-   a. Run the hot functions script for context:
-      execute_command: node skills/profile-analysis/helpers/analyze-hotfunctions.js
+1. In your FIRST turn, do ALL of these in ONE batch:
+   a. Run the workspace overview script:
+      execute_command: node skills/profile-analysis/helpers/analyze-workspace.js
    b. Run the leak finder script:
       execute_command: node skills/profile-analysis/helpers/find-leaks.js
    c. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.

@@ -63,12 +63,14 @@ for the same function.
 
 ## Your workflow
 
-1. In your FIRST turn, do BOTH of these:
-   a. Run the hot functions analysis script:
+1. In your FIRST turn, do ALL of these in ONE batch:
+   a. Run the workspace overview script:
+      execute_command: node skills/profile-analysis/helpers/analyze-workspace.js
+   b. Run the detailed hot functions script:
       execute_command: node skills/profile-analysis/helpers/analyze-hotfunctions.js
-   b. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.
+   c. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.
    Do NOT use ls or glob. Batch everything into ONE turn.
-2. From the script output, identify hot functions (>= 1% selfPercent) and match
+2. From the script outputs, identify hot functions (>= 1% selfPercent) and match
    them to the source code you read.
 3. For EACH hot function, analyze its source for blocking patterns or unnecessary instantiation.
 4. Check EVERY source file top-to-bottom, not just the hot ones.

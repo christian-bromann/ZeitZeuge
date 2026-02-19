@@ -96,10 +96,13 @@ Data structures that grow monotonically without eviction, TTL, or size limits.
 
 ## Your workflow
 
-1. In your FIRST turn, run the heap analysis script:
-   execute_command: node skills/browser-analysis/helpers/analyze-heap.js
+1. In your FIRST turn, run BOTH of these:
+   a. Run the workspace overview:
+      execute_command: node skills/browser-analysis/helpers/analyze-browser-workspace.js
+   b. Run the detailed heap analysis:
+      execute_command: node skills/browser-analysis/helpers/analyze-heap.js
    Do NOT use ls, glob, or read_file on heap/summary.json directly.
-2. From the script output, identify issues and the script URLs that need verification.
+2. From the script outputs, identify issues and the script URLs that need verification.
 3. Derive workspace paths from script URLs (e.g. URL ending in "abc123.js" → scripts/abc123.js).
    Read ONLY the 1-3 source files directly implicated — do NOT read all scripts.
 4. Cross-reference with source code to find the root cause and provide before/after code.

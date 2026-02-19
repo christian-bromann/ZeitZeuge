@@ -57,6 +57,132 @@ data file in this workspace. Read it before writing custom scripts.
 
 const SCHEMAS_MD = `# Workspace Data File Schemas
 
+---
+# Workspace files
+---
+
+## summary.json
+{
+  totalTests: number,
+  totalDuration: number,       // ms
+  passCount: number,
+  failCount: number,
+  profileCount: number,
+  slowestFile: string | null,  // file:// URL
+  slowestFileDuration: number,
+  totalGcTime: number,
+  gcPercentage: number
+}
+
+## hot-functions/application.json
+Array of application-code hot functions (filtered to sourceCategory "application"):
+{
+  functionName: string,
+  workspacePath: string,       // e.g. "/src/services/crypto.ts" (has leading /)
+  lineNumber: number,
+  columnNumber: number,
+  selfTime: number,            // ms of CPU self-time
+  totalTime: number,           // ms including callees
+  hitCount: number,
+  selfPercent: number,         // % of total profile duration
+  sourceCategory: "application",
+  sourceSnippet?: string,      // source code context around the hot line
+  callerChain?: [{ functionName, workspacePath, lineNumber }]
+}
+
+## hot-functions/dependencies.json
+Same structure as hot-functions/application.json but sourceCategory "dependency".
+
+## hot-functions/global.json
+All hot functions across all categories (application, dependency, framework, unknown).
+Same item structure. Can be very large (2000+ lines).
+
+## scripts/application.json
+Per-script summary for application code:
+[{ workspacePath: string, selfTime: number, selfPercent: number, functionCount: number }]
+
+## scripts/dependencies.json
+Same structure as scripts/application.json but for dependency scripts.
+
+## src/index.json
+Maps source file paths to their hot functions. Key = workspacePath, value = array:
+{
+  "/src/services/notification-service.ts": [
+    { functionName: string, lineNumber: number, selfTime: number, selfPercent: number }
+  ],
+  "/src/utils/crypto.ts": [...]
+}
+Use this to know WHICH source files have CPU-hot functions.
+
+## listener-tracking.json
+{
+  eventTargetCounts: {},       // browser EventTarget counts (usually empty in Node)
+  emitterCounts: {             // keyed by event name
+    "<eventName>": { addCount: number, removeCount: number },
+    ...
+  },
+  exceedances: [{              // maxListeners threshold exceeded
+    targetType: string,        // e.g. "EventEmitter"
+    eventType: string,         // e.g. "task:changed"
+    listenerCount: number,     // current count that exceeded threshold
+    threshold: number,         // the maxListeners value (default 10)
+    stack: string              // stack trace showing where listener was added
+  }]
+}
+
+## metrics/current.json
+Comprehensive pre-computed metrics (large file):
+{
+  version: number,
+  timestamp: string,
+  suite: { totalDuration, totalTests, passCount, failCount, averageTestDuration,
+           medianTestDuration, p95TestDuration, slowestTestDuration, slowestTestName },
+  cpu: { gcPercentage, gcTime, idlePercentage, idleTime, applicationTime,
+         applicationPercent, dependencyTime, dependencyPercent, testFrameworkTime,
+         testFrameworkPercent },
+  files: { "<file:// URL>": { duration, testCount, setupTime, gcPercentage } },
+  tests: { "<file::testName>": { duration, status } },
+  hotFunctions: [{ key, functionName, scriptUrl, lineNumber, selfTime, selfPercent,
+                   sourceCategory }],
+  listenerTracking: { eventTargetCounts, emitterCounts, exceedances }
+}
+
+## timing/overview.json
+Array of per-file timing data:
+[{
+  file: string,                // file:// URL
+  duration: number,
+  testCount: number,
+  passCount: number,
+  failCount: number,
+  setupTime: number,
+  tests: [{ name: string, duration: number, status: string }]
+}]
+
+## timing/slow-tests.json
+Array of slow tests sorted by duration descending:
+[{ file: string, name: string, duration: number }]
+
+## profiles/index.json
+Manifest mapping test files to their CPU profile paths:
+[{ testFile: string, profilePath: string }]
+
+## profiles/<file>.json
+Per-test-file profile summary:
+{
+  profilePath: string,
+  duration: number,
+  sampleCount: number,
+  hotFunctions: [{
+    functionName, lineNumber, columnNumber, selfTime, totalTime,
+    hitCount, selfPercent, callerChain, sourceCategory, workspacePath
+  }]
+}
+
+---
+# Browser workspace files (CLI agent only — not present in Vitest workspaces)
+---
+
 ## heap/summary.json
 {
   metadata: { url, capturedAt, totalSize, nodeCount, edgeCount },
@@ -79,19 +205,26 @@ const SCHEMAS_MD = `# Workspace Data File Schemas
 }
 
 ## trace/runtime/blocking-functions.json
-Array of:
+Array of (up to 50 entries, sorted by duration descending):
 {
   functionName: string,
-  scriptUrl: string,        // URL of the script (maps to scripts/<filename>)
+  scriptUrl: string,           // URL of the script
   lineNumber: number,
   columnNumber: number,
-  duration: number,         // milliseconds blocked on main thread
-  callStack: string[],      // parent function names
-  category: string          // "scripting" | "layout" | "paint" | etc.
+  duration: number,            // ms blocked on main thread
+  startTime: number,           // ms relative to navigation start
+  callStack: [{                // caller chain (array of objects, NOT strings)
+    functionName: string,
+    scriptUrl: string,
+    lineNumber: number
+  }],
+  category: string             // "scripting" | "layout" | "paint" | etc.
 }
+To get the workspace file path for a scriptUrl, extract the filename:
+  e.g. "https://example.com/static/abc123.js" -> "scripts/abc123.js"
 
 ## trace/runtime/event-listeners.json
-Array of:
+Array of (only listeners with addCount > 0):
 {
   eventType: string,
   targetType: string,
@@ -104,80 +237,65 @@ Array of:
 ## trace/runtime/summary.json
 {
   totalEvents: number,
-  traceDuration: number,
+  traceDuration: number,       // ms
   mainThreadId: number,
-  frameBreakdown: { scripting, layout, paint, gc, other },
+  frameBreakdown: { scripting, layout, paint, gc, other },  // all in ms
   blockingFunctionCount: number,
   listenerImbalances: number,
   gcPauseCount: number,
-  gcTotalDuration: number,
-  frequentEventTypes: string[]
+  gcTotalDuration: number,     // ms
+  frequentEventTypes: string[] // event types dispatched >10 times
+}
+
+## trace/runtime/frame-breakdown.json
+{
+  scripting: number,           // ms spent in script execution
+  layout: number,              // ms spent in layout calculations
+  paint: number,               // ms spent painting
+  gc: number,                  // ms spent in garbage collection
+  other: number                // ms spent in other tasks
 }
 
 ## trace/network-waterfall.json
-Array of:
+Array of (sorted by startTime):
 {
   url: string,
-  type: string,             // "Script" | "Stylesheet" | "Font" | "Document" | "Image"
+  type: string,                // "Script" | "Stylesheet" | "Font" | "Document" | "Image"
   status: number,
-  size: number,             // decoded size in bytes
-  startTime: number,        // ms from navigation start
+  size: number,                // decoded size in bytes
+  startTime: number,           // ms from navigation start
   endTime: number,
   duration: number,
   isRenderBlocking: boolean,
   priority: string,
-  path: string | null       // workspace path to stored content
+  path: string | null          // workspace path to stored content (e.g. "/scripts/abc.js")
 }
 
-## hot-functions/application.json
-Array of:
+## trace/asset-manifest.json
+Array of all network assets:
 {
-  functionName: string,
-  workspacePath: string,    // e.g. "src/services/crypto.ts"
-  lineNumber: number,
-  columnNumber: number,
-  selfTime: number,         // ms of CPU self-time
-  totalTime: number,        // ms including callees
-  hitCount: number,
-  selfPercent: number,      // % of total profile duration
-  sourceCategory: "application",
-  sourceSnippet?: string,   // source code context around the hot line
-  callerChain?: [{ functionName, workspacePath, lineNumber }]
+  url: string,
+  type: string,
+  size: number,                // decoded size in bytes
+  duration: number,
+  isRenderBlocking: boolean,
+  stored: boolean,             // true if content was captured and stored
+  path: string | null          // workspace path if stored
 }
 
-## listener-tracking.json
+## trace/runtime/raw-events.json
+Array of raw Chrome trace events (can be very large). Each entry has:
 {
-  summary: { totalAdds, totalRemoves, activeCount },
-  byEventType: [{
-    eventType, targetType, addCount, removeCount, activeCount,
-    stackSnippets: string[]
-  }],
-  exceedances: [{
-    eventType, targetType, count, threshold, stack: string
-  }]
+  name: string,                // event name (e.g. "FunctionCall", "Layout", "GCEvent")
+  cat: string,                 // category
+  ph: string,                  // phase ("X" = complete, "B"/"E" = begin/end)
+  ts: number,                  // timestamp in microseconds
+  dur: number,                 // duration in microseconds
+  tid: number,                 // thread ID
+  pid: number,                 // process ID
+  args: object                 // event-specific arguments
 }
-
-## summary.json (Vitest)
-{
-  totalTests: number,
-  totalDuration: number,
-  passCount: number,
-  failCount: number,
-  profileCount: number,
-  slowestFile: string | null,
-  slowestFileDuration: number,
-  totalGcTime: number,
-  gcPercentage: number
-}
-
-## scripts/application.json
-Array of:
-{
-  workspacePath: string,
-  selfTime: number,
-  selfPercent: number,
-  functionCount: number
-}
+Only use for deep investigation — prefer the summary files first.
 `;
 
 const TOP_ITEMS_JS = `'use strict';

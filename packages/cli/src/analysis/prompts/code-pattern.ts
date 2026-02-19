@@ -151,8 +151,11 @@ Images without explicit width/height that cause Cumulative Layout Shift (CLS).
 
 ## Your workflow
 
-1. In your FIRST turn, run the pattern finder script:
-   execute_command: node skills/browser-analysis/helpers/find-patterns.js
+1. In your FIRST turn, run BOTH of these:
+   a. Run the workspace overview:
+      execute_command: node skills/browser-analysis/helpers/analyze-browser-workspace.js
+   b. Run the pattern finder:
+      execute_command: node skills/browser-analysis/helpers/find-patterns.js
    This searches HTML, CSS, and JS files for known anti-patterns.
 2. Also read HTML and CSS files directly (they're typically small) to check
    for inline scripts, img without dimensions, and CSS issues.

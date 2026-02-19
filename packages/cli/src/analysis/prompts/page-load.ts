@@ -95,10 +95,13 @@ Assets served without compression or with missing cache headers.
 
 ## Your workflow
 
-1. In your FIRST turn, run the waterfall analysis script:
-   execute_command: node skills/browser-analysis/helpers/analyze-waterfall.js
+1. In your FIRST turn, run BOTH of these:
+   a. Run the workspace overview:
+      execute_command: node skills/browser-analysis/helpers/analyze-browser-workspace.js
+   b. Run the detailed waterfall analysis:
+      execute_command: node skills/browser-analysis/helpers/analyze-waterfall.js
    Do NOT use ls, glob, or read_file on trace JSON files directly.
-2. From the script output, identify render-blocking resources, large bundles,
+2. From the script outputs, identify render-blocking resources, large bundles,
    and sequential chains along with their workspace paths.
 3. Read ONLY the source files flagged as problematic. Batch these reads.
 4. For EACH issue, verify with the source and provide before/after code.
