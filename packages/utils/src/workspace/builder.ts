@@ -7,8 +7,50 @@
  * workspace boilerplate.
  */
 
-import type { BackendProtocol } from 'deepagents';
-import { VfsSandbox } from '@langchain/node-vfs';
+import type { BackendProtocol, FileInfo, GrepMatch } from 'deepagents';
+import { VfsSandbox, type VfsSandboxOptions } from '@langchain/node-vfs';
+
+/**
+ * VfsSandbox subclass that normalizes absolute paths to relative ones.
+ *
+ * BaseSandbox.read/lsInfo/grepRaw/globInfo build shell commands (awk, find,
+ * grep) from the file path and run them via this.execute(). VfsSandbox.execute()
+ * runs commands in a temp directory, so absolute paths like "/src/index.js"
+ * resolve against the OS root instead of the workspace. Stripping the leading
+ * "/" makes them relative to the temp-dir cwd.
+ */
+class PerfAgentSandbox extends VfsSandbox {
+  static #toRelative(p: string): string {
+    const stripped = p.startsWith('/') ? p.slice(1) : p;
+    return stripped || '.';
+  }
+
+  override async read(filePath: string, offset: number = 0, limit: number = 500): Promise<string> {
+    return super.read(PerfAgentSandbox.#toRelative(filePath), offset, limit);
+  }
+
+  override async lsInfo(dirPath: string): Promise<FileInfo[]> {
+    return super.lsInfo(PerfAgentSandbox.#toRelative(dirPath));
+  }
+
+  override async grepRaw(
+    pattern: string,
+    searchPath: string = '/',
+    glob: string | null = null,
+  ): Promise<GrepMatch[] | string> {
+    return super.grepRaw(pattern, PerfAgentSandbox.#toRelative(searchPath), glob);
+  }
+
+  override async globInfo(pattern: string, searchPath: string = '/'): Promise<FileInfo[]> {
+    return super.globInfo(pattern, PerfAgentSandbox.#toRelative(searchPath));
+  }
+
+  static override async create(options?: VfsSandboxOptions): Promise<PerfAgentSandbox> {
+    const sandbox = new PerfAgentSandbox(options);
+    await sandbox.initialize();
+    return sandbox;
+  }
+}
 
 export interface WorkspaceBuilderResult {
   /** Backend for use with createDeepAgent */
@@ -27,7 +69,7 @@ export interface WorkspaceBuilderResult {
 export async function createWorkspaceFromFiles(
   files: Record<string, string>,
 ): Promise<WorkspaceBuilderResult> {
-  const sandbox = await VfsSandbox.create({ initialFiles: files });
+  const sandbox = await PerfAgentSandbox.create({ initialFiles: files });
 
   const cleanup = async () => {
     try {
