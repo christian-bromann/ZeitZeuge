@@ -7,16 +7,16 @@
  */
 export const WORKSPACE_STRUCTURE = `## Data file descriptions
 
-- /hot-functions/application.json — Hot functions from application code.
+- hot-functions/application.json — Hot functions from application code.
   Each entry has: functionName, selfTime, selfPercent, sourceSnippet, workspacePath.
-  Use the workspacePath field to read source files (e.g. /src/services/foo.ts).
-- /scripts/application.json — Per-script time breakdown for application code
-- /profiles/index.json — Manifest mapping test files to their CPU profiles
-- /profiles/<file>.json — CPU profile: hot functions, call trees, script breakdown
-- /listener-tracking.json — (if present) Event listener add/remove counts and
+  Use the workspacePath field to read source files (e.g. src/services/foo.ts).
+- scripts/application.json — Per-script time breakdown for application code
+- profiles/index.json — Manifest mapping test files to their CPU profiles
+- profiles/<file>.json — CPU profile: hot functions, call trees, script breakdown
+- listener-tracking.json — (if present) Event listener add/remove counts and
   exceedances where listener counts exceeded maxListeners threshold
-- /summary.json — Overall test run: total tests, duration, pass/fail, GC stats
-- /metrics/current.json — Pre-computed aggregate metrics
+- summary.json — Overall test run: total tests, duration, pass/fail, GC stats
+- metrics/current.json — Pre-computed aggregate metrics
 
 Application source files and test files are listed in the "Files in this
 workspace" section of this prompt. Read them DIRECTLY — do NOT use ls or glob.`;

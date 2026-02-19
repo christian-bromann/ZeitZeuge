@@ -67,22 +67,26 @@ Each finding MUST use one of these EXACT category values — do NOT invent new c
 Prefer more specific categories (algorithm, serialization, allocation, event-handling,
 blocking-io, listener-leak, gc-pressure) over generic ones (hot-function, other).`;
 
-export const PARALLEL_TOOL_CALLS = `## CRITICAL: Tool call strategy — parallel reads
+export const PARALLEL_TOOL_CALLS = `## CRITICAL: Tool call strategy — scripts for data, read_file for source
 
-You MUST call read_file for ALL files in a SINGLE response. Batch every
-read into ONE turn — do NOT read files one-at-a-time across multiple turns.
+Your FIRST turn MUST:
+1. Run analysis scripts (execute_command) to query the JSON data files.
+   Use pre-built helper scripts in skills/ or write your own using the
+   data-scripting skill.
+2. Call read_file for ALL application source files listed above.
 
-Your FIRST turn MUST contain read_file calls for:
-1. The data JSON files listed in "FILES IN THIS WORKSPACE" above
-2. ALL application source files listed above
-That's typically 10-15 read_file calls in your FIRST response.
+Batch everything into ONE turn. Do NOT read data files one-at-a-time.
+
+For data files: run a helper script or write a custom one. This is faster
+and uses fewer tokens than reading raw JSON.
+
+For source files: use read_file since you need to see the exact code for
+beforeCode/afterCode suggestions.
 
 FORBIDDEN actions:
 - ls — NEVER call ls. File paths are already listed above.
 - glob — NEVER call glob. File paths are already listed above.
-- Reading files one at a time across multiple turns
-
-The file list in "FILES IN THIS WORKSPACE" above is COMPLETE and EXACT.`;
+- Reading JSON data files with read_file — use scripts instead.`;
 
 export const FULL_RESPONSE_REQUIREMENT = `## CRITICAL — Your response MUST contain ALL findings in full
 
@@ -104,7 +108,7 @@ export const STRUCTURED_OUTPUT_FIELDS = `## Structured output fields — REQUIRE
 
 Every finding MUST include ALL of these fields:
 
-- \`sourceFile\` — (REQUIRED) the workspace path (e.g. /src/utils/parser.ts or /scripts/app.js)
+- \`sourceFile\` — (REQUIRED) the workspace path (e.g. src/utils/parser.ts or scripts/app.js)
 - \`lineNumber\` — (REQUIRED) the 1-based line number, verified by reading the file
 - \`confidence\` — \`high\` if you read the source, \`medium\` if strongly suggested,
   \`low\` if inferred

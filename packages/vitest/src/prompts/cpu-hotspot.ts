@@ -30,7 +30,7 @@ Look for functions that block the event loop with synchronous CPU-intensive work
 - Synchronous file I/O in hot paths (readFileSync, writeFileSync, etc.)
 - Heavy computation without yielding (e.g., large matrix operations, parsing)
 
-**How to detect:** Read /hot-functions/application.json for functions with high selfTime.
+**How to detect:** Read hot-functions/application.json for functions with high selfTime.
 For each one with >= 1% selfPercent, read the source code and check for:
 - Loops with many iterations doing CPU work
 - Calls to other blocking functions (trace the call chain — read the callee's source!)
@@ -63,17 +63,16 @@ for the same function.
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
-   - /hot-functions/application.json
-   - /scripts/application.json
-   - EVERY /src/ file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
-2. Analyze the results: identify hot functions (>= 1% selfPercent) and match them to source code
-3. If needed, batch-read /profiles/<file>.json call trees to trace blocking call chains
-4. For EACH hot function, analyze its source for blocking patterns or unnecessary instantiation
-5. Check EVERY source file top-to-bottom, not just the hot ones
-6. For each function in each file, check: Does it block? Does it instantiate objects per-call?
-   If YES to both, report TWO separate findings.
+1. In your FIRST turn, do BOTH of these:
+   a. Run the hot functions analysis script:
+      execute_command: node skills/profile-analysis/helpers/analyze-hotfunctions.js
+   b. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.
+   Do NOT use ls or glob. Batch everything into ONE turn.
+2. From the script output, identify hot functions (>= 1% selfPercent) and match
+   them to the source code you read.
+3. For EACH hot function, analyze its source for blocking patterns or unnecessary instantiation.
+4. Check EVERY source file top-to-bottom, not just the hot ones.
+5. For compound blockers, trace the call chain using the callerChain data from the script output.
 
 ${PARALLEL_TOOL_CALLS}
 ${VERIFICATION_RULES}

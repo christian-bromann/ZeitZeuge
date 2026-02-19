@@ -213,6 +213,7 @@ function buildSubagents(ctx?: PageLoadContext): SubAgent[] {
       name,
       description,
       systemPrompt: insertFileListIntoPrompt(prompt, fileSection),
+      skills: ['skills/data-scripting/', 'skills/browser-analysis/'],
     };
   });
 }
@@ -239,6 +240,7 @@ export async function analyze(
     systemPrompt: BROWSER_ORCHESTRATOR_PROMPT,
     backend,
     subagents,
+    skills: ['skills/'],
     responseFormat: toolStrategy(FindingsSchema),
   });
 
@@ -247,7 +249,7 @@ export async function analyze(
     : [
         'Analyze the frontend performance data in this workspace.',
         '',
-        'Start by reading /heap/summary.json, /trace/summary.json, and /trace/runtime/summary.json',
+        'Start by reading heap/summary.json, trace/summary.json, and trace/runtime/summary.json',
         'to understand the overall picture, then explore source files to verify root causes.',
       ].join('\n');
 

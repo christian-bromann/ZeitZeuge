@@ -47,9 +47,7 @@ async function loadData() {
 }
 \`\`\`
 
-**How to detect:** Read /trace/runtime/blocking-functions.json for functions with
-duration >50ms. For each one, read the source file at the reported line number
-to understand what the function does.
+**How to detect:** Run \`execute_command: node skills/browser-analysis/helpers/analyze-blockers.js\` to get a summary of blocking functions with durations, script locations, and compound blockers. For each one, read the source file at the reported line number to understand what the function does.
 
 **IMPORTANT — Compound blockers are SEPARATE findings:**
 If function A calls function B and B blocks the main thread, report TWO findings:
@@ -80,9 +78,7 @@ function onRouteChange(route) {
 }
 \`\`\`
 
-**How to detect:** Read /trace/runtime/event-listeners.json for event types where
-addCount >> removeCount. Then search the source files for addEventListener calls
-for those event types.
+**How to detect:** Write a custom script using the data-scripting skill to query trace/runtime/event-listeners.json for event types where addCount >> removeCount. Then search the source files for addEventListener calls for those event types.
 
 ### 3. GC Pressure
 
@@ -108,9 +104,7 @@ function animate() {
 }
 \`\`\`
 
-**How to detect:** Read /trace/runtime/summary.json for GC pause count and total
-duration. If significant, cross-reference with /heap/summary.json to find which
-constructors are responsible. Check source files for hot loops creating objects.
+**How to detect:** Write a custom script using the data-scripting skill to query trace/runtime/summary.json for GC pause count and total duration. If significant, cross-reference with heap data to find which constructors are responsible. Check source files for hot loops creating objects.
 
 ### 4. Layout Thrashing
 
@@ -130,7 +124,7 @@ elements.forEach((el, i) => {
 });
 \`\`\`
 
-**How to detect:** Read /trace/runtime/raw-events.json and look for rapid
+**How to detect:** Read trace/runtime/raw-events.json and look for rapid
 alternation of Layout and scripting events. Also search source files for
 patterns that read offsetHeight/offsetWidth/getBoundingClientRect inside
 loops that also modify DOM styles.
@@ -159,28 +153,22 @@ window.addEventListener('scroll', () => {
 });
 \`\`\`
 
-**How to detect:** Check /trace/runtime/summary.json for \`frequentEventTypes\`.
-These are event types dispatched >10 times during the trace period. Search
-source files for their handlers and check if they use throttle/debounce/rAF.
+**How to detect:** Write a custom script using the data-scripting skill to query trace/runtime/summary.json for \`frequentEventTypes\`. These are event types dispatched >10 times during the trace period. Search source files for their handlers and check if they use throttle/debounce/rAF.
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for these data files in ONE batch:
-   - /trace/runtime/blocking-functions.json (PRIMARY — blocking functions)
-   - /trace/runtime/event-listeners.json (listener add/remove counts)
-   - /trace/runtime/frame-breakdown.json (scripting vs layout vs paint vs GC)
-   - /trace/runtime/summary.json (overview with GC stats, frequent events)
-   Do NOT use ls or glob. Do NOT read any source files yet.
-2. Analyze blocking functions: for each with duration >50ms, note the
-   scriptUrl and line number from the data.
-3. Derive workspace paths from the scriptUrl field (e.g. a script URL
-   ending in "abc123.js" maps to /scripts/abc123.js). Read ONLY the 1-3
-   source files directly implicated by blocking functions or listener
-   imbalances — do NOT read all scripts.
+1. In your FIRST turn, run the blocking functions analysis script:
+   execute_command: node skills/browser-analysis/helpers/analyze-blockers.js
+   Do NOT use ls, glob, or read_file on trace data files directly.
+2. From the script output, note blocking functions, their durations, script
+   locations, and compound blockers.
+3. Derive workspace paths from scriptUrl (e.g. URL ending in "abc123.js" →
+   scripts/abc123.js). Read ONLY the 1-3 source files directly implicated.
 4. Check for compound blockers: if function A calls blocking function B,
-   report BOTH as separate findings
-5. Check event listener imbalances and find the source code responsible
-6. Check GC stats and cross-reference with heap data if available
+   report BOTH as separate findings.
+5. For listener imbalances and GC stats, write a custom script using the
+   data-scripting skill to query trace/runtime/event-listeners.json and
+   trace/runtime/summary.json.
 
 ### CRITICAL: Report EACH pattern as a SEPARATE finding
 

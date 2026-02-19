@@ -49,7 +49,7 @@ function subscribe(channel) {
 ### Pattern C — MaxListeners exceeded (MUST report separately)
 
 When listener counts exceed the default maxListeners threshold (10), this
-triggers a MaxListenersExceededWarning at runtime. Check /listener-tracking.json
+triggers a MaxListenersExceededWarning at runtime. Check listener-tracking.json
 for the "exceedances" array — each entry shows an event type where the listener
 count exceeded the threshold.
 
@@ -67,23 +67,17 @@ The Pattern C finding should have:
 
 ## Your workflow (follow this EXACTLY)
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
-   - /listener-tracking.json (PRIMARY data source)
-   - EVERY /src/ file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
-2. From the listener tracking data, identify:
+1. In your FIRST turn, do BOTH of these:
+   a. Run the listener analysis script:
+      execute_command: node skills/profile-analysis/helpers/analyze-listeners.js
+   b. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.
+   Do NOT use ls or glob. Batch everything into ONE turn.
+2. From the script output, identify:
    - exceedances (listener count > maxListeners threshold)
-   - add/remove imbalances (addCount >> removeCount for any event type)
-3. For EACH exceedance or imbalance found:
-   a. Note the event type, target type, and stack trace snippet
-   b. In the source files you already read, find the .on() / .addEventListener() /
-      .addListener() call
-   c. Check if a corresponding removal exists (.off(), .removeEventListener(),
-      .removeListener())
-   d. Check if the listener is added inside a function that gets called repeatedly
-4. ALSO: in the source files you already read, search for .on(, .addListener(,
-   .addEventListener( calls and verify each has a corresponding removal mechanism
-5. For each issue found, provide before/after code from the source you already read
+   - add/remove imbalances (addCount >> removeCount)
+3. In the source files you already read, find the .on() / .addEventListener() calls
+   and check if corresponding removal exists.
+4. For each issue found, provide before/after code.
 
 ## Important: Report EACH pattern as a SEPARATE finding
 

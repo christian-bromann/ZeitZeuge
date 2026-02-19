@@ -36,9 +36,7 @@ document.body.removeChild(el);
 // 'el' still holds a reference → detached DOM node
 \`\`\`
 
-**How to detect:** Read /heap/summary.json and check the \`detachedNodes\` section.
-For each detached node, search the source files for references to that node type
-or constructor name.
+**How to detect:** Run \`execute_command: node skills/browser-analysis/helpers/analyze-heap.js\` to get a summary of heap issues including detached nodes with retainer paths. Then read ONLY the source files referenced in the retainer paths to verify root causes.
 
 ### 2. Large Retained Objects
 
@@ -54,10 +52,7 @@ class DataStore {
 }
 \`\`\`
 
-**How to detect:** Read /heap/summary.json and check \`largestObjects\`. Focus on
-objects where \`retainedSize\` is significantly larger than \`selfSize\` — they are
-roots of large object trees. Cross-reference with \`retainerPath\` to understand
-what keeps them alive.
+**How to detect:** The analyze-heap.js script outputs the top 10 largest retained objects. Review the retainer paths and read the implicated source files.
 
 ### 3. Constructor Hotspots
 
@@ -74,8 +69,7 @@ function processItems(items) {
 }
 \`\`\`
 
-**How to detect:** Read \`constructorStats\` in the heap summary. Focus on types
-with unusually high instance counts or total size.
+**How to detect:** The analyze-heap.js script outputs constructor hotspots. Focus on types with unusually high instance counts.
 
 ### 4. Closure Leaks
 
@@ -92,32 +86,24 @@ function setupHandler(response) {
 }
 \`\`\`
 
-**How to detect:** Read \`closureStats\` in the heap summary. For closures with
-large retained sizes, search the source files for the function patterns and
-check what variables they capture.
+**How to detect:** The analyze-heap.js script outputs top closures by retained size. Read the implicated source files to check what variables they capture.
 
 ### 5. Unbounded Caches/Maps
 
 Data structures that grow monotonically without eviction, TTL, or size limits.
 
-**How to detect:** Read source files and look for Maps, Sets, arrays, or plain
-objects used as stores where items are added but never removed.
+**How to detect:** After identifying suspicious objects from the heap analysis script output, read the relevant source files and look for Maps, Sets, arrays used as stores where items are added but never removed.
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for /heap/summary.json ONLY.
-   Do NOT use ls or glob. Do NOT read any source files yet.
-2. From the heap summary, identify:
-   - Detached DOM nodes (count and types)
-   - Top 10 largest retained objects
-   - Constructor types with high instance counts
-   - Closures with large retained sizes
-3. For issues that reference script URLs, derive the workspace path
-   (e.g. a script URL ending in "abc123.js" maps to /scripts/abc123.js).
-   Read ONLY the 1-3 source files directly implicated — do NOT read all
-   scripts. Source files are at /scripts/*.js, /styles/*.css, /html/.
-4. Cross-reference with source code to find the root cause and provide
-   before/after code with a concrete fix.
+1. In your FIRST turn, run the heap analysis script:
+   execute_command: node skills/browser-analysis/helpers/analyze-heap.js
+   Do NOT use ls, glob, or read_file on heap/summary.json directly.
+2. From the script output, identify issues and the script URLs that need verification.
+3. Derive workspace paths from script URLs (e.g. URL ending in "abc123.js" → scripts/abc123.js).
+   Read ONLY the 1-3 source files directly implicated — do NOT read all scripts.
+4. Cross-reference with source code to find the root cause and provide before/after code.
+5. For custom queries, use the data-scripting skill to write targeted scripts.
 
 ### CRITICAL: Report EVERY distinct issue
 

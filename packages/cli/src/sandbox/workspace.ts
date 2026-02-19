@@ -2,6 +2,8 @@ import type { BackendProtocol } from 'deepagents';
 
 import {
   createWorkspaceFromFiles,
+  DATA_SCRIPTING_SKILL_FILES,
+  BROWSER_ANALYSIS_SKILL_FILES,
   type HeapSummary,
   type TraceResult,
   type NetworkRequest,
@@ -18,8 +20,8 @@ export interface WorkspaceOptions {
 export interface WorkspaceResult {
   /** Backend for use with createDeepAgent */
   backend: BackendProtocol;
-  /** Clean up the temporary directory when done */
-  cleanup: () => void;
+  /** Clean up sandbox resources when done */
+  cleanup: () => Promise<void>;
   /** All workspace file paths, for file list injection */
   files: string[];
 }
@@ -28,10 +30,9 @@ export interface WorkspaceResult {
  * Create a workspace populated with heap snapshot data, trace data,
  * and actual network asset content.
  *
- * Uses the shared createWorkspaceFromFiles utility, which creates a
- * temp directory with FilesystemBackend in virtualMode so the agent's
- * absolute paths (e.g. /heap/summary.json) map to files inside the
- * temp directory.
+ * Uses the shared createWorkspaceFromFiles utility backed by VfsSandbox,
+ * which stores files in an in-memory VFS so the agent's absolute paths
+ * (e.g. /heap/summary.json) resolve within the sandbox.
  */
 export async function createWorkspace(options: WorkspaceOptions): Promise<WorkspaceResult> {
   const { heapSummary, traceResult, url, maxAssetSize = 10 * 1024 * 1024 } = options;
@@ -165,8 +166,12 @@ export async function createWorkspace(options: WorkspaceOptions): Promise<Worksp
     }
   }
 
+  // ── Skill files ──
+  Object.assign(files, DATA_SCRIPTING_SKILL_FILES);
+  Object.assign(files, BROWSER_ANALYSIS_SKILL_FILES);
+
   // ── Use shared workspace builder ──
-  const result = createWorkspaceFromFiles(files, 'zeitzeuge-browser-workspace-');
+  const result = await createWorkspaceFromFiles(files);
 
   return {
     backend: result.backend,

@@ -100,7 +100,7 @@ Functions named like \`computeCorrelations\`, \`computeTagCorrelations\`, \`find
 
 ## How to detect
 
-1. Read /hot-functions/application.json to identify which functions are CPU-hot
+1. Read hot-functions/application.json to identify which functions are CPU-hot
 2. Read EVERY application source file — not just the hot ones
 3. Go through EVERY FUNCTION in every file and check for the patterns above
 4. Pay special attention to:
@@ -114,22 +114,16 @@ Functions named like \`computeCorrelations\`, \`computeTagCorrelations\`, \`find
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
-   - /hot-functions/application.json
-   - /scripts/application.json
-   - EVERY /src/ file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
-2. For EVERY function in EVERY source file, check for:
-   - O(n²) patterns (nested loops, .filter inside a loop, pairwise comparisons)
-   - O(n²×m²) patterns (nested iteration over items AND their sub-arrays like tags)
-   - JSON.parse/JSON.stringify for cloning (suggest structuredClone or spread)
-   - new RegExp() with constant patterns (should be module-level constants)
-   - Sort comparators that construct objects or do expensive work per comparison
-   - Functions called FROM sort comparators that create objects (e.g., new Date())
-   - Duplicate detection via .filter().length instead of Set (O(n²) → O(n))
-3. Report each distinct pattern as a separate finding — a single file may have 3-5 issues
-4. Regex recompilation and quadratic algorithms are SEPARATE finding types even if in
-   the same file. Report each with its own category (unnecessary-computation vs algorithm)
+1. In your FIRST turn, do BOTH of these:
+   a. Run the hot functions analysis script:
+      execute_command: node skills/profile-analysis/helpers/analyze-hotfunctions.js
+   b. Call read_file for ALL of these in ONE batch:
+      - scripts/application.json
+      - EVERY src/ file listed in "FILES IN THIS WORKSPACE" above
+   Do NOT use ls or glob.
+2. From the script output, identify which functions are CPU-hot.
+3. For EVERY function in EVERY source file, check for the patterns above.
+4. Report each distinct pattern as a separate finding.
 
 ${PARALLEL_TOOL_CALLS}
 ${VERIFICATION_RULES}

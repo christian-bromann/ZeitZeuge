@@ -135,31 +135,35 @@ function buildSubagents(ctx?: VitestAnalysisContext): SubAgent[] {
   const fileSection = ctx ? buildVitestFileListSection(ctx) : '';
 
   const inject = (prompt: string) => insertFileListIntoPrompt(prompt, fileSection);
-
+  const skills = ['skills/data-scripting/', 'skills/profile-analysis/'];
   return [
     {
       name: 'cpu-hotspot',
       description:
         'Analyzes CPU profiling data to find blocking/event-loop-blocking operations and excessive object instantiation.',
       systemPrompt: inject(CPU_HOTSPOT_PROMPT),
+      skills,
     },
     {
       name: 'listener-leak',
       description:
         'Detects event listener leaks, add/remove imbalances, and maxListeners exceedances.',
       systemPrompt: inject(LISTENER_LEAK_PROMPT),
+      skills,
     },
     {
       name: 'memory-closure',
       description:
         'Finds closure-based memory leaks, unbounded data structures, and missing cleanup/eviction.',
       systemPrompt: inject(MEMORY_CLOSURE_PROMPT),
+      skills,
     },
     {
       name: 'code-pattern',
       description:
         'Detects algorithmic inefficiencies (O(n²)), unnecessary serialization, regex recompilation, and expensive sort comparators.',
       systemPrompt: inject(CODE_PATTERN_PROMPT),
+      skills,
     },
   ];
 }
@@ -186,6 +190,7 @@ export async function analyzeTestPerformance(
     systemPrompt: VITEST_SYSTEM_PROMPT,
     backend,
     subagents,
+    skills: ['skills/'],
     responseFormat: toolStrategy(FindingsSchema),
   });
 
@@ -194,7 +199,7 @@ export async function analyzeTestPerformance(
     : [
         'Analyze the performance of the APPLICATION CODE being tested in this Vitest workspace.',
         '',
-        'Start with /hot-functions/application.json, then explore source files to verify',
+        'Start with hot-functions/application.json, then explore source files to verify',
         'root causes and provide code-level fixes.',
       ].join('\n');
 

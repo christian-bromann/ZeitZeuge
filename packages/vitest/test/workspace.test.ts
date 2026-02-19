@@ -1,6 +1,4 @@
 import { test, expect, describe } from 'bun:test';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { createVitestWorkspace, mergeHotFunctions } from '../src/workspace.js';
 import type {
   TestFileTiming,
@@ -72,29 +70,22 @@ function makeCorrelatedProfile(overrides?: Partial<CorrelatedProfile>): Correlat
 }
 
 /**
- * Helper: read a file from the workspace backend's cwd (temp dir).
- * FilesystemBackend stores the root as `cwd`.
+ * Helper: read a file from the workspace backend using downloadFiles.
+ * VfsSandbox stores files in an in-memory VFS, so we use its API
+ * instead of reading from disk.
  */
-function readWorkspaceFile(backend: any, filePath: string): string {
-  const rootDir = backend.cwd;
-  if (!rootDir) {
-    throw new Error('Could not determine backend cwd');
+async function readWorkspaceFile(backend: any, filePath: string): Promise<string> {
+  const results = await backend.downloadFiles([filePath]);
+  const result = results[0];
+  if (!result || result.error) {
+    throw new Error(`File not found in workspace: ${filePath}`);
   }
-  const relPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-  return readFileSync(join(rootDir, relPath), 'utf-8');
+  return new TextDecoder().decode(result.content);
 }
 
-function listWorkspaceDir(backend: any, dirPath: string): string[] {
-  const rootDir = backend.cwd;
-  if (!rootDir) {
-    throw new Error('Could not determine backend cwd');
-  }
-  const relPath = dirPath.startsWith('/') ? dirPath.slice(1) : dirPath;
-  try {
-    return readdirSync(join(rootDir, relPath));
-  } catch {
-    return [];
-  }
+async function workspaceFileExists(backend: any, filePath: string): Promise<boolean> {
+  const results = await backend.downloadFiles([filePath]);
+  return results[0] && !results[0].error;
 }
 
 describe('createVitestWorkspace', () => {
@@ -127,7 +118,7 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const summary = JSON.parse(readWorkspaceFile(backend, '/summary.json'));
+      const summary = JSON.parse(await readWorkspaceFile(backend, '/summary.json'));
 
       expect(summary.totalTests).toBe(6);
       expect(summary.totalDuration).toBe(1000);
@@ -137,7 +128,7 @@ describe('createVitestWorkspace', () => {
       expect(summary.slowestFile).toBe('test/b.test.ts');
       expect(summary.slowestFileDuration).toBe(700);
     } finally {
-      cleanup();
+      await cleanup();
     }
   });
 
@@ -153,14 +144,14 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const overview = JSON.parse(readWorkspaceFile(backend, '/timing/overview.json'));
+      const overview = JSON.parse(await readWorkspaceFile(backend, '/timing/overview.json'));
 
       expect(Array.isArray(overview)).toBe(true);
       expect(overview.length).toBe(1);
       expect(overview[0].file).toBe('test/example.test.ts');
       expect(overview[0].tests.length).toBe(3);
     } finally {
-      cleanup();
+      await cleanup();
     }
   });
 
@@ -182,7 +173,7 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const slow = JSON.parse(readWorkspaceFile(backend, '/timing/slow-tests.json'));
+      const slow = JSON.parse(await readWorkspaceFile(backend, '/timing/slow-tests.json'));
 
       // Only tests > 100ms threshold
       expect(slow.length).toBe(2);
@@ -192,7 +183,7 @@ describe('createVitestWorkspace', () => {
       expect(slow[1].name).toBe('medium test');
       expect(slow[1].duration).toBe(150);
     } finally {
-      cleanup();
+      await cleanup();
     }
   });
 
@@ -208,13 +199,13 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const index = JSON.parse(readWorkspaceFile(backend, '/profiles/index.json'));
+      const index = JSON.parse(await readWorkspaceFile(backend, '/profiles/index.json'));
 
       expect(Array.isArray(index)).toBe(true);
       expect(index.length).toBe(1);
       expect(index[0].testFile).toBe('test/example.test.ts');
     } finally {
-      cleanup();
+      await cleanup();
     }
   });
 
@@ -230,17 +221,14 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const profileFiles = listWorkspaceDir(backend, '/profiles/').filter(
-        (f) => f !== 'index.json',
-      );
-      expect(profileFiles.length).toBe(1);
+      const expectedProfilePath = '/profiles/test_example.test.ts.json';
+      expect(await workspaceFileExists(backend, expectedProfilePath)).toBe(true);
 
-      // Verify the profile content is valid JSON with expected fields
-      const profileContent = JSON.parse(readWorkspaceFile(backend, `/profiles/${profileFiles[0]}`));
+      const profileContent = JSON.parse(await readWorkspaceFile(backend, expectedProfilePath));
       expect(profileContent.profilePath).toBeDefined();
       expect(profileContent.duration).toBeDefined();
     } finally {
-      cleanup();
+      await cleanup();
     }
   });
 
@@ -256,10 +244,10 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const content = readWorkspaceFile(backend, '/tests/example.test.ts');
+      const content = await readWorkspaceFile(backend, '/tests/example.test.ts');
       expect(content).toBe("import { test } from 'vitest';");
     } finally {
-      cleanup();
+      await cleanup();
     }
   });
 
@@ -280,10 +268,10 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const content = readWorkspaceFile(backend, '/src/utils.ts');
+      const content = await readWorkspaceFile(backend, '/src/utils.ts');
       expect(content).toBe('export function hotFn() {}');
     } finally {
-      cleanup();
+      await cleanup();
     }
   });
 
@@ -304,10 +292,10 @@ describe('createVitestWorkspace', () => {
     });
 
     try {
-      const content = readWorkspaceFile(backend, '/src/minor.ts');
+      const content = await readWorkspaceFile(backend, '/src/minor.ts');
       expect(content).toBe('export function minorFn() {}');
     } finally {
-      cleanup();
+      await cleanup();
     }
   });
 });

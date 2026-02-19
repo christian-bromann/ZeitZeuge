@@ -22,23 +22,26 @@ export {
  * read source files based on what the data reveals. This avoids the token
  * explosion from reading all source files upfront.
  */
-export const BROWSER_TOOL_CALL_STRATEGY = `## CRITICAL: Tool call strategy — data first, source selectively
+export const BROWSER_TOOL_CALL_STRATEGY = `## CRITICAL: Tool call strategy — scripts first, source selectively
 
-Your FIRST turn MUST contain read_file calls ONLY for the data files (JSON)
-listed under "Data files" in "FILES IN THIS WORKSPACE" above. Batch them
-into ONE turn. Do NOT read any source files in your first turn.
+Your FIRST turn MUST run analysis scripts against the data files (JSON) to
+extract a concise summary of issues. Use the pre-built helper scripts in
+skills/browser-analysis/helpers/ or write your own using the data-scripting
+skill. Do NOT read data JSON files directly with read_file.
 
-After analyzing the data, read at most 1-3 source files that are directly
-implicated by the issues you found. Derive paths from script URLs in the data
-(e.g. a URL ending in "abc123.js" → /scripts/abc123.js). If no source file
-is implicated, skip reading source files entirely and report findings from
-the data alone.
+After your analysis scripts identify specific issues, read at most 1-3
+source files that are directly implicated. Derive paths from script URLs
+in the data (e.g. a URL ending in "abc123.js" → scripts/abc123.js).
+
+PREFERRED actions:
+- execute_command with pre-built helper scripts or custom Node.js scripts
+- read_file for source code files you need to see verbatim
 
 FORBIDDEN actions:
 - ls — NEVER call ls.
 - glob — NEVER call glob.
-- Reading ALL source files — only read the specific ones the data points to.
-- Reading source files in the first turn — always read data first.
+- read_file on data JSON files — use scripts to extract what you need.
+- Reading ALL source files — only read the specific ones your scripts point to.
 - Reading more than 3 source files — focus on the most impactful issues.`;
 
 /**
@@ -48,7 +51,7 @@ FORBIDDEN actions:
  */
 export const MINIFIED_SOURCE_HANDLING = `## Handling minified / compiled source files
 
-The JavaScript files in /scripts/ are captured from a PRODUCTION page. They are
+The JavaScript files in scripts/ are captured from a PRODUCTION page. They are
 almost always minified, bundled, or compiled (e.g. by webpack, Vite, Turbopack).
 Signs of compiled code: single very long lines, mangled 1-2 character variable
 names, no whitespace or comments.
@@ -70,27 +73,27 @@ un-minified CSS.`;
 
 export const WORKSPACE_STRUCTURE = `## Workspace structure
 
-- /heap/summary.json — Parsed V8 heap snapshot: largest objects, type stats,
+- heap/summary.json — Parsed V8 heap snapshot: largest objects, type stats,
   constructor stats, detached DOM nodes, closure stats
-- /trace/summary.json — Page load metrics: timing, long tasks, render-blocking
+- trace/summary.json — Page load metrics: timing, long tasks, render-blocking
   resources, resource breakdown
-- /trace/network-waterfall.json — Every network request with timing, size,
+- trace/network-waterfall.json — Every network request with timing, size,
   priority, render-blocking status
-- /trace/asset-manifest.json — Index of all assets with paths to stored files
-- /trace/runtime/summary.json — Runtime trace overview: frame breakdown
+- trace/asset-manifest.json — Index of all assets with paths to stored files
+- trace/runtime/summary.json — Runtime trace overview: frame breakdown
   (scripting/layout/paint/GC), blocking function count, listener imbalances,
   GC stats
-- /trace/runtime/blocking-functions.json — Functions that blocked the main
+- trace/runtime/blocking-functions.json — Functions that blocked the main
   thread > 50ms, with script URL, line number, call stack, and duration
-- /trace/runtime/event-listeners.json — Event listener add/remove counts per
+- trace/runtime/event-listeners.json — Event listener add/remove counts per
   event type, with source locations
-- /trace/runtime/frame-breakdown.json — Time spent in scripting vs layout vs
+- trace/runtime/frame-breakdown.json — Time spent in scripting vs layout vs
   paint vs GC
-- /trace/runtime/raw-events.json — Full Chrome trace events (large file — read
+- trace/runtime/raw-events.json — Full Chrome trace events (large file — read
   to investigate specific function calls, layouts, GC, and event dispatches)
-- /scripts/*.js — Actual JavaScript source files captured during page load
-- /styles/*.css — Actual CSS source files
-- /html/document.html — The HTML document
+- scripts/*.js — Actual JavaScript source files captured during page load
+- styles/*.css — Actual CSS source files
+- html/document.html — The HTML document
 
 All files are listed in the "FILES IN THIS WORKSPACE" section of this prompt.
 Read them DIRECTLY — do NOT use ls or glob.`;
@@ -127,11 +130,11 @@ user interactions and paint updates.`;
 
 export const CROSS_REFERENCING = `## Cross-referencing data
 
-- When a script appears in BOTH /trace/runtime/blocking-functions.json (CPU)
-  AND /heap/summary.json (memory), mention both dimensions in the finding.
-- Check /trace/runtime/event-listeners.json for listener imbalances and
-  cross-reference with the actual addEventListener calls in /scripts/.
-- Use /trace/network-waterfall.json to identify sequential chains, then read
+- When a script appears in BOTH trace/runtime/blocking-functions.json (CPU)
+  AND heap/summary.json (memory), mention both dimensions in the finding.
+- Check trace/runtime/event-listeners.json for listener imbalances and
+  cross-reference with the actual addEventListener calls in scripts/.
+- Use trace/network-waterfall.json to identify sequential chains, then read
   the initiating script to confirm the dependency.
 - When GC pauses are significant, cross-reference with heap data to identify
   which constructors or allocation patterns are responsible.`;
