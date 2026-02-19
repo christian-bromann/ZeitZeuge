@@ -14,29 +14,32 @@ export const VERIFICATION_RULES = `## Verification rules (mandatory for every fi
 2. **Copy code verbatim** — beforeCode must be copied exactly from the file you
    read, not paraphrased. Line numbers must match what you observed.
 3. **Provide a working fix** — afterCode must be a complete drop-in replacement
-   that compiles, preserves the function signature, and only fixes the perf issue.
-4. **Never omit beforeCode/afterCode** — every finding MUST have both fields set.`;
+   that compiles, preserves the EXACT function signature, and only fixes the perf issue.
+4. **Never omit beforeCode/afterCode** — every finding MUST have both fields set.
+5. **Do NOT change sync to async** — if a function is synchronous, afterCode must
+   also be synchronous. Replace the inefficient implementation with a faster sync
+   alternative (e.g., use crypto.createHash instead of a manual loop). Mention the
+   async alternative in the description, but keep afterCode as a sync drop-in.`;
 
 export const OUTPUT_FORMAT = `## Output requirements
 
-- Report ALL findings you discover — typically 3–8 per subagent. Do NOT
-  stop at 2-3 findings. Exhaustively analyze every function in every file.
+- Report ALL findings within YOUR scope — typically 3–5 per subagent.
+  Exhaustively analyze every function but stay within your assigned categories.
 - Each finding MUST have sourceFile, beforeCode, and afterCode
 - Be specific — name exact files, functions, and line numbers
 - Provide concrete code-level fixes, not generic advice
+- Do NOT report findings about test files — only about application source files
 
 ### CRITICAL: Multiple findings per function and per file
 
-- A single function CAN have multiple distinct issues — report each as a
-  SEPARATE finding. For example, hashPassword() might both block the event
-  loop AND allocate a TextEncoder on every call — these are TWO findings
-  with different categories.
+- A single function CAN have multiple distinct issues WITHIN YOUR SCOPE —
+  report each as a SEPARATE finding with a different category.
 - A single file often has MANY issues across different functions. Read the
-  ENTIRE file top-to-bottom and report EVERY issue you find, not just the
-  first one.
+  ENTIRE file top-to-bottom and report EVERY issue you find within your scope.
 - If function A calls function B and both have issues, report findings for
   BOTH functions separately.
-- Do NOT skip issues you consider "minor" — report them with severity: info.`;
+- Do NOT skip issues you consider "minor" — report them with severity: info.
+- Do NOT report issues that belong to another subagent's scope.`;
 
 export const FINDING_CATEGORIES = `## Finding categories
 
@@ -132,14 +135,43 @@ Every finding MUST include ALL of these fields:
   Copy the COMPLETE function (or the complete relevant section of 5-30 lines).
   Do NOT use "..." or "// ..." to skip lines. Include the full code block.
 - afterCode must be a COMPLETE, WORKING replacement for the beforeCode block:
-  - Same function signature, same exports, same return type
+  - SAME function signature — same name, same parameters, same return type
+  - SAME sync/async — if the original is sync, afterCode MUST be sync. Do NOT
+    add async/await, Promises, or callbacks. Replace the slow implementation
+    with a faster synchronous alternative instead.
+  - SAME exports — if the function is exported, afterCode must also export it
   - Must compile and produce identical behavior except for the performance fix
   - Include ALL the code from beforeCode, not just the changed lines
   - If the fix requires adding a module-level constant (e.g., hoisting a RegExp or
-    TextEncoder), include that declaration in afterCode
-  - For blocking operations: the fix should actually make the operation non-blocking
-    (e.g., use async APIs, yield to the event loop, or use workers)
-  - For excessive instantiation: hoist the construction to module level and reuse it
+    TextEncoder), include that declaration ABOVE the function in afterCode
+  - For blocking CPU loops: replace with a faster sync algorithm (e.g., use
+    crypto.createHash() instead of a manual loop). Mention async alternatives
+    in the finding description, not in afterCode.
+  - For excessive instantiation: hoist the construction to module level and reuse it.
+    Show the module-level const AND the modified function in afterCode.
+  - For listener leaks: show the fix (e.g., .once() instead of .on(), or return
+    an unsubscribe function). The beforeCode/afterCode should show the same function
+    with only the listener fix changed.
 - afterCode must NOT be a diff, pseudocode, or description of changes
 - If you cannot provide a concrete fix, still include beforeCode and describe
-  the fix approach in afterCode as a code comment within the actual code`;
+  the fix approach in afterCode as a code comment within the actual code
+
+### Code fix quality rules
+
+1. **Named functions for event handlers**: NEVER use anonymous functions with
+   .on() or .addEventListener(). Always define a named function or const so
+   it can be removed with .off(event, handler). Example:
+   - BAD:  emitter.on('change', () => { cache = null; })
+   - GOOD: const invalidateCache = () => { cache = null; };
+           emitter.on('change', invalidateCache);
+2. **Surgical listener removal**: Use .off(event, specificHandler) instead of
+   .removeAllListeners(). The cleanup/reset function must remove the EXACT
+   handler that was added.
+3. **Complete guard logic**: If you add a guard flag (e.g., listenerRegistered),
+   the cleanup function MUST reset the flag AND remove the specific listener.
+4. **Include surrounding context**: If the fix adds module-level variables
+   (guard flags, hoisted constants, named handlers), include ALL of them in
+   afterCode so it is self-contained.
+5. **Preserve existing functions**: If the original file has a cleanup/reset
+   function, update it in afterCode to properly undo whatever your fix added.
+   Do NOT ignore existing cleanup functions.`;

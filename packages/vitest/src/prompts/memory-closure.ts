@@ -79,6 +79,20 @@ record(obj) {
 }
 \`\`\`
 
+## Your scope — categories YOU own
+
+You are one of four parallel subagents. Use ONLY this category:
+- **gc-pressure** — for closures capturing outer-scope data, unbounded data
+  structures (Maps, arrays) without eviction, and closures retaining transient objects
+
+Do NOT report findings with categories: blocking-io, allocation, algorithm,
+serialization, listener-leak, event-handling, unnecessary-computation. Other
+subagents handle those. Specifically:
+- Do NOT report event listener leaks (the listener-leak agent handles those)
+- Do NOT report blocking I/O or CPU loops (the cpu-hotspot agent handles those)
+- Do NOT report algorithmic inefficiencies (the code-pattern agent handles those)
+Do NOT report findings about test files (tests/*.ts) — only about src/ files.
+
 ## Your workflow (follow this EXACTLY)
 
 1. In your FIRST turn, do ALL of these in ONE batch:

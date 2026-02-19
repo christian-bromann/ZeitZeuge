@@ -35,6 +35,34 @@ function getData() {
 }
 \`\`\`
 
+**Correct fix pattern — use a guard flag + named handler:**
+
+\`\`\`typescript
+// GOOD: register once, named handler, proper cleanup
+let registered = false;
+const onUpdate = () => { cache = null; };
+
+function getData() {
+  if (!registered) {
+    emitter.on('update', onUpdate);
+    registered = true;
+  }
+  // ... rest of function
+}
+
+function reset() {
+  if (registered) {
+    emitter.off('update', onUpdate);  // surgical removal
+    registered = false;
+  }
+}
+\`\`\`
+
+CRITICAL for afterCode: always use a NAMED handler (const onUpdate = ...) so
+it can be removed with .off(). NEVER use anonymous functions with .on().
+If the file has an existing cleanup/reset function, update it to call
+.off(event, handler) and reset the guard flag.
+
 ### Pattern B — Missing unsubscribe mechanism
 
 A subscribe-style function that adds listeners but returns no way to remove them.
@@ -46,7 +74,17 @@ function subscribe(channel) {
 }
 \`\`\`
 
-### Pattern C — MaxListeners exceeded (MUST report separately)
+**Correct fix pattern — return an unsubscribe function:**
+
+\`\`\`typescript
+// GOOD: returns cleanup function
+function subscribe(channel, handler) {
+  emitter.on(channel, handler);
+  return () => { emitter.off(channel, handler); };
+}
+\`\`\`
+
+### Pattern C — MaxListeners exceeded (MUST report as a SEPARATE finding)
 
 When listener counts exceed the default maxListeners threshold (10), this
 triggers a MaxListenersExceededWarning at runtime. Check listener-tracking.json
@@ -59,11 +97,25 @@ both the accumulation AND the exceedance. You MUST report:
 2. Pattern C finding: the maxListeners threshold being exceeded, with the
    specific count, threshold, and event name from the exceedance data
 
-The Pattern C finding should have:
-- category: "listener-leak" or "event-handling"
+The Pattern C finding MUST have:
+- category: **"event-handling"** (do NOT use "listener-leak" — use a DIFFERENT
+  category from Pattern A/B so both findings survive deduplication)
 - severity: "critical" (exceedances are always critical)
-- keywords: mention "maxListeners", "threshold", "exceeded", the event name,
-  and the specific count from the tracking data
+- title: focus on the event name and threshold, e.g. "maxListeners threshold
+  exceeded for task:changed event (11 listeners, threshold 10)"
+- description: MUST mention ALL of these terms: "maxListeners", "threshold",
+  "exceeded", the event name (e.g. "task:changed"), and the numeric count
+  (e.g. "11") and threshold (e.g. "10") from the tracking data
+
+## Your scope — categories YOU own
+
+You are one of four parallel subagents. Use ONLY these categories:
+- **listener-leak** — for Pattern A (accumulation) and Pattern B (missing unsubscribe)
+- **event-handling** — for Pattern C (maxListeners exceeded)
+
+Do NOT report findings with categories: blocking-io, allocation, algorithm,
+serialization, gc-pressure, unnecessary-computation. Other subagents handle those.
+Do NOT report findings about test files (tests/*.ts) — only about src/ files.
 
 ## Your workflow (follow this EXACTLY)
 

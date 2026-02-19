@@ -112,6 +112,20 @@ Functions named like \`computeCorrelations\`, \`computeTagCorrelations\`, \`find
    - Functions that do pairwise comparison of collection elements (O(n²) or O(n²×m²))
    - Duplicate detection using .filter() instead of Set (O(n²) vs O(n))
 
+## Your scope — categories YOU own
+
+You are one of four parallel subagents. Use ONLY these categories:
+- **algorithm** — for O(n²) loops, brute-force, pairwise comparison, expensive sort comparators
+- **serialization** — for unnecessary JSON.parse/JSON.stringify roundtrips
+- **unnecessary-computation** — for regex recompilation with constant patterns
+
+Do NOT report findings with categories: blocking-io, allocation, gc-pressure,
+listener-leak, event-handling. Other subagents handle those. Specifically:
+- Do NOT report per-call object instantiation (new TextEncoder, etc.) — the cpu-hotspot agent handles those
+- Do NOT report event listener leaks — the listener-leak agent handles those
+- Do NOT report closure/memory leaks — the memory-closure agent handles those
+Do NOT report findings about test files (tests/*.ts) — only about src/ files.
+
 ## Your workflow
 
 1. In your FIRST turn, do ALL of these in ONE batch:

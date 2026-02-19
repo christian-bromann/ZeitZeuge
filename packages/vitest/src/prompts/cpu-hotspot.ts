@@ -61,6 +61,16 @@ report them as TWO separate findings with different categories (blocking-io vs a
 Do NOT skip the instantiation finding just because you already reported a blocking finding
 for the same function.
 
+## Your scope — categories YOU own
+
+You are one of four parallel subagents. Use ONLY these categories:
+- **blocking-io** — for event-loop-blocking operations (sync crypto, CPU loops, sync I/O)
+- **allocation** — for per-call object instantiation (new TextEncoder, new Intl.DateTimeFormat, new Map per call)
+
+Do NOT report findings with categories: algorithm, serialization, gc-pressure,
+listener-leak, event-handling, unnecessary-computation. Other subagents handle those.
+Do NOT report findings about test files (tests/*.ts) — only about src/ files.
+
 ## Your workflow
 
 1. In your FIRST turn, do ALL of these in ONE batch:
