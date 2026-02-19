@@ -17,12 +17,13 @@ const geistMono = Geist_Mono({
 });
 
 const siteUrl = 'https://zeitzeuge.dev';
+const defaultTitle = 'zeitzeuge — AI-Powered Performance Analysis for Web & Tests';
 const defaultDescription =
-  'AI-powered performance analysis for frontend page loads and Vitest test suites. Captures V8 heap snapshots, performance traces, and CPU profiles — hands them to a Deep Agent that finds bottlenecks and suggests code-level fixes.';
+  'Captures V8 heap snapshots, performance traces, and CPU profiles. A Deep Agent finds bottlenecks and suggests code-level fixes.';
 
 export const metadata: Metadata = {
   title: {
-    default: 'zeitzeuge — AI-Powered Performance Analysis',
+    default: defaultTitle,
     template: '%s — zeitzeuge',
   },
   description: defaultDescription,
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'zeitzeuge',
-    title: 'zeitzeuge — AI-Powered Performance Analysis',
+    title: defaultTitle,
     description: defaultDescription,
     url: siteUrl,
     images: [
@@ -38,13 +39,13 @@ export const metadata: Metadata = {
         url: '/og?title=zeitzeuge&description=AI-Powered+Performance+Analysis',
         width: 1200,
         height: 630,
-        alt: 'zeitzeuge — AI-Powered Performance Analysis',
+        alt: defaultTitle,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'zeitzeuge — AI-Powered Performance Analysis',
+    title: defaultTitle,
     description: defaultDescription,
     images: ['/og?title=zeitzeuge&description=AI-Powered+Performance+Analysis'],
   },
