@@ -41,10 +41,7 @@ Scripts in \`<head>\` without \`async\` or \`defer\` that block first paint.
 </head>
 \`\`\`
 
-**How to detect:** Read /trace/summary.json for \`renderBlockingResources\`. For each
-render-blocking script, read the actual source file (from the \`path\` field) and judge
-whether it MUST be synchronous (e.g., it modifies the DOM before paint) or can safely
-be deferred.
+**How to detect:** Run \`execute_command: node skills/browser-analysis/helpers/analyze-waterfall.js\` to get a summary of render-blocking resources, large bundles, and sequential chains. For each render-blocking script, read the actual source file and judge whether it MUST be synchronous or can safely be deferred.
 
 ### 2. Render-Blocking CSS
 
@@ -59,8 +56,7 @@ Large stylesheets that block first contentful paint.
 <link rel="stylesheet" href="/styles/all.css" media="print" onload="this.media='all'">
 \`\`\`
 
-**How to detect:** Check render-blocking resources of type "Stylesheet" in the trace
-summary. Large stylesheets (>50KB) that block FCP are prime candidates for splitting.
+**How to detect:** The analyze-waterfall.js script flags render-blocking stylesheets. Large stylesheets (>50KB) that block FCP are prime candidates for splitting.
 
 ### 3. Large Bundles (>100KB)
 
@@ -75,8 +71,7 @@ const Chart = lazy(() => import('./components/Chart'));
 const DataGrid = lazy(() => import('./components/DataGrid'));
 \`\`\`
 
-**How to detect:** Read /trace/network-waterfall.json and identify scripts >100KB.
-Read their source to find imports or code that could be deferred.
+**How to detect:** The analyze-waterfall.js script identifies bundles >100KB. Read their source to find imports or code that could be deferred.
 
 ### 4. Sequential Waterfalls
 
@@ -90,34 +85,27 @@ Resources loaded sequentially that could be parallelised or preloaded.
 <link rel="preload" href="/fonts/body.woff2" as="font" type="font/woff2" crossorigin>
 \`\`\`
 
-**How to detect:** Read /trace/network-waterfall.json sorted by startTime. Look for
-chains where Resource B starts AFTER Resource A finishes, and both are needed for
-initial render. Calculate the potential savings from parallelisation.
+**How to detect:** The analyze-waterfall.js script detects sequential chains where Resource B starts AFTER Resource A finishes. Review the chains and calculate the potential savings from parallelisation.
 
 ### 5. Uncompressed or Poorly Cached Resources
 
 Assets served without compression or with missing cache headers.
 
-**How to detect:** Check the network waterfall for resources where \`encodedSize\` is
-close to \`decodedSize\` (no compression), or where large assets have no caching.
+**How to detect:** The analyze-waterfall.js script flags uncompressed resources where \`encodedSize\` is close to \`decodedSize\`, and large assets with no caching.
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for these data files in ONE batch:
-   - /trace/summary.json (PRIMARY — timing + render-blocking resources)
-   - /trace/network-waterfall.json (request timing and sizes)
-   - /trace/asset-manifest.json (index of stored assets)
-   Do NOT use ls or glob. Do NOT read source files yet.
-2. From the trace summary, identify:
-   - Render-blocking resources (scripts and stylesheets)
-   - Long tasks during page load
-   - Large bundles (>100KB)
-3. From the network waterfall, identify:
-   - Sequential chains that could be parallelised
-   - Resources with high load times
-4. Read ONLY the source files flagged as problematic (render-blocking,
-   oversized, etc.) from "Available source files" above. Batch these reads.
-5. For EACH issue, verify with the source and provide before/after code
+1. In your FIRST turn, run BOTH of these:
+   a. Run the workspace overview:
+      execute_command: node skills/browser-analysis/helpers/analyze-browser-workspace.js
+   b. Run the detailed waterfall analysis:
+      execute_command: node skills/browser-analysis/helpers/analyze-waterfall.js
+   Do NOT use ls, glob, or read_file on trace JSON files directly.
+2. From the script outputs, identify render-blocking resources, large bundles,
+   and sequential chains along with their workspace paths.
+3. Read ONLY the source files flagged as problematic. Batch these reads.
+4. For EACH issue, verify with the source and provide before/after code.
+5. For deeper analysis, use the data-scripting skill to write custom scripts.
 
 ${BROWSER_TOOL_CALL_STRATEGY}
 ${VERIFICATION_RULES}

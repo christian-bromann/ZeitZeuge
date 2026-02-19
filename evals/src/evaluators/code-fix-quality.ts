@@ -82,11 +82,21 @@ ${finding.afterCode}
       const text =
         typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
 
-      const jsonMatch = text.match(/\{[^}]+\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]) as Record<string, boolean>;
+      let parsed: Record<string, boolean> | null = null;
+      for (const m of text.matchAll(/\{[^{}]+\}/g)) {
+        try {
+          const candidate = JSON.parse(m[0]) as Record<string, boolean>;
+          if (typeof candidate.correctness === 'boolean') {
+            parsed = candidate;
+            break;
+          }
+        } catch {
+          // not the right JSON fragment, try next match
+        }
+      }
+
+      if (parsed) {
         evaluated++;
-        // A fix is "correct" if all three criteria pass
         if (parsed.correctness && parsed.drop_in && parsed.no_regressions) {
           correctCount++;
         }

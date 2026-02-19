@@ -100,7 +100,7 @@ Functions named like \`computeCorrelations\`, \`computeTagCorrelations\`, \`find
 
 ## How to detect
 
-1. Read /hot-functions/application.json to identify which functions are CPU-hot
+1. Read hot-functions/application.json to identify which functions are CPU-hot
 2. Read EVERY application source file — not just the hot ones
 3. Go through EVERY FUNCTION in every file and check for the patterns above
 4. Pay special attention to:
@@ -112,24 +112,32 @@ Functions named like \`computeCorrelations\`, \`computeTagCorrelations\`, \`find
    - Functions that do pairwise comparison of collection elements (O(n²) or O(n²×m²))
    - Duplicate detection using .filter() instead of Set (O(n²) vs O(n))
 
+## Your scope — categories YOU own
+
+You are one of four parallel subagents. Use ONLY these categories:
+- **algorithm** — for O(n²) loops, brute-force, pairwise comparison, expensive sort comparators
+- **serialization** — for unnecessary JSON.parse/JSON.stringify roundtrips
+- **unnecessary-computation** — for regex recompilation with constant patterns
+
+Do NOT report findings with categories: blocking-io, allocation, gc-pressure,
+listener-leak, event-handling. Other subagents handle those. Specifically:
+- Do NOT report per-call object instantiation (new TextEncoder, etc.) — the cpu-hotspot agent handles those
+- Do NOT report event listener leaks — the listener-leak agent handles those
+- Do NOT report closure/memory leaks — the memory-closure agent handles those
+Do NOT report findings about test files (tests/*.ts) — only about src/ files.
+
 ## Your workflow
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
-   - /hot-functions/application.json
-   - /scripts/application.json
-   - EVERY /src/ file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
-2. For EVERY function in EVERY source file, check for:
-   - O(n²) patterns (nested loops, .filter inside a loop, pairwise comparisons)
-   - O(n²×m²) patterns (nested iteration over items AND their sub-arrays like tags)
-   - JSON.parse/JSON.stringify for cloning (suggest structuredClone or spread)
-   - new RegExp() with constant patterns (should be module-level constants)
-   - Sort comparators that construct objects or do expensive work per comparison
-   - Functions called FROM sort comparators that create objects (e.g., new Date())
-   - Duplicate detection via .filter().length instead of Set (O(n²) → O(n))
-3. Report each distinct pattern as a separate finding — a single file may have 3-5 issues
-4. Regex recompilation and quadratic algorithms are SEPARATE finding types even if in
-   the same file. Report each with its own category (unnecessary-computation vs algorithm)
+1. In your FIRST turn, do ALL of these in ONE batch:
+   a. Run the workspace overview script:
+      execute_command: node skills/profile-analysis/helpers/analyze-workspace.js
+   b. Call read_file for ALL of these in ONE batch:
+      - scripts/application.json
+      - EVERY src/ file listed in "FILES IN THIS WORKSPACE" above
+   Do NOT use ls or glob.
+2. From the script output, identify which functions are CPU-hot.
+3. For EVERY function in EVERY source file, check for the patterns above.
+4. Report each distinct pattern as a separate finding.
 
 ${PARALLEL_TOOL_CALLS}
 ${VERIFICATION_RULES}

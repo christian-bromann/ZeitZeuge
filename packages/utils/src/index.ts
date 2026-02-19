@@ -47,6 +47,13 @@ export {
   type WorkspaceBuilderResult,
 } from './workspace/builder.js';
 
+// ── Skills ──
+export {
+  DATA_SCRIPTING_SKILL_FILES,
+  BROWSER_ANALYSIS_SKILL_FILES,
+  PROFILE_ANALYSIS_SKILL_FILES,
+} from './skills/index.js';
+
 // ── Output ──
 export { TodoProgressRenderer, type ChunkMeta } from './output/progress.js';
 export {

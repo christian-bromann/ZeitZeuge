@@ -43,8 +43,7 @@ Large \`<script>\` blocks in the HTML document that block rendering.
 </head>
 \`\`\`
 
-**How to detect:** Read /html/document.html and look for inline \`<script>\` blocks
-that are large (>20 lines or >1KB) and don't need to execute before first paint.
+**How to detect:** Run \`execute_command: node skills/browser-analysis/helpers/find-patterns.js\` to scan HTML, CSS, and JS files for known anti-patterns. Also read html/document.html to check for inline \`<script>\` blocks that are large (>20 lines or >1KB) and don't need to execute before first paint.
 
 ### 2. DOM Manipulation in Loops (Layout Thrashing)
 
@@ -68,9 +67,7 @@ function resizeAll(elements) {
 }
 \`\`\`
 
-**How to detect:** Search source files for loops containing both DOM reads
-(offsetWidth, offsetHeight, getBoundingClientRect, getComputedStyle) and
-DOM writes (style.*, setAttribute, classList.*).
+**How to detect:** The find-patterns.js script detects DOM read+write patterns in loops. Review the flagged files for loops containing both DOM reads (offsetWidth, offsetHeight, getBoundingClientRect, getComputedStyle) and DOM writes (style.*, setAttribute, classList.*).
 
 ### 3. Missing Event Delegation
 
@@ -90,9 +87,7 @@ document.querySelector('.list').addEventListener('click', (e) => {
 });
 \`\`\`
 
-**How to detect:** Search source files for querySelectorAll(...).forEach(... =>
-addEventListener...) patterns or similar loops that add the same listener type
-to many elements.
+**How to detect:** The find-patterns.js script flags querySelectorAll+forEach+addEventListener patterns. Review the flagged files for similar loops that add the same listener type to many elements.
 
 ### 4. Synchronous XMLHttpRequest or Blocking APIs
 
@@ -109,9 +104,7 @@ const response = await fetch('/api/data');
 const data = await response.json();
 \`\`\`
 
-**How to detect:** Search source files for \`XMLHttpRequest\` with the third
-argument set to \`false\`, or \`document.write()\`, or other deprecated
-synchronous APIs.
+**How to detect:** The find-patterns.js script flags synchronous XHR, \`document.write()\`, and other deprecated synchronous APIs.
 
 ### 5. Non-Passive Scroll/Touch Event Listeners
 
@@ -126,9 +119,7 @@ document.addEventListener('touchstart', handler);
 document.addEventListener('touchstart', handler, { passive: true });
 \`\`\`
 
-**How to detect:** Search source files for addEventListener calls with
-'scroll', 'touchstart', 'touchmove', or 'wheel' that don't specify
-\`{ passive: true }\` as the options argument.
+**How to detect:** The find-patterns.js script flags non-passive listeners for scroll, touchstart, touchmove, and wheel events.
 
 ### 6. CSS Issues
 
@@ -142,11 +133,7 @@ document.addEventListener('touchstart', handler, { passive: true });
 /* GOOD: use <link> with preconnect for external fonts */
 \`\`\`
 
-**How to detect:** Read CSS files and look for:
-- \`@import\` statements (add network round-trips vs \`<link>\`)
-- Complex selectors with many combinators
-- Large unused rule blocks
-- Missing \`will-change\` or \`contain\` for animated elements
+**How to detect:** The find-patterns.js script flags CSS \`@import\` statements and complex selectors. Also read CSS files directly to check for large unused rule blocks and missing \`will-change\` or \`contain\` for animated elements.
 
 ### 7. Missing Image Dimensions Causing Layout Shifts
 
@@ -160,26 +147,20 @@ Images without explicit width/height that cause Cumulative Layout Shift (CLS).
 <img src="/hero.jpg" width="1200" height="600" loading="lazy">
 \`\`\`
 
-**How to detect:** Read /html/document.html and look for \`<img>\` tags without
-\`width\` and \`height\` attributes.
+**How to detect:** The find-patterns.js script flags \`<img>\` tags without \`width\` and \`height\` attributes.
 
 ## Your workflow
 
-1. In your FIRST turn, call read_file for HTML and CSS files (listed under
-   "Data files" above) in ONE batch. Do NOT read script files yet.
-2. Check HTML for: inline \`<script>\` blocks, \`<img>\` without width/height,
-   render-blocking resource references.
-3. Check CSS for: \`@import\` statements, complex selectors, missing
-   \`will-change\`/\`contain\` for animated elements.
-4. Based on issues found in HTML/CSS, read ONLY the script files that need
-   inspection (from "Available script files" above). For example:
-   - Scripts referenced by inline patterns in HTML
-   - Scripts that the HTML loads synchronously
-   Batch these reads.
-5. Check each script for: DOM reads+writes in loops, querySelectorAll+forEach
-   +addEventListener (missing delegation), non-passive scroll/touch listeners,
-   synchronous XHR.
-6. Report EACH pattern as a separate finding with before/after code.
+1. In your FIRST turn, run BOTH of these:
+   a. Run the workspace overview:
+      execute_command: node skills/browser-analysis/helpers/analyze-browser-workspace.js
+   b. Run the pattern finder:
+      execute_command: node skills/browser-analysis/helpers/find-patterns.js
+   This searches HTML, CSS, and JS files for known anti-patterns.
+2. Also read HTML and CSS files directly (they're typically small) to check
+   for inline scripts, img without dimensions, and CSS issues.
+3. Based on issues found, read ONLY the script files that need inspection.
+4. Report EACH pattern as a separate finding with before/after code.
 
 ### CRITICAL: Be thorough but selective
 

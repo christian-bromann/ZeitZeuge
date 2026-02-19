@@ -35,6 +35,34 @@ function getData() {
 }
 \`\`\`
 
+**Correct fix pattern — use a guard flag + named handler:**
+
+\`\`\`typescript
+// GOOD: register once, named handler, proper cleanup
+let registered = false;
+const onUpdate = () => { cache = null; };
+
+function getData() {
+  if (!registered) {
+    emitter.on('update', onUpdate);
+    registered = true;
+  }
+  // ... rest of function
+}
+
+function reset() {
+  if (registered) {
+    emitter.off('update', onUpdate);  // surgical removal
+    registered = false;
+  }
+}
+\`\`\`
+
+CRITICAL for afterCode: always use a NAMED handler (const onUpdate = ...) so
+it can be removed with .off(). NEVER use anonymous functions with .on().
+If the file has an existing cleanup/reset function, update it to call
+.off(event, handler) and reset the guard flag.
+
 ### Pattern B — Missing unsubscribe mechanism
 
 A subscribe-style function that adds listeners but returns no way to remove them.
@@ -46,10 +74,20 @@ function subscribe(channel) {
 }
 \`\`\`
 
-### Pattern C — MaxListeners exceeded (MUST report separately)
+**Correct fix pattern — return an unsubscribe function:**
+
+\`\`\`typescript
+// GOOD: returns cleanup function
+function subscribe(channel, handler) {
+  emitter.on(channel, handler);
+  return () => { emitter.off(channel, handler); };
+}
+\`\`\`
+
+### Pattern C — MaxListeners exceeded (MUST report as a SEPARATE finding)
 
 When listener counts exceed the default maxListeners threshold (10), this
-triggers a MaxListenersExceededWarning at runtime. Check /listener-tracking.json
+triggers a MaxListenersExceededWarning at runtime. Check listener-tracking.json
 for the "exceedances" array — each entry shows an event type where the listener
 count exceeded the threshold.
 
@@ -59,31 +97,41 @@ both the accumulation AND the exceedance. You MUST report:
 2. Pattern C finding: the maxListeners threshold being exceeded, with the
    specific count, threshold, and event name from the exceedance data
 
-The Pattern C finding should have:
-- category: "listener-leak" or "event-handling"
+The Pattern C finding MUST have:
+- category: **"event-handling"** (do NOT use "listener-leak" — use a DIFFERENT
+  category from Pattern A/B so both findings survive deduplication)
 - severity: "critical" (exceedances are always critical)
-- keywords: mention "maxListeners", "threshold", "exceeded", the event name,
-  and the specific count from the tracking data
+- title: focus on the event name and threshold, e.g. "maxListeners threshold
+  exceeded for task:changed event (11 listeners, threshold 10)"
+- description: MUST mention ALL of these terms: "maxListeners", "threshold",
+  "exceeded", the event name (e.g. "task:changed"), and the numeric count
+  (e.g. "11") and threshold (e.g. "10") from the tracking data
+
+## Your scope — categories YOU own
+
+You are one of four parallel subagents. Use ONLY these categories:
+- **listener-leak** — for Pattern A (accumulation) and Pattern B (missing unsubscribe)
+- **event-handling** — for Pattern C (maxListeners exceeded)
+
+Do NOT report findings with categories: blocking-io, allocation, algorithm,
+serialization, gc-pressure, unnecessary-computation. Other subagents handle those.
+Do NOT report findings about test files (tests/*.ts) — only about src/ files.
 
 ## Your workflow (follow this EXACTLY)
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
-   - /listener-tracking.json (PRIMARY data source)
-   - EVERY /src/ file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
-2. From the listener tracking data, identify:
-   - exceedances (listener count > maxListeners threshold)
-   - add/remove imbalances (addCount >> removeCount for any event type)
-3. For EACH exceedance or imbalance found:
-   a. Note the event type, target type, and stack trace snippet
-   b. In the source files you already read, find the .on() / .addEventListener() /
-      .addListener() call
-   c. Check if a corresponding removal exists (.off(), .removeEventListener(),
-      .removeListener())
-   d. Check if the listener is added inside a function that gets called repeatedly
-4. ALSO: in the source files you already read, search for .on(, .addListener(,
-   .addEventListener( calls and verify each has a corresponding removal mechanism
-5. For each issue found, provide before/after code from the source you already read
+1. In your FIRST turn, do ALL of these in ONE batch:
+   a. Run the workspace overview script:
+      execute_command: node skills/profile-analysis/helpers/analyze-workspace.js
+   b. Run the detailed listener analysis script:
+      execute_command: node skills/profile-analysis/helpers/analyze-listeners.js
+   c. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.
+   Do NOT use ls or glob. Batch everything into ONE turn.
+2. From the script outputs, identify:
+   - exceedances (listenerCount > maxListeners threshold)
+   - add/remove imbalances (addCount with zero removeCount = leak candidates)
+3. In the source files you already read, find the .on() / .addEventListener() calls
+   and check if corresponding removal exists.
+4. For each issue found, provide before/after code.
 
 ## Important: Report EACH pattern as a SEPARATE finding
 

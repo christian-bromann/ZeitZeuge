@@ -30,6 +30,23 @@ import { createVitestWorkspace } from '../../src/workspace.js';
 import type { V8CpuProfile } from '../../src/types.js';
 import type { HotFunction, CorrelatedProfile, TestFileTiming } from '@zeitzeuge/utils';
 
+/**
+ * Read a file from the VfsSandbox backend using downloadFiles.
+ */
+async function readWorkspaceFile(backend: any, filePath: string): Promise<string> {
+  const results = await backend.downloadFiles([filePath]);
+  const result = results[0];
+  if (!result || result.error) {
+    throw new Error(`File not found in workspace: ${filePath}`);
+  }
+  return new TextDecoder().decode(result.content);
+}
+
+async function workspaceFileExists(backend: any, filePath: string): Promise<boolean> {
+  const results = await backend.downloadFiles([filePath]);
+  return results[0] && !results[0].error;
+}
+
 const FIXTURE_DIR = resolve(import.meta.dir, '..', 'fixtures', 'vitest-e2e');
 const RUNNER_PATH = join(FIXTURE_DIR, 'runner.mjs');
 const APP_SOURCE = join(FIXTURE_DIR, 'src', 'data-processing.mjs');
@@ -256,17 +273,23 @@ describe('e2e: Vitest integration pipeline', () => {
       });
 
       try {
-        const rootDir = (workspace.backend as any).cwd;
-
-        expect(existsSync(join(rootDir, 'summary.json'))).toBe(true);
-        expect(existsSync(join(rootDir, 'timing', 'overview.json'))).toBe(true);
-        expect(existsSync(join(rootDir, 'profiles', 'index.json'))).toBe(true);
-        expect(existsSync(join(rootDir, 'hot-functions', 'global.json'))).toBe(true);
-        expect(existsSync(join(rootDir, 'hot-functions', 'application.json'))).toBe(true);
-        expect(existsSync(join(rootDir, 'hot-functions', 'dependencies.json'))).toBe(true);
-        expect(existsSync(join(rootDir, 'scripts', 'application.json'))).toBe(true);
+        expect(await workspaceFileExists(workspace.backend, '/summary.json')).toBe(true);
+        expect(await workspaceFileExists(workspace.backend, '/timing/overview.json')).toBe(true);
+        expect(await workspaceFileExists(workspace.backend, '/profiles/index.json')).toBe(true);
+        expect(await workspaceFileExists(workspace.backend, '/hot-functions/global.json')).toBe(
+          true,
+        );
+        expect(
+          await workspaceFileExists(workspace.backend, '/hot-functions/application.json'),
+        ).toBe(true);
+        expect(
+          await workspaceFileExists(workspace.backend, '/hot-functions/dependencies.json'),
+        ).toBe(true);
+        expect(await workspaceFileExists(workspace.backend, '/scripts/application.json')).toBe(
+          true,
+        );
       } finally {
-        workspace.cleanup();
+        await workspace.cleanup();
       }
     });
 
@@ -301,9 +324,8 @@ describe('e2e: Vitest integration pipeline', () => {
       });
 
       try {
-        const rootDir = (workspace.backend as any).cwd;
         const appHotFunctions: HotFunction[] = JSON.parse(
-          readFileSync(join(rootDir, 'hot-functions', 'application.json'), 'utf-8'),
+          await readWorkspaceFile(workspace.backend, '/hot-functions/application.json'),
         );
 
         for (const fn of appHotFunctions) {
@@ -322,7 +344,7 @@ describe('e2e: Vitest integration pipeline', () => {
           }
         }
       } finally {
-        workspace.cleanup();
+        await workspace.cleanup();
       }
     });
 
@@ -357,16 +379,15 @@ describe('e2e: Vitest integration pipeline', () => {
       });
 
       try {
-        const rootDir = (workspace.backend as any).cwd;
         const appScripts = JSON.parse(
-          readFileSync(join(rootDir, 'scripts', 'application.json'), 'utf-8'),
+          await readWorkspaceFile(workspace.backend, '/scripts/application.json'),
         );
 
         expect(appScripts.length).toBeGreaterThan(0);
         expect(appScripts[0].workspacePath).toContain(APP_SOURCE_FILENAME);
         expect(appScripts[0].selfTime).toBeGreaterThan(0);
       } finally {
-        workspace.cleanup();
+        await workspace.cleanup();
       }
     });
   });

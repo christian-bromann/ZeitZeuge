@@ -1,12 +1,16 @@
 /**
  * Build a VFS workspace for Deep Agent analysis of Vitest test performance.
  *
- * Uses FilesystemBackend with virtualMode so the agent's absolute paths
- * (e.g. /summary.json) map to files inside a temp directory.
+ * Uses VfsSandbox from @langchain/node-vfs so the agent's absolute paths
+ * (e.g. /summary.json) map to files inside an in-memory virtual filesystem.
  */
 
 import type { BackendProtocol } from 'deepagents';
-import { createWorkspaceFromFiles } from '@zeitzeuge/utils';
+import {
+  createWorkspaceFromFiles,
+  DATA_SCRIPTING_SKILL_FILES,
+  PROFILE_ANALYSIS_SKILL_FILES,
+} from '@zeitzeuge/utils';
 
 import type { CorrelatedProfile, HotFunction, VitestWorkspaceOptions } from './types.js';
 
@@ -16,11 +20,11 @@ const SOURCE_SNIPPET_CONTEXT = 5;
 export interface VitestWorkspaceResult {
   /** Backend for use with createDeepAgent */
   backend: BackendProtocol;
-  /** Clean up the temporary directory when done */
-  cleanup: () => void;
-  /** Workspace-relative paths for application source files (e.g. "/src/utils/crypto.ts") */
+  /** Clean up sandbox resources when done */
+  cleanup: () => Promise<void>;
+  /** Workspace-relative paths for application source files (e.g. "src/utils/crypto.ts") */
   sourceFiles: string[];
-  /** Workspace-relative paths for test files (e.g. "/tests/tests/crypto.test.ts") */
+  /** Workspace-relative paths for test files (e.g. "tests/tests/crypto.test.ts") */
   testFiles: string[];
 }
 
@@ -385,8 +389,12 @@ export async function createVitestWorkspace(
     }
   }
 
+  // ── Skill files ──
+  Object.assign(files, DATA_SCRIPTING_SKILL_FILES);
+  Object.assign(files, PROFILE_ANALYSIS_SKILL_FILES);
+
   // ── Write all files to a temp directory ──
-  const { backend, cleanup } = createWorkspaceFromFiles(files, 'zeitzeuge-vitest-workspace-');
+  const { backend, cleanup } = await createWorkspaceFromFiles(files);
   return { backend, cleanup, sourceFiles: sourceFilesList, testFiles: testFilesList };
 }
 

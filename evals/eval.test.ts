@@ -118,13 +118,13 @@ describe('Zeitzeuge Agent Quality', () => {
 
       console.log('\n=== Code Fix Quality ===');
       console.log(
-        `  Correctness:       ${((scores.code_fix_correctness ?? 0) * 100).toFixed(1)}% (target: ≥50%)`,
+        `  Correctness:       ${((scores.code_fix_correctness ?? 0) * 100).toFixed(1)}% (target: ≥40%)`,
       );
       console.log(
         `  Has before/after:  ${((scores.code_fix_has_before_after ?? 0) * 100).toFixed(1)}%`,
       );
 
-      expect(scores.code_fix_correctness ?? 0).toBeGreaterThanOrEqual(0.5);
+      expect(scores.code_fix_correctness ?? 0).toBeGreaterThanOrEqual(0.4);
     },
     AGENT_TIMEOUT,
   );

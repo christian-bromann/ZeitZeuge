@@ -79,25 +79,35 @@ record(obj) {
 }
 \`\`\`
 
+## Your scope — categories YOU own
+
+You are one of four parallel subagents. Use ONLY this category:
+- **gc-pressure** — for closures capturing outer-scope data, unbounded data
+  structures (Maps, arrays) without eviction, and closures retaining transient objects
+
+Do NOT report findings with categories: blocking-io, allocation, algorithm,
+serialization, listener-leak, event-handling, unnecessary-computation. Other
+subagents handle those. Specifically:
+- Do NOT report event listener leaks (the listener-leak agent handles those)
+- Do NOT report blocking I/O or CPU loops (the cpu-hotspot agent handles those)
+- Do NOT report algorithmic inefficiencies (the code-pattern agent handles those)
+Do NOT report findings about test files (tests/*.ts) — only about src/ files.
+
 ## Your workflow (follow this EXACTLY)
 
-1. In your FIRST turn, call read_file for ALL of these in ONE batch:
-   - /hot-functions/application.json
-   - EVERY /src/ file listed in "FILES IN THIS WORKSPACE" above
-   Do NOT use ls or glob. The exact file paths are listed above.
-2. For each source file you read, look for:
-   - Module-level or class-level Maps, Sets, Arrays, or plain objects used as stores
-   - Any data structure where entries are added (.set, .push, .add, assignment)
-   - Whether a corresponding removal mechanism exists (delete, clear, evict, TTL, maxSize, splice)
-3. For each data structure that stores entries, check:
-   a. Are closures stored as values? Do those closures capture outer-scope variables?
-   b. Is the structure bounded? (has a max size, TTL, or periodic cleanup)
-   c. Are references to transient objects (requests, connections, events) retained?
-4. Cross-reference with the hot-functions data to check for
-   allocation-heavy functions (high hitCount or object creation)
-5. For each issue found, provide before/after code showing how to add
-   proper cleanup (TTL, maxSize, WeakRef, explicit disposal, or extracting
-   only the needed primitive values instead of capturing full objects)
+1. In your FIRST turn, do ALL of these in ONE batch:
+   a. Run the workspace overview script:
+      execute_command: node skills/profile-analysis/helpers/analyze-workspace.js
+   b. Run the leak finder script:
+      execute_command: node skills/profile-analysis/helpers/find-leaks.js
+   c. Call read_file for EVERY src/ file listed in "FILES IN THIS WORKSPACE" above.
+   Do NOT use ls or glob. Batch everything into ONE turn.
+2. From the script outputs, identify potential leak patterns and allocation hotspots.
+3. For each source file you read, look for:
+   - Module-level or class-level Maps, Sets, Arrays used as stores
+   - Whether a corresponding removal mechanism exists
+   - Closures stored as values that capture outer-scope variables
+4. For each issue found, provide before/after code with proper cleanup.
 
 ### CRITICAL: Report EVERY distinct issue, even in the same class
 
