@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Performance Test App</title>
+
+    <!-- PERF ISSUE: Render-blocking CSS import chain -->
+    <link rel="stylesheet" href="/src/styles/reset.css" />
+    <link rel="stylesheet" href="/src/styles/theme.css" />
+    <link rel="stylesheet" href="/src/styles/layout.css" />
+
+    <!-- PERF ISSUE: Render-blocking synchronous inline script -->
+    <script>
+      // Synchronous blocking computation in <head>
+      var config = {};
+      for (var i = 0; i < 50000; i++) {
+        config['key_' + i] = Math.random().toString(36);
+      }
+      window.__APP_CONFIG = config;
+    </script>
+
+    <!-- PERF ISSUE: Render-blocking external script without async/defer -->
+    <script src="/src/utils/analytics-blocking.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- PERF ISSUE: Images without explicit width/height -->
+    <img
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect fill='%23ccc' width='800' height='400'/%3E%3C/svg%3E"
+      alt="hero"
+    />
+    <img
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect fill='%23ddd' width='600' height='300'/%3E%3C/svg%3E"
+      alt="banner"
+    />
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
