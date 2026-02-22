@@ -14,6 +14,12 @@ const EVALS_DIR = resolve(dirname(import.meta.filename), '..');
 const FIXTURE_SITE_DIR = resolve(EVALS_DIR, 'fixture-site');
 const CLI_ENTRY = resolve(EVALS_DIR, '..', 'src', 'cli.ts');
 
+// eslint-disable-next-line no-control-regex
+const ANSI_RE = /\x1b\[[0-9;]*m/g;
+function stripAnsi(str: string): string {
+  return str.replace(ANSI_RE, '');
+}
+
 export interface RunCliOutput {
   findings: Finding[];
   metrics?: Record<string, unknown>;
@@ -32,18 +38,19 @@ export async function startFixtureSite(): Promise<{
     const child = spawn('bunx', ['vite', '--port', '5199', '--strictPort'], {
       cwd: FIXTURE_SITE_DIR,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, FORCE_COLOR: '0' },
+      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
     });
 
     let output = '';
     const timeout = setTimeout(() => {
       child.kill();
-      reject(new Error(`Vite dev server did not start within 30s. Output: ${output}`));
+      reject(new Error(`Vite dev server did not start within 30s. Output: ${stripAnsi(output)}`));
     }, 30_000);
 
     child.stdout?.on('data', (data: Buffer) => {
       output += data.toString();
-      const urlMatch = output.match(/Local:\s+(http:\/\/localhost:\d+)/);
+      const clean = stripAnsi(output);
+      const urlMatch = clean.match(/Local:\s+(http:\/\/localhost:\d+)/);
       if (urlMatch) {
         clearTimeout(timeout);
         const url = urlMatch[1]!;
