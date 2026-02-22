@@ -1,0 +1,63 @@
+{
+  "name": "@zeitzeuge/bun-test",
+  "version": "0.1.0",
+  "description": "Bun test runner integration for performance analysis powered by zeitzeuge.",
+  "keywords": [
+    "analysis",
+    "bun-test",
+    "performance",
+    "test-runner",
+    "zeitzeuge"
+  ],
+  "homepage": "https://github.com/christian-bromann/zeitzeuge",
+  "license": "MIT",
+  "author": "Christian Bromann <christian@bromann.dev>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/christian-bromann/zeitzeuge.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "module": "src/index.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build:js": "bun build.ts",
+    "build:types": "bunx tsc -p tsconfig.build.json",
+    "build": "bun run build:js && bun run build:types",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.1.25",
+    "@langchain/node-vfs": "^0.1.2",
+    "chalk": "^5.6.2",
+    "deepagents": "^1.8.0",
+    "langchain": "^1.2.23",
+    "ora": "^9.3.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@zeitzeuge/utils": "workspace:*",
+    "typescript": "^5"
+  },
+  "peerDependencies": {
+    "@langchain/anthropic": "^1.3.18",
+    "@langchain/openai": "^1.2.8"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/anthropic": {
+      "optional": true
+    },
+    "@langchain/openai": {
+      "optional": true
+    }
+  }
+}

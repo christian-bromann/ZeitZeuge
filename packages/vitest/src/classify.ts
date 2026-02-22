@@ -10,7 +10,7 @@ import type { SourceCategory } from './types.js';
 /** Patterns that identify test files. */
 const TEST_FILE_PATTERNS = [/\.test\./, /\.spec\./, /\.bench\./, /__tests__\//, /__mocks__\//];
 
-/** Patterns that identify framework internals (vitest, tinybench, v8). */
+/** Patterns that identify framework internals (vitest, tinybench, node:test, bun:test, v8). */
 const FRAMEWORK_PATTERNS = [
   /\/vitest\//,
   /\/tinybench\//,
@@ -19,6 +19,10 @@ const FRAMEWORK_PATTERNS = [
   /node:internal\//,
   /node:v8/,
   /node:worker_threads/,
+  /node:test/,
+  /bun:test/,
+  /bun:jsc/,
+  /bun:internal/,
   /\.XdZDrNZV\./, // vitest bundled chunks
   /\.CJqBMi0u\./, // vitest bundled chunks
 ];
@@ -47,8 +51,8 @@ export function classifyScript(
     }
   }
 
-  // Internal V8/node builtins
-  if (filePath.startsWith('node:') || filePath.startsWith('v8:')) {
+  // Internal V8/node/bun builtins
+  if (filePath.startsWith('node:') || filePath.startsWith('v8:') || filePath.startsWith('bun:')) {
     return 'framework';
   }
 
