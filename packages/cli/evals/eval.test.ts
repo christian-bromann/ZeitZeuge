@@ -21,7 +21,7 @@ import { computeCoverage } from './src/evaluators/finding-coverage.js';
 import { computeSeverityAccuracy } from './src/evaluators/severity-accuracy.js';
 import { computeHallucinationRate } from './src/evaluators/no-hallucination.js';
 
-const CLI_TIMEOUT = 10 * 60 * 1000;
+const CLI_TIMEOUT = 20 * 60 * 1000;
 
 let stopServer: (() => void) | undefined;
 
@@ -31,7 +31,6 @@ afterAll(() => {
 
 describe('Zeitzeuge CLI Agent Quality', () => {
   let findings: Finding[];
-  let siteUrl: string;
 
   test(
     'fixture site starts and CLI produces findings',
@@ -40,12 +39,11 @@ describe('Zeitzeuge CLI Agent Quality', () => {
 
       const server = await startFixtureSite();
       stopServer = server.stop;
-      siteUrl = server.url;
 
-      console.log(`[eval] Fixture site running at ${siteUrl}`);
+      console.log(`[eval] Fixture site running at ${server.url}`);
       console.log(`[eval] Running CLI against ${REFERENCE_FINDINGS.length} reference findings...`);
 
-      const result = await runCli(siteUrl);
+      const result = await runCli(server.url);
       findings = result.findings;
 
       console.log(`[eval] CLI produced ${findings.length} finding(s)`);

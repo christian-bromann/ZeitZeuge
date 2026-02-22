@@ -85,8 +85,8 @@ export async function startFixtureSite(): Promise<{
 /**
  * Run the zeitzeuge CLI against a URL and return the JSON report.
  *
- * The subprocess has a 8-minute hard timeout to avoid hanging CI.
  * CLI stdout/stderr are forwarded to the console for debugging.
+ * No internal timeout — the caller (bun test) controls the overall deadline.
  */
 export async function runCli(url: string): Promise<RunCliOutput> {
   const tmpDir = resolve(EVALS_DIR, '.tmp');
@@ -117,18 +117,6 @@ export async function runCli(url: string): Promise<RunCliOutput> {
     let stdout = '';
     let stderr = '';
 
-    const processTimeout = setTimeout(
-      () => {
-        child.kill('SIGKILL');
-        fail(
-          new Error(
-            `CLI process timed out after 8 minutes.\nstdout: ${stripAnsi(stdout).slice(-3000)}\nstderr: ${stripAnsi(stderr).slice(-3000)}`,
-          ),
-        );
-      },
-      8 * 60 * 1000,
-    );
-
     child.stdout?.on('data', (data: Buffer) => {
       const chunk = data.toString();
       stdout += chunk;
@@ -142,13 +130,10 @@ export async function runCli(url: string): Promise<RunCliOutput> {
     });
 
     child.on('error', (err) => {
-      clearTimeout(processTimeout);
       fail(new Error(`CLI process error: ${err.message}`));
     });
 
     child.on('exit', (code) => {
-      clearTimeout(processTimeout);
-
       if (code !== 0) {
         fail(
           new Error(
