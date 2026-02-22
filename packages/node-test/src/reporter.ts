@@ -18,8 +18,7 @@
 import { readdirSync, readFileSync, existsSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import type { TestFileTiming, CorrelatedProfile } from '@zeitzeuge/utils';
-import type { V8CpuProfile } from './types.js';
+import type { TestFileTiming, CorrelatedProfile, V8CpuProfile } from '@zeitzeuge/utils';
 
 /** Shape of node:test TestEvent objects. */
 interface TestEvent {

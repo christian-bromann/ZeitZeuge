@@ -54,6 +54,15 @@ export {
   PROFILE_ANALYSIS_SKILL_FILES,
 } from './skills/index.js';
 
+// ── Profiling ──
+export {
+  parseCpuProfile,
+  classifyScript,
+  classifyScripts,
+  type V8CpuProfile,
+  type V8CpuProfileNode,
+} from './profiling/index.js';
+
 // ── Output ──
 export { TodoProgressRenderer, type ChunkMeta } from './output/progress.js';
 export {

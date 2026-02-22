@@ -1,7 +1,4 @@
 /**
- * V8 CPU profile parser — re-exports the implementation from @zeitzeuge/vitest.
- *
- * The profile format is identical regardless of which test runner produced it,
- * since all runners use the same V8 engine's --cpu-prof output.
+ * V8 CPU profile parser — re-exports the shared implementation from @zeitzeuge/utils.
  */
-export { parseCpuProfile } from '../../vitest/src/profile-parser.js';
+export { parseCpuProfile, type V8CpuProfile, type V8CpuProfileNode } from '@zeitzeuge/utils';

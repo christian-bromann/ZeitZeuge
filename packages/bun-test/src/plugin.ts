@@ -44,7 +44,7 @@ import {
 import { parseBunProfile } from './profile-adapter.js';
 import { classifyScript } from './classify.js';
 import type { ZeitZeugeBunTestOptions } from './types.js';
-import type { TestFileTiming, CorrelatedProfile } from '@zeitzeuge/utils';
+import type { TestFileTiming, CorrelatedProfile, V8CpuProfile } from '@zeitzeuge/utils';
 
 /**
  * Analyze a completed Bun test run.
@@ -124,8 +124,8 @@ export async function analyzeTestRun(options: ZeitZeugeBunTestOptions = {}): Pro
   for (const pf of toParse) {
     try {
       const content = readFileSync(pf.path, 'utf-8');
-      const rawProfile = JSON.parse(content);
-      const summary = await parseBunProfile(rawProfile, pf.path);
+      const rawProfile: V8CpuProfile = JSON.parse(content);
+      const summary = parseBunProfile(rawProfile, pf.path);
 
       for (const fn of summary.hotFunctions) {
         fn.sourceCategory = classifyScript(fn.scriptUrl, resolvedProjectRoot, testFileSet);
