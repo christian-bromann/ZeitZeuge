@@ -1,6 +1,8 @@
-import { resolve } from 'node:path';
+import { workspaceBuildPlugin, checkWorkspaceDeps } from '../build-helpers.ts';
 
 const pkg = await Bun.file('./package.json').json();
+await checkWorkspaceDeps(pkg);
+
 const start = performance.now();
 const result = await Bun.build({
   entrypoints: ['src/index.ts'],
@@ -8,16 +10,7 @@ const result = await Bun.build({
   target: 'node',
   format: 'esm',
   packages: 'external',
-  plugins: [
-    {
-      name: 'bundle-workspace',
-      setup(build) {
-        build.onResolve({ filter: /^@zeitzeuge\// }, (args) => ({
-          path: resolve(import.meta.dir, `../${args.path.replace('@zeitzeuge/', '')}/src/index.ts`),
-        }));
-      },
-    },
-  ],
+  plugins: [workspaceBuildPlugin(import.meta.dir)],
 });
 
 const end = performance.now();
