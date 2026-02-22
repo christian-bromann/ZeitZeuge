@@ -84,6 +84,9 @@ export async function startFixtureSite(): Promise<{
 
 /**
  * Run the zeitzeuge CLI against a URL and return the JSON report.
+ *
+ * The subprocess has a 8-minute hard timeout to avoid hanging CI.
+ * CLI stdout/stderr are forwarded to the console for debugging.
  */
 export async function runCli(url: string): Promise<RunCliOutput> {
   const tmpDir = resolve(EVALS_DIR, '.tmp');
@@ -93,41 +96,72 @@ export async function runCli(url: string): Promise<RunCliOutput> {
   const outputPath = resolve(tmpDir, `eval-report-${Date.now()}.json`);
 
   return new Promise((resolvePromise, reject) => {
+    let settled = false;
+    const fail = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    };
+    const succeed = (value: RunCliOutput) => {
+      if (settled) return;
+      settled = true;
+      resolvePromise(value);
+    };
+
     const child = spawn('bun', ['run', CLI_ENTRY, url, '--output', outputPath, '--headless'], {
       cwd: resolve(EVALS_DIR, '..', '..', '..'),
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, FORCE_COLOR: '0' },
+      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
     });
 
     let stdout = '';
     let stderr = '';
 
+    const processTimeout = setTimeout(
+      () => {
+        child.kill('SIGKILL');
+        fail(
+          new Error(
+            `CLI process timed out after 8 minutes.\nstdout: ${stripAnsi(stdout).slice(-3000)}\nstderr: ${stripAnsi(stderr).slice(-3000)}`,
+          ),
+        );
+      },
+      8 * 60 * 1000,
+    );
+
     child.stdout?.on('data', (data: Buffer) => {
-      stdout += data.toString();
+      const chunk = data.toString();
+      stdout += chunk;
+      process.stdout.write(`[cli] ${stripAnsi(chunk)}`);
     });
 
     child.stderr?.on('data', (data: Buffer) => {
-      stderr += data.toString();
+      const chunk = data.toString();
+      stderr += chunk;
+      process.stderr.write(`[cli:err] ${stripAnsi(chunk)}`);
     });
 
     child.on('error', (err) => {
-      reject(new Error(`CLI process error: ${err.message}`));
+      clearTimeout(processTimeout);
+      fail(new Error(`CLI process error: ${err.message}`));
     });
 
     child.on('exit', (code) => {
+      clearTimeout(processTimeout);
+
       if (code !== 0) {
-        reject(
+        fail(
           new Error(
-            `CLI exited with code ${code}.\nstdout: ${stdout.slice(-2000)}\nstderr: ${stderr.slice(-2000)}`,
+            `CLI exited with code ${code}.\nstdout: ${stripAnsi(stdout).slice(-3000)}\nstderr: ${stripAnsi(stderr).slice(-3000)}`,
           ),
         );
         return;
       }
 
       if (!existsSync(outputPath)) {
-        reject(
+        fail(
           new Error(
-            `CLI completed but no JSON report found at ${outputPath}.\nstdout: ${stdout.slice(-2000)}`,
+            `CLI completed but no JSON report found at ${outputPath}.\nstdout: ${stripAnsi(stdout).slice(-3000)}`,
           ),
         );
         return;
@@ -139,12 +173,12 @@ export async function runCli(url: string): Promise<RunCliOutput> {
           findings: Finding[];
           metrics?: Record<string, unknown>;
         };
-        resolvePromise({
+        succeed({
           findings: report.findings ?? [],
           metrics: report.metrics,
         });
       } catch (err) {
-        reject(
+        fail(
           new Error(`Failed to parse CLI JSON output: ${err instanceof Error ? err.message : err}`),
         );
       }
