@@ -30,14 +30,15 @@ function severityScore(actual: string, expected: string): number {
   return 0.0;
 }
 
-export async function severityAccuracy({
-  outputs,
-}: {
-  inputs: Record<string, unknown>;
-  outputs: Record<string, unknown>;
-  referenceOutputs?: Record<string, unknown>;
-},
-referenceFindings: ReferenceFinding[] = REFERENCE_FINDINGS,
+export async function severityAccuracy(
+  {
+    outputs,
+  }: {
+    inputs: Record<string, unknown>;
+    outputs: Record<string, unknown>;
+    referenceOutputs?: Record<string, unknown>;
+  },
+  referenceFindings: ReferenceFinding[] = REFERENCE_FINDINGS,
 ): Promise<Record<string, number>> {
   const findings = (outputs?.findings ?? []) as Finding[];
   const coverage = computeCoverage(findings, referenceFindings);

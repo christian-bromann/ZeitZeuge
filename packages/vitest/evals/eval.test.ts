@@ -67,9 +67,7 @@ describe('Zeitzeuge Vitest Agent Quality', () => {
     console.log(
       `  Slow Code Path:           ${(coverage.slowCodePathCoverage * 100).toFixed(1)}% (target: ≥80%)`,
     );
-    console.log(
-      `  Closure Leak:             ${(coverage.closureLeakCoverage * 100).toFixed(1)}%`,
-    );
+    console.log(`  Closure Leak:             ${(coverage.closureLeakCoverage * 100).toFixed(1)}%`);
     console.log(
       `  Excessive Instantiation:  ${(coverage.excessiveInstantiationCoverage * 100).toFixed(1)}%`,
     );
