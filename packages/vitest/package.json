@@ -47,6 +47,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@zeitzeuge/utils": "workspace:*",
+    "langsmith": "^0.5.4",
+    "openevals": "^0.1.4",
     "typescript": "^5"
   },
   "peerDependencies": {
