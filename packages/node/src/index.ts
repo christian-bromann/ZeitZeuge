@@ -1,12 +1,12 @@
 /**
- * Public entry point for the @zeitzeuge/node-test integration.
+ * Public entry point for the @zeitzeuge/node integration.
  *
  * Usage with Node.js test runner:
  *
  * ```bash
  * node --test \
  *   --cpu-prof --cpu-prof-dir=.zeitzeuge-profiles \
- *   --test-reporter @zeitzeuge/node-test/reporter \
+ *   --test-reporter @zeitzeuge/node/reporter \
  *   --test-reporter-destination stdout \
  *   tests/*.test.js
  * ```

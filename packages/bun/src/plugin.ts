@@ -9,7 +9,7 @@
  *
  * ```ts
  * // In a script that runs after `bun test`:
- * import { analyzeTestRun } from '@zeitzeuge/bun-test';
+ * import { analyzeTestRun } from '@zeitzeuge/bun';
  *
  * await analyzeTestRun({
  *   profileDir: '.zeitzeuge-profiles',
@@ -21,10 +21,10 @@
  *
  * ```bash
  * # Step 1: Run tests with profiling
- * bun test --preload @zeitzeuge/bun-test/preload
+ * bun test --preload @zeitzeuge/bun/preload
  *
  * # Step 2: Analyze (can be combined with step 1 in a script)
- * bun -e "import { analyzeTestRun } from '@zeitzeuge/bun-test'; await analyzeTestRun();"
+ * bun -e "import { analyzeTestRun } from '@zeitzeuge/bun'; await analyzeTestRun();"
  * ```
  */
 

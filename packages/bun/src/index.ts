@@ -1,17 +1,17 @@
 /**
- * Public entry point for the @zeitzeuge/bun-test integration.
+ * Public entry point for the @zeitzeuge/bun integration.
  *
  * Usage:
  *
  * ```bash
  * # Run tests with profiling enabled
- * bun test --preload @zeitzeuge/bun-test/preload
+ * bun test --preload @zeitzeuge/bun/preload
  *
  * # Or programmatically analyze after test run
  * ```
  *
  * ```ts
- * import { analyzeTestRun } from '@zeitzeuge/bun-test';
+ * import { analyzeTestRun } from '@zeitzeuge/bun';
  *
  * await analyzeTestRun({
  *   profileDir: '.zeitzeuge-profiles',

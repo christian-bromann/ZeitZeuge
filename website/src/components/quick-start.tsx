@@ -17,12 +17,12 @@ export default defineConfig({
 const NODE_TEST_CODE = `# Run with CPU profiling + zeitzeuge reporter
 node --test \\
   --cpu-prof --cpu-prof-dir=.zeitzeuge-profiles \\
-  --test-reporter @zeitzeuge/node-test/reporter \\
+  --test-reporter @zeitzeuge/node/reporter \\
   --test-reporter-destination stdout \\
   tests/*.test.js`;
 
 const BUN_TEST_CODE = `// scripts/profile-tests.ts
-import { analyzeTestRun } from '@zeitzeuge/bun-test';
+import { analyzeTestRun } from '@zeitzeuge/bun';
 
 await Bun.$\`bun test\`;
 await analyzeTestRun();`;

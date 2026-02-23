@@ -1,10 +1,10 @@
 {
-  "name": "@zeitzeuge/node-test",
+  "name": "@zeitzeuge/bun",
   "version": "0.1.0",
-  "description": "Node.js test runner integration for performance analysis powered by zeitzeuge.",
+  "description": "Bun test runner integration for performance analysis powered by zeitzeuge.",
   "keywords": [
     "analysis",
-    "node-test",
+    "bun-test",
     "performance",
     "test-runner",
     "zeitzeuge"
@@ -17,8 +17,7 @@
     "url": "https://github.com/christian-bromann/zeitzeuge.git"
   },
   "files": [
-    "dist",
-    "reporter.mjs"
+    "dist"
   ],
   "type": "module",
   "module": "src/index.ts",
@@ -27,10 +26,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./reporter": {
-      "types": "./dist/reporter.d.ts",
-      "default": "./dist/reporter.js"
     }
   },
   "scripts": {
@@ -40,18 +35,17 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@langchain/core": "^1.1.25",
+    "@langchain/core": "^1.1.27",
     "@langchain/node-vfs": "^0.1.2",
     "chalk": "^5.6.2",
     "deepagents": "^1.8.0",
-    "langchain": "^1.2.23",
+    "langchain": "^1.2.25",
     "ora": "^9.3.0",
     "picocolors": "^1.1.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/node": ">=22",
     "@zeitzeuge/utils": "workspace:*",
     "typescript": "^5"
   },
@@ -66,8 +60,5 @@
     "@langchain/openai": {
       "optional": true
     }
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

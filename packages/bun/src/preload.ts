@@ -5,11 +5,11 @@
  *
  * ```toml
  * [test]
- * preload = ["@zeitzeuge/bun-test/preload"]
+ * preload = ["@zeitzeuge/bun/preload"]
  * ```
  *
  * Or via CLI:
- *   bun test --preload @zeitzeuge/bun-test/preload
+ *   bun test --preload @zeitzeuge/bun/preload
  *
  * This preload script uses Bun's afterAll hook to capture profiling data
  * and timing information from each test file. Since Bun runs each test
@@ -18,7 +18,7 @@
  *
  * For CPU profiling, Bun supports the V8-compatible --cpu-prof flag
  * (since Bun v1.1+), so users should also pass:
- *   bun test --preload @zeitzeuge/bun-test/preload --cpu-prof
+ *   bun test --preload @zeitzeuge/bun/preload --cpu-prof
  */
 
 import { afterAll, afterEach } from 'bun:test';

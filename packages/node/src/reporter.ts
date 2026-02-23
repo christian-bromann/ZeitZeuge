@@ -5,7 +5,7 @@
  * Usage:
  *   node --test \
  *     --cpu-prof --cpu-prof-dir=.zeitzeuge-profiles \
- *     --test-reporter @zeitzeuge/node-test/reporter \
+ *     --test-reporter @zeitzeuge/node/reporter \
  *     --test-reporter-destination stdout \
  *     tests/*.test.js
  *

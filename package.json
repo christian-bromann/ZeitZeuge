@@ -30,6 +30,9 @@
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5"
   },
+  "overrides": {
+    "@langchain/core": "^1.1.27"
+  },
   "simple-git-hooks": {
     "pre-commit": "bunx lint-staged"
   },

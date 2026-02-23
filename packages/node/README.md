@@ -1,27 +1,21 @@
----
-title: Node.js Test Runner
-description: Custom reporter for the Node.js built-in test runner with V8 CPU profiling and AI-powered analysis.
-order: 3
----
+# @zeitzeuge/node
 
-# Node.js Test Runner
-
-Profile your `node --test` suite and get AI-powered analysis of your application code performance.
+Custom reporter for the Node.js built-in test runner (`node --test`) that collects V8 CPU profiles and runs AI-powered performance analysis on your application code.
 
 ## Installation
 
 ```bash
-npm install @zeitzeuge/node-test
+npm install @zeitzeuge/node
 ```
 
-## Setup
+## Quick Start
 
 Run your tests with CPU profiling enabled and the zeitzeuge reporter:
 
 ```bash
 node --test \
   --cpu-prof --cpu-prof-dir=.zeitzeuge-profiles \
-  --test-reporter @zeitzeuge/node-test/reporter \
+  --test-reporter @zeitzeuge/node/reporter \
   --test-reporter-destination stdout \
   tests/*.test.js
 ```
@@ -43,20 +37,13 @@ Create a script in `package.json` so profiling only runs when you explicitly opt
 {
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "test:profile": "node --test --cpu-prof --cpu-prof-dir=.zeitzeuge-profiles --test-reporter @zeitzeuge/node-test/reporter --test-reporter-destination stdout tests/*.test.js"
+    "test:profile": "node --test --cpu-prof --cpu-prof-dir=.zeitzeuge-profiles --test-reporter @zeitzeuge/node/reporter --test-reporter-destination stdout tests/*.test.js"
   }
 }
 ```
 
-Normal test runs stay fast and free of charge:
-
 ```bash
 npm test                # regular run — no profiling, no LLM cost
-```
-
-When you want to investigate performance:
-
-```bash
 npm run test:profile    # profiles tests + generates AI report
 ```
 
@@ -82,20 +69,38 @@ The reporter is configured via environment variables:
 
 ## Programmatic API
 
-You can also use the analysis pipeline programmatically:
+You can use the analysis pipeline programmatically:
 
 ```ts
 import {
   parseCpuProfile,
   classifyScript,
   computeMetrics,
-  createTestWorkspace,
+  createNodeTestWorkspace,
   analyzeTestPerformance,
-  initModel,
-} from '@zeitzeuge/node-test';
+} from '@zeitzeuge/node';
 ```
+
+### Exports
+
+| Export                    | Description                                                          |
+| ------------------------- | -------------------------------------------------------------------- |
+| `zeitZeugeReporter`       | Async generator reporter for `node --test`                           |
+| `analyzeTestPerformance`  | Run the Deep Agent analysis pipeline                                 |
+| `NODE_TEST_SYSTEM_PROMPT` | System prompt used for the Node.js test analysis                     |
+| `computeMetrics`          | Compute performance metrics from test timing and profile data        |
+| `parseCpuProfile`         | Parse a V8 `.cpuprofile` file into a structured summary              |
+| `createNodeTestWorkspace` | Build the workspace context sent to the analysis agent               |
+| `mergeHotFunctions`       | Merge and deduplicate hot functions across profiles                  |
+| `classifyScript`          | Classify a script URL as application, dependency, test, or framework |
 
 ## Requirements
 
 - Node.js >= 22 (for stable `node:test` with process isolation)
 - An LLM API key (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
+
+## Related packages
+
+- [`zeitzeuge`](../cli/) — CLI for page-load performance analysis
+- [`@zeitzeuge/vitest`](../vitest/) — Vitest plugin for test suite performance analysis
+- [`@zeitzeuge/utils`](../utils/) — Shared internal utilities

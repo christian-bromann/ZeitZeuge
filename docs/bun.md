@@ -11,7 +11,7 @@ Profile your `bun test` suite and get AI-powered analysis of your application co
 ## Installation
 
 ```bash
-bun add @zeitzeuge/bun-test
+bun add @zeitzeuge/bun
 ```
 
 ## Setup
@@ -19,13 +19,13 @@ bun add @zeitzeuge/bun-test
 Run your tests with CPU profiling and the zeitzeuge preload script:
 
 ```bash
-bun test --preload @zeitzeuge/bun-test/preload
+bun test --preload @zeitzeuge/bun/preload
 ```
 
 Then analyze the results:
 
 ```ts
-import { analyzeTestRun } from '@zeitzeuge/bun-test';
+import { analyzeTestRun } from '@zeitzeuge/bun';
 
 await analyzeTestRun();
 ```
@@ -35,9 +35,9 @@ Or combine both steps in a single script:
 ```ts
 // scripts/profile-tests.ts
 import { $ } from 'bun';
-import { analyzeTestRun } from '@zeitzeuge/bun-test';
+import { analyzeTestRun } from '@zeitzeuge/bun';
 
-await $`bun test --preload @zeitzeuge/bun-test/preload`;
+await $`bun test --preload @zeitzeuge/bun/preload`;
 await analyzeTestRun();
 ```
 
