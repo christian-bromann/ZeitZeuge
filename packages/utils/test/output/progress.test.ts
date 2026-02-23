@@ -1010,9 +1010,11 @@ describe('TodoProgressRenderer', () => {
       );
 
       const texts = spinner.persistedTexts();
-      const subLine = texts.find((t) => t.includes('[cpu-hotspot]'));
+      // Auto-synthesized progress line appears first, then the real tool call
+      const autoLine = texts.find((t) => t.includes('[cpu-hotspot]') && t.includes('▸'));
+      expect(autoLine).toBeDefined();
+      const subLine = texts.find((t) => t.includes('[cpu-hotspot]') && t.includes('read_file'));
       expect(subLine).toBeDefined();
-      expect(subLine).toContain('read_file');
     });
 
     test('falls back to [subagent] when no prior task() call provides a name', () => {
@@ -1054,8 +1056,9 @@ describe('TodoProgressRenderer', () => {
       );
 
       const texts = spinner.persistedTexts();
+      // 3 lines: auto-synthesized in-progress + 2 tool call lines
       const subLines = texts.filter((t) => t.includes('[listener-leak]'));
-      expect(subLines.length).toBe(2);
+      expect(subLines.length).toBe(3);
     });
 
     test('updates label when main agent spawns a different subagent', () => {
@@ -1122,10 +1125,9 @@ describe('TodoProgressRenderer', () => {
       );
 
       const texts = spinner.persistedTexts();
-      // Both the pre-reset and post-reset chunks should show [cpu-hotspot]
-      // because the dispatched subagent list is preserved (subagents are still running)
+      // 3 lines: auto-synthesized in-progress + pre-reset tool call + post-reset tool call
       const cpuHotspotLabels = texts.filter((t) => t.includes('[cpu-hotspot]'));
-      expect(cpuHotspotLabels.length).toBe(2);
+      expect(cpuHotspotLabels.length).toBe(3);
     });
   });
 
@@ -1178,10 +1180,12 @@ describe('TodoProgressRenderer', () => {
       ]);
 
       const texts = spinner.persistedTexts();
-      // 2/5 * 25% = 10%
-      const pctLine = texts.find((t) => t.includes('[cpu-hotspot]') && t.includes('▸'));
-      expect(pctLine).toBeDefined();
-      expect(pctLine).toContain('10%');
+      // The real write_todos ▸ line (not the auto-synthesized one) should show 10%
+      // 2/5 * 25% = 10% (auto entries contribute 0% each, real entry contributes 10%)
+      const pctLines = texts.filter((t) => t.includes('[cpu-hotspot]') && t.includes('▸'));
+      expect(pctLines.length).toBeGreaterThanOrEqual(2);
+      const realLine = pctLines[pctLines.length - 1]!;
+      expect(realLine).toContain('10%');
     });
 
     test('progress increases monotonically as subagents report', () => {
@@ -1292,6 +1296,7 @@ describe('TodoProgressRenderer', () => {
         mkdirSync(join(workDir, 'hot-functions'), { recursive: true });
         mkdirSync(join(workDir, 'scripts'), { recursive: true });
         mkdirSync(join(workDir, 'src'), { recursive: true });
+        mkdirSync(join(workDir, 'findings'), { recursive: true });
 
         writeFileSync(
           join(workDir, 'hot-functions', 'application.json'),
@@ -1329,15 +1334,36 @@ describe('TodoProgressRenderer', () => {
           }),
         );
 
-        const backend = new FilesystemBackend({ rootDir: workDir });
+        writeFileSync(
+          join(workDir, 'findings', 'cpu-hotspot.json'),
+          JSON.stringify({
+            findings: [
+              {
+                severity: 'warning',
+                title: 'Deep-clone via JSON round-trip in processRecords',
+                description:
+                  'processRecords() uses JSON.parse(JSON.stringify(r)) to clone each record, which is O(n) serialization per item.',
+                category: 'hot-function',
+                sourceFile: '/src/data.ts',
+                lineNumber: 4,
+                impactMs: 320,
+                suggestedFix: 'Use structuredClone(r) or a shallow spread instead.',
+                hotFunction: {
+                  name: 'processRecords',
+                  scriptUrl: '/src/data.ts',
+                  lineNumber: 42,
+                  selfTime: 320,
+                  selfPercent: 18.5,
+                },
+              },
+            ],
+          }),
+        );
+
+        const backend = new FilesystemBackend({ rootDir: workDir, virtualMode: true });
 
         // 2. Build the fake model with a multi-step message sequence.
-        //    The builder receives the bound tool names so it can call the
-        //    structured-output tool by its dynamic name on the final step.
-        const model = new FakeToolCallingModel((boundToolNames) => {
-          // The structured-output tool is the one starting with "extract-"
-          const structTool = boundToolNames.find((n) => n.startsWith('extract-')) ?? 'extract-1';
-
+        const model = new FakeToolCallingModel(() => {
           return [
             // Step 1: Create an analysis plan via write_todos
             new AIMessage({
@@ -1406,37 +1432,9 @@ describe('TodoProgressRenderer', () => {
                 },
               ],
             }),
-            // Step 6: Submit structured findings (terminates the agent loop)
+            // Step 6: Final response (terminates the agent loop)
             new AIMessage({
-              content: '',
-              tool_calls: [
-                {
-                  id: 'call_060',
-                  name: structTool,
-                  args: {
-                    findings: [
-                      {
-                        severity: 'warning',
-                        title: 'Deep-clone via JSON round-trip in processRecords',
-                        description:
-                          'processRecords() uses JSON.parse(JSON.stringify(r)) to clone each record, which is O(n) serialization per item.',
-                        category: 'hot-function',
-                        sourceFile: '/src/data.ts',
-                        lineNumber: 4,
-                        impactMs: 320,
-                        suggestedFix: 'Use structuredClone(r) or a shallow spread instead.',
-                        hotFunction: {
-                          name: 'processRecords',
-                          scriptUrl: '/src/data.ts',
-                          lineNumber: 42,
-                          selfTime: 320,
-                          selfPercent: 18.5,
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
+              content: 'Found 1 issue: 1 warning. Written to /findings/cpu-hotspot.json',
             }),
           ];
         });

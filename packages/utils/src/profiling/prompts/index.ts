@@ -13,18 +13,12 @@ export const TEST_ORCHESTRATOR_SYSTEM_PROMPT = `You are a performance analysis o
    For each, set subagent_type and description EXACTLY as written in the
    user message. Copy the FULL multi-line description verbatim, including
    every file path listed.
-3. After all 4 subagents return, consolidate ALL findings into your
-   structured response.
+3. After all 4 subagents return, respond with: "All subagents complete."
 
-## Consolidation rules — CRITICAL
+## CRITICAL rules
 
-- Include EVERY finding from EVERY subagent in your structured response.
-- Do NOT filter, drop, or summarize findings. Each distinct finding from each
-  subagent must appear as a separate entry.
-- If a subagent reports 6 findings, your output must contain all 6.
-- Preserve the exact sourceFile, category, severity, beforeCode, and afterCode
-  from each subagent finding. Do NOT rewrite or abbreviate them.
-- If two subagents report findings for the same function but with DIFFERENT
-  categories (e.g., blocking-io vs allocation), include BOTH as separate findings.
-- Do NOT add your own findings — only include what subagents reported.
-- Do NOT call read_file, grep, ls, or glob. All analysis is done by subagents.`;
+- Do NOT consolidate, re-read, or re-serialize findings. Subagents write
+  their findings to /findings/*.json files directly.
+- Do NOT add your own findings — all analysis is done by subagents.
+- Do NOT call read_file, grep, ls, or glob.
+- Your response should be SHORT — just confirm completion.`;

@@ -44,6 +44,13 @@ export class TodoProgressRenderer {
 
   /** Per-subagent todo state: nsKey → Map<todoContent, status>. */
   private subagentTodos = new Map<string, Map<string, string>>();
+  /**
+   * Subagent types with auto-synthesized progress entries, pending completion.
+   * Used when the LLM doesn't call `write_todos` — we auto-create a single
+   * progress entry per dispatched task and auto-complete them when the main
+   * agent resumes (indicating all subagents finished).
+   */
+  private pendingAutoTasks = new Set<string>();
 
   /**
    * Whether the spinner supports in-place animation.
@@ -200,6 +207,8 @@ export class TodoProgressRenderer {
     // --- Handle tool calls ---
     const toolCalls = extractToolCallsFromStreamChunk(chunk);
     if (toolCalls && toolCalls.length > 0) {
+      const newlyDispatched: string[] = [];
+
       for (const tc of toolCalls) {
         // When the main agent dispatches subagents, remember their names.
         if (!isSubagent && tc.name === 'task') {
@@ -209,6 +218,7 @@ export class TodoProgressRenderer {
             !this.dispatchedSubagents.includes(subagentType)
           ) {
             this.dispatchedSubagents.push(subagentType);
+            newlyDispatched.push(subagentType);
           }
         }
 
@@ -220,6 +230,12 @@ export class TodoProgressRenderer {
             if (Array.isArray(todos)) {
               const displayName = this.resolveSubagentName(nsKey, meta?.namespace);
               this.handleSubagentTodos(todos as AgentTodo[], nsKey, displayName);
+              // Real write_todos supersedes auto-synthesized progress
+              const autoNsKey = `auto:${displayName}`;
+              if (this.subagentTodos.has(autoNsKey)) {
+                this.subagentTodos.delete(autoNsKey);
+                this.pendingAutoTasks.delete(displayName);
+              }
             }
           }
           continue;
@@ -263,6 +279,37 @@ export class TodoProgressRenderer {
             ? `      ↳ ${pc.cyan(`[${displayName}]`)} ${signature}`
             : `  ↳ ${signature}`;
           this.persistLine(' ', pc.dim(label));
+        }
+      }
+
+      // Auto-synthesize "in_progress" entries for newly dispatched tasks.
+      // This provides visual progress even when agents don't call write_todos.
+      for (const name of newlyDispatched) {
+        const autoNsKey = `auto:${name}`;
+        this.handleSubagentTodos(
+          [{ content: 'analyzing', status: 'in_progress' }],
+          autoNsKey,
+          name,
+        );
+        this.pendingAutoTasks.add(name);
+      }
+
+      // Auto-complete all pending task entries when the main agent makes a
+      // non-task tool call (e.g. extract_findings), indicating subagents finished.
+      if (!isSubagent && this.pendingAutoTasks.size > 0) {
+        const hasNonTaskCalls = toolCalls.some(
+          (tc) => tc.name !== 'task' && tc.name !== 'write_todos',
+        );
+        if (hasNonTaskCalls) {
+          for (const name of this.pendingAutoTasks) {
+            const autoNsKey = `auto:${name}`;
+            this.handleSubagentTodos(
+              [{ content: 'analyzing', status: 'completed' }],
+              autoNsKey,
+              name,
+            );
+          }
+          this.pendingAutoTasks.clear();
         }
       }
     }
