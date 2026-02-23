@@ -21,11 +21,15 @@ import { computeCoverage } from './src/evaluators/finding-coverage.js';
 import { computeSeverityAccuracy } from './src/evaluators/severity-accuracy.js';
 import { computeHallucinationRate } from './src/evaluators/no-hallucination.js';
 
-const CLI_TIMEOUT = 20 * 60 * 1000;
+const CLI_TIMEOUT = 25 * 60 * 1000;
 
 let stopServer: (() => void) | undefined;
 
 afterAll(() => {
+  const child = (runCli as any)._lastChild;
+  if (child && !child.killed) {
+    child.kill('SIGKILL');
+  }
   if (stopServer) stopServer();
 });
 

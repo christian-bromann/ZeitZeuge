@@ -23,6 +23,7 @@ function stripAnsi(str: string): string {
 export interface RunCliOutput {
   findings: Finding[];
   metrics?: Record<string, unknown>;
+  child?: ChildProcess;
 }
 
 /**
@@ -86,6 +87,7 @@ export async function startFixtureSite(): Promise<{
  * Run the zeitzeuge CLI against a URL and return the JSON report.
  *
  * CLI stdout/stderr are forwarded to the console for debugging.
+ * A heartbeat timer logs every 60s so CI knows the process is alive.
  * No internal timeout — the caller (bun test) controls the overall deadline.
  */
 export async function runCli(url: string): Promise<RunCliOutput> {
@@ -100,11 +102,13 @@ export async function runCli(url: string): Promise<RunCliOutput> {
     const fail = (err: Error) => {
       if (settled) return;
       settled = true;
+      clearInterval(heartbeat);
       reject(err);
     };
     const succeed = (value: RunCliOutput) => {
       if (settled) return;
       settled = true;
+      clearInterval(heartbeat);
       resolvePromise(value);
     };
 
@@ -113,6 +117,15 @@ export async function runCli(url: string): Promise<RunCliOutput> {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
     });
+
+    const startTime = Date.now();
+    const heartbeat = setInterval(() => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      console.log(`[eval] CLI still running... (${elapsed}s elapsed, pid=${child.pid})`);
+    }, 60_000);
+
+    // Expose child for external cleanup
+    (runCli as any)._lastChild = child;
 
     let stdout = '';
     let stderr = '';
