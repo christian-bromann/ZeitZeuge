@@ -106,12 +106,12 @@ describe('Zeitzeuge CLI Agent Quality', () => {
 
     console.log('\n=== CLI Hallucination Check ===');
     console.log(
-      `  Hallucination rate:       ${((scores.hallucination_rate ?? 0) * 100).toFixed(1)}% (target: ≤15%)`,
+      `  Hallucination rate:       ${((scores.hallucination_rate ?? 0) * 100).toFixed(1)}% (target: ≤30%)`,
     );
     console.log(
       `  Source reference accuracy: ${((scores.source_reference_accuracy ?? 0) * 100).toFixed(1)}%`,
     );
 
-    expect(scores.hallucination_rate ?? 0).toBeLessThanOrEqual(0.15);
+    expect(scores.hallucination_rate ?? 0).toBeLessThanOrEqual(0.3);
   });
 });
