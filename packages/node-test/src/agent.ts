@@ -1,8 +1,7 @@
 /**
- * Deep Agent analysis for Node.js test runner — delegates to the shared
- * vitest agent since the analysis pipeline is identical.
+ * Deep Agent analysis — re-exports from @zeitzeuge/utils.
  */
 export {
   analyzeTestPerformance,
-  type VitestAnalysisContext as NodeTestAnalysisContext,
-} from '../../vitest/src/agent.js';
+  type TestAnalysisContext as NodeTestAnalysisContext,
+} from '@zeitzeuge/utils';

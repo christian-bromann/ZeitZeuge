@@ -1,8 +1,7 @@
 /**
- * Deep Agent analysis — re-exports from the vitest package since the
- * analysis pipeline is shared across all test runner integrations.
+ * Deep Agent analysis — re-exports from @zeitzeuge/utils.
  */
 export {
   analyzeTestPerformance,
-  type VitestAnalysisContext as BunTestAnalysisContext,
-} from '../../vitest/src/agent.js';
+  type TestAnalysisContext as BunTestAnalysisContext,
+} from '@zeitzeuge/utils';

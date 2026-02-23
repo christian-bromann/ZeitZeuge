@@ -24,14 +24,13 @@ import {
   parseCpuProfile,
   classifyScript,
   computeMetrics,
+  createTestWorkspace,
+  analyzeTestPerformance,
   initModel,
   printMetricsSummary,
   printFindingsVitest,
   writeTestReport,
 } from '@zeitzeuge/utils';
-
-import { createNodeTestWorkspace } from './workspace.js';
-import { analyzeTestPerformance } from './agent.js';
 
 import type { TestFileTiming, CorrelatedProfile, V8CpuProfile } from '@zeitzeuge/utils';
 
@@ -296,7 +295,7 @@ async function runAnalysis(opts: {
   const testSources = readTestSources(testTiming);
   const sourcePaths = readHotFunctionSources(topProfiles, projectRoot);
 
-  const workspace = await createNodeTestWorkspace({
+  const workspace = await createTestWorkspace({
     testTiming,
     profiles: topProfiles,
     testSources,

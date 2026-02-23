@@ -44,8 +44,7 @@ import {
 
 import { parseBunProfile } from './profile-adapter.js';
 import { classifyScript } from './classify.js';
-import { createBunTestWorkspace } from './workspace.js';
-import { analyzeTestPerformance } from './agent.js';
+import { createTestWorkspace, analyzeTestPerformance } from '@zeitzeuge/utils';
 import type { ZeitZeugeBunTestOptions } from './types.js';
 import type { TestFileTiming, CorrelatedProfile, V8CpuProfile } from '@zeitzeuge/utils';
 
@@ -165,7 +164,7 @@ export async function analyzeTestRun(options: ZeitZeugeBunTestOptions = {}): Pro
   const testSources = readTestSources(testTiming);
   const sourcePaths = readHotFunctionSources(topProfiles);
 
-  const workspace = await createBunTestWorkspace({
+  const workspace = await createTestWorkspace({
     testTiming,
     profiles: topProfiles,
     testSources,
