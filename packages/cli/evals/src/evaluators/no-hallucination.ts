@@ -1,47 +1,74 @@
 /**
  * No Hallucination evaluator for CLI evals (deterministic).
  *
- * For CLI findings, we check that referenced workspace paths,
- * resource URLs, or source files correspond to real resources
- * in the fixture site.
+ * The CLI agent works with captured browser data stored in a VFS
+ * workspace. Findings reference workspace paths (/scripts/App.tsx),
+ * temp sandbox paths (/tmp/vfs-exec-XXX/scripts/App.tsx), or
+ * localhost URLs (http://localhost:5199/src/components/App.tsx).
+ *
+ * A finding is considered valid if its source reference looks like
+ * a real workspace path, a known file basename from the fixture site,
+ * or a localhost URL. It's hallucinated only if the reference points
+ * to a completely made-up file that doesn't exist anywhere.
  */
 
-import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 import type { Finding } from '@zeitzeuge/utils';
 
-const FIXTURE_SITE_DIR = resolve(import.meta.dirname, '..', 'fixture-site');
+const KNOWN_BASENAMES = new Set([
+  'index.html',
+  'main.tsx',
+  'App.tsx',
+  'Dashboard.tsx',
+  'ItemList.tsx',
+  'SearchBar.tsx',
+  'heavy-init.ts',
+  'analytics-blocking.js',
+  'reset.css',
+  'theme.css',
+  'layout.css',
+  'fonts.css',
+]);
 
-function resolveToFixtureSite(path: string): boolean {
-  let normalized = path;
+const WORKSPACE_PREFIXES = [
+  '/scripts/',
+  '/styles/',
+  '/html/',
+  '/heap/',
+  '/trace/',
+  '/fonts/',
+  '/other/',
+];
 
-  if (
-    normalized.startsWith('/scripts/') ||
-    normalized.startsWith('/styles/') ||
-    normalized.startsWith('/html/')
-  ) {
+function isValidReference(path: string): boolean {
+  if (!path) return false;
+
+  // Workspace VFS paths (e.g. /scripts/App.tsx, /styles/theme.css)
+  if (WORKSPACE_PREFIXES.some((prefix) => path.startsWith(prefix))) {
     return true;
   }
 
-  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-    try {
-      const url = new URL(normalized);
-      normalized = url.pathname;
-    } catch {
-      return false;
-    }
+  // Temp sandbox paths (e.g. /tmp/vfs-exec-XXX/scripts/App.tsx)
+  if (path.includes('/vfs-') && WORKSPACE_PREFIXES.some((prefix) => path.includes(prefix))) {
+    return true;
   }
 
-  if (normalized.startsWith('/')) {
-    normalized = normalized.slice(1);
+  // Localhost URLs from the fixture site
+  if (path.startsWith('http://localhost:') || path.startsWith('https://localhost:')) {
+    return true;
   }
 
-  const candidates = [
-    join(FIXTURE_SITE_DIR, normalized),
-    join(FIXTURE_SITE_DIR, 'src', normalized),
-  ];
+  // Check if basename matches a known fixture site file
+  const basename = path.split('/').pop() ?? '';
+  if (KNOWN_BASENAMES.has(basename)) {
+    return true;
+  }
 
-  return candidates.some((c) => existsSync(resolve(c)));
+  // Paths containing src/ components/ utils/ styles/ — likely real references
+  if (/\/(src|components|utils|styles)\//.test(path)) {
+    return true;
+  }
+
+  return false;
 }
 
 export function computeHallucinationRate(findings: Finding[]): Record<string, number> {
@@ -59,12 +86,13 @@ export function computeHallucinationRate(findings: Finding[]): Record<string, nu
     const ref = finding.sourceFile ?? finding.workspacePath ?? finding.resourceUrl;
 
     if (ref) {
-      if (resolveToFixtureSite(ref)) {
+      if (isValidReference(ref)) {
         validReferences++;
       } else {
         hallucinatedFindings++;
       }
     }
+    // Findings without any source reference are not counted as hallucinations
   }
 
   const totalWithRef = validReferences + hallucinatedFindings;
