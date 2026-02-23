@@ -10,9 +10,9 @@ describe('orchestrator prompt', () => {
     expect(BROWSER_ORCHESTRATOR_PROMPT).toContain('call the `task` tool exactly 4 times');
   });
 
-  test('includes consolidation rules', () => {
-    expect(BROWSER_ORCHESTRATOR_PROMPT).toContain('Include EVERY finding from EVERY subagent');
-    expect(BROWSER_ORCHESTRATOR_PROMPT).toContain('Do NOT filter, drop, or summarize');
+  test('delegates finding persistence to subagents', () => {
+    expect(BROWSER_ORCHESTRATOR_PROMPT).toContain('Do NOT consolidate');
+    expect(BROWSER_ORCHESTRATOR_PROMPT).toContain('/findings/*.json');
   });
 
   test('prevents orchestrator from adding own findings', () => {
@@ -43,8 +43,9 @@ describe('subagent prompts include required shared fragments', () => {
       expect(prompt).toContain('NEVER call ls');
     });
 
-    test(`${name} includes FULL_RESPONSE_REQUIREMENT`, () => {
-      expect(prompt).toContain('Your final response is the ONLY thing the orchestrator sees');
+    test(`${name} includes WRITE_FINDINGS_REQUIREMENT`, () => {
+      expect(prompt).toContain('Persist your findings to a file');
+      expect(prompt).toContain('/findings/');
     });
 
     test(`${name} includes STRUCTURED_OUTPUT_FIELDS`, () => {

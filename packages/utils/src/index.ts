@@ -15,6 +15,7 @@ export { initModel } from './models/init.js';
 
 // ── Analysis ──
 export { invokeWithTodoStreaming } from './analysis/agent.js';
+export { mergeFindings } from './analysis/merge-findings.js';
 export {
   deduplicateFindings,
   rankFindings,
@@ -30,7 +31,7 @@ export {
   OUTPUT_FORMAT,
   FINDING_CATEGORIES,
   PARALLEL_TOOL_CALLS,
-  FULL_RESPONSE_REQUIREMENT,
+  WRITE_FINDINGS_REQUIREMENT,
   STRUCTURED_OUTPUT_FIELDS,
 } from './prompts/shared.js';
 export {

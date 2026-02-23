@@ -1,5 +1,4 @@
 import { createDeepAgent, type BackendProtocol, type SubAgent } from 'deepagents';
-import { toolStrategy } from 'langchain';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { Ora } from 'ora';
 
@@ -9,8 +8,8 @@ import { PAGE_LOAD_PROMPT } from './prompts/page-load.js';
 import { RUNTIME_BLOCKING_PROMPT } from './prompts/runtime-blocking.js';
 import { CODE_PATTERN_PROMPT } from './prompts/code-pattern.js';
 import {
-  FindingsSchema,
   invokeWithTodoStreaming,
+  mergeFindings,
   insertFileListIntoPrompt,
   buildFileListPromptSection,
   deduplicateFindings,
@@ -241,7 +240,6 @@ export async function analyze(
     backend,
     subagents,
     skills: ['skills/'],
-    responseFormat: toolStrategy(FindingsSchema),
   });
 
   const userMessage = context
@@ -253,13 +251,13 @@ export async function analyze(
         'to understand the overall picture, then explore source files to verify root causes.',
       ].join('\n');
 
-  const result = await invokeWithTodoStreaming(agent, userMessage, spinner, { animateProgress });
-  const findings = result.structuredResponse?.findings;
-  if (!Array.isArray(findings)) {
-    throw new Error(`Agent did not return structured findings: ${result.messages.at(-1)?.text}`);
+  await invokeWithTodoStreaming(agent, userMessage, spinner, { animateProgress });
+
+  const findings = await mergeFindings(backend);
+  if (findings.length === 0) {
+    throw new Error('Subagents did not write any findings to /findings/*.json');
   }
 
-  // Deduplicate and rank findings from the orchestrator + subagent results
   const deduped = deduplicateFindings(findings);
   return rankFindings(deduped);
 }

@@ -91,21 +91,27 @@ FORBIDDEN actions:
 - glob — NEVER call glob. File paths are already listed above.
 - Reading JSON data files with read_file — use scripts instead.`;
 
-export const FULL_RESPONSE_REQUIREMENT = `## CRITICAL — Your response MUST contain ALL findings in full
+export const WRITE_FINDINGS_REQUIREMENT = `## CRITICAL — Persist your findings to a file
 
-Your final response is the ONLY thing the orchestrator sees. If you write a short summary
-like "All N findings have been reported", the orchestrator CANNOT see your findings and
-they will be LOST.
+When your analysis is complete, you MUST write ALL findings to a JSON file using write_file.
 
-You MUST include the COMPLETE analysis in your response text. For EVERY finding, write out:
-- Title, category, severity, sourceFile, lineNumber
-- Full description of the issue
-- Complete beforeCode (verbatim from the source file)
-- Complete afterCode (working drop-in replacement)
+1. Call write_file with path: \`/findings/<YOUR_AGENT_NAME>.json\`
+   Use your agent name as the filename (e.g. memory-heap, page-load, runtime-blocking,
+   code-pattern, cpu-hotspot, listener-leak, memory-closure).
 
-Do NOT abbreviate. Do NOT say "findings have been reported" without listing them.
-The orchestrator will extract findings from your response text — if a finding is not
-in your text, it does not exist.`;
+2. The file content MUST be a JSON object with this exact structure:
+   { "findings": [ { "severity": "...", "title": "...", ... }, ... ] }
+   Each finding must include ALL required fields: severity, title, description,
+   category, sourceFile, lineNumber, suggestedFix, beforeCode, afterCode,
+   confidence, impactMs, estimatedSavingsMs.
+
+3. Write ALL findings in a SINGLE write_file call. Do NOT write findings one at a time.
+
+4. After writing the file, respond with ONLY a brief summary like:
+   "Found 4 issues: 2 critical, 1 warning, 1 info. Written to /findings/memory-heap.json"
+
+The orchestrator reads findings from the file directly — your text response is only for
+progress display. If a finding is not in the JSON file, it does not exist.`;
 
 export const STRUCTURED_OUTPUT_FIELDS = `## Structured output fields — REQUIRED for every finding
 

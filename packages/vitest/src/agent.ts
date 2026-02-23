@@ -1,11 +1,10 @@
 import { createDeepAgent, type BackendProtocol, type SubAgent } from 'deepagents';
-import { toolStrategy } from 'langchain';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { Ora } from 'ora';
 
 import {
-  FindingsSchema,
   invokeWithTodoStreaming,
+  mergeFindings,
   insertFileListIntoPrompt,
   buildFileListPromptSection,
   deduplicateFindings,
@@ -196,7 +195,6 @@ export async function analyzeTestPerformance(
     backend,
     subagents,
     skills: ['skills/'],
-    responseFormat: toolStrategy(FindingsSchema),
   });
 
   const userMessage = context
@@ -208,13 +206,13 @@ export async function analyzeTestPerformance(
         'root causes and provide code-level fixes.',
       ].join('\n');
 
-  const result = await invokeWithTodoStreaming(agent, userMessage, spinner, { animateProgress });
-  const findings = result.structuredResponse?.findings;
-  if (!Array.isArray(findings)) {
-    throw new Error(`Failed to analyze test performance: ${result.messages.at(-1)?.text}`);
+  await invokeWithTodoStreaming(agent, userMessage, spinner, { animateProgress });
+
+  const findings = await mergeFindings(backend);
+  if (findings.length === 0) {
+    throw new Error('Subagents did not write any findings to /findings/*.json');
   }
 
-  // Deduplicate and rank findings from the orchestrator + subagent results
   const deduped = deduplicateFindings(findings);
   return rankFindings(deduped);
 }

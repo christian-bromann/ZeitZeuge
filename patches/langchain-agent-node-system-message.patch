@@ -1,0 +1,35 @@
+--- a/dist/agents/nodes/AgentNode.js
++++ b/dist/agents/nodes/AgentNode.js
+@@ -184,6 +184,7 @@
+ 				const currentMiddleware = middleware;
+ 				const currentGetState = getMiddlewareState;
+ 				wrappedHandler = async (request) => {
++					const baselineSystemMessage = currentSystemMessage;
+ 					/**
+ 					* Merge context with default context of middleware
+ 					*/
+@@ -212,6 +213,7 @@
+ 					* Create handler that validates tools and calls the inner handler
+ 					*/
+ 					const handlerWithValidation = async (req) => {
++						currentSystemMessage = baselineSystemMessage;
+ 						/**
+ 						* Verify that the user didn't add any new tools.
+ 						* We can't allow this as the ToolNode is already initiated with given tools.
+--- a/dist/agents/nodes/AgentNode.cjs
++++ b/dist/agents/nodes/AgentNode.cjs
+@@ -185,6 +185,7 @@
+ 				const currentGetState = getMiddlewareState;
+ 				wrappedHandler = async (request) => {
++					const baselineSystemMessage = currentSystemMessage;
+ 					/**
+ 					* Merge context with default context of middleware
+ 					*/
+@@ -213,6 +214,7 @@
+ 					* Create handler that validates tools and calls the inner handler
+ 					*/
+ 					const handlerWithValidation = async (req) => {
++						currentSystemMessage = baselineSystemMessage;
+ 						/**
+ 						* Verify that the user didn't add any new tools.
+ 						* We can't allow this as the ToolNode is already initiated with given tools.
