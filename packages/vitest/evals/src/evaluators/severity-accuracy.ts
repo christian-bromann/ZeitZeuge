@@ -8,10 +8,9 @@
  */
 
 import type { Finding } from '@zeitzeuge/utils';
+import type { ReferenceFinding } from '../reference-findings.js';
 import { REFERENCE_FINDINGS } from '../reference-findings.js';
 import { computeCoverage } from './finding-coverage.js';
-
-// ── Severity ordering ────────────────────────────────────────
 
 const SEVERITY_ORDER: Record<string, number> = {
   critical: 2,
@@ -31,20 +30,18 @@ function severityScore(actual: string, expected: string): number {
   return 0.0;
 }
 
-// ── Main evaluator ───────────────────────────────────────────
-
-/**
- * LangSmith evaluator function for severity accuracy.
- */
-export async function severityAccuracy({
-  outputs,
-}: {
-  inputs: Record<string, unknown>;
-  outputs: Record<string, unknown>;
-  referenceOutputs?: Record<string, unknown>;
-}): Promise<Record<string, number>> {
+export async function severityAccuracy(
+  {
+    outputs,
+  }: {
+    inputs: Record<string, unknown>;
+    outputs: Record<string, unknown>;
+    referenceOutputs?: Record<string, unknown>;
+  },
+  referenceFindings: ReferenceFinding[] = REFERENCE_FINDINGS,
+): Promise<Record<string, number>> {
   const findings = (outputs?.findings ?? []) as Finding[];
-  const coverage = computeCoverage(findings);
+  const coverage = computeCoverage(findings, referenceFindings);
   const matchedRefIds = new Set(coverage.matchedFindings);
 
   if (matchedRefIds.size === 0) {
@@ -54,10 +51,9 @@ export async function severityAccuracy({
   let totalScore = 0;
   let count = 0;
 
-  for (const ref of REFERENCE_FINDINGS) {
+  for (const ref of referenceFindings) {
     if (!matchedRefIds.has(ref.id)) continue;
 
-    // Find the best-matching agent finding for this ref
     let bestFinding: Finding | null = null;
     let bestScore = 0;
 

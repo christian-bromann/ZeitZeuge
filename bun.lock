@@ -13,16 +13,6 @@
         "typescript": "^5",
       },
     },
-    "evals": {
-      "name": "evals",
-      "dependencies": {
-        "@zeitzeuge/utils": "workspace:*",
-        "@zeitzeuge/vitest": "workspace:*",
-        "langsmith": "^0.5.4",
-        "openevals": "^0.1.4",
-        "ora": "^9.3.0",
-      },
-    },
     "example": {
       "name": "example",
       "devDependencies": {
@@ -68,6 +58,7 @@
         "@langchain/core": "^1.1.25",
         "@langchain/node-vfs": "^0.1.2",
         "@langchain/openai": "^1.2.8",
+        "chalk": "^5.6.2",
         "deepagents": "^1.8.0",
         "langchain": "^1.2.23",
         "ora": "^9.3.0",
@@ -152,6 +143,8 @@
       "devDependencies": {
         "@types/bun": "latest",
         "@zeitzeuge/utils": "workspace:*",
+        "langsmith": "^0.5.4",
+        "openevals": "^0.1.4",
         "typescript": "^5",
       },
       "peerDependencies": {
@@ -1109,8 +1102,6 @@
     "esutils": ["esutils@2.0.3", "", {}, "sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g=="],
 
     "etag": ["etag@1.8.1", "", {}, "sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg=="],
-
-    "evals": ["evals@workspace:evals"],
 
     "event-target-shim": ["event-target-shim@5.0.1", "", {}, "sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ=="],
 

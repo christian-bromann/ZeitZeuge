@@ -13,8 +13,6 @@ import { initModel, type Finding } from '@zeitzeuge/utils';
 import { REFERENCE_FINDINGS, type ReferenceFinding } from '../reference-findings.js';
 import { computeCoverage } from './finding-coverage.js';
 
-// ── Judge prompt ─────────────────────────────────────────────
-
 const JUDGE_PROMPT = `You are an expert code reviewer evaluating the quality of a performance analysis finding.
 
 You will receive:
@@ -34,20 +32,17 @@ Respond with ONLY a JSON object like:
 
 Do not include any other text.`;
 
-// ── Helper: find matched reference findings ──────────────────
-
-function getMatchedPairs(findings: Finding[]): Array<{ finding: Finding; ref: ReferenceFinding }> {
-  const coverage = computeCoverage(findings);
+function getMatchedPairs(
+  findings: Finding[],
+  referenceFindings: ReferenceFinding[] = REFERENCE_FINDINGS,
+): Array<{ finding: Finding; ref: ReferenceFinding }> {
+  const coverage = computeCoverage(findings, referenceFindings);
   const pairs: Array<{ finding: Finding; ref: ReferenceFinding }> = [];
-
-  // Rebuild the matching to get the actual pairs
-  // (computeCoverage only returns IDs, we need the pairing)
   const matchedRefIds = new Set(coverage.matchedFindings);
 
-  for (const ref of REFERENCE_FINDINGS) {
+  for (const ref of referenceFindings) {
     if (!matchedRefIds.has(ref.id)) continue;
 
-    // Find the best matching finding for this ref
     let bestFinding: Finding | null = null;
     let bestScore = 0;
 
@@ -73,8 +68,6 @@ function getMatchedPairs(findings: Finding[]): Array<{ finding: Finding; ref: Re
   return pairs;
 }
 
-// ── Helper: read source file ─────────────────────────────────
-
 function readSourceFile(ref: ReferenceFinding, projectRoot: string): string {
   const filePath = join(resolve(projectRoot), ref.sourceFile);
   if (existsSync(filePath)) {
@@ -83,13 +76,6 @@ function readSourceFile(ref: ReferenceFinding, projectRoot: string): string {
   return '(source file not found)';
 }
 
-// ── Main evaluator ───────────────────────────────────────────
-
-/**
- * LangSmith evaluator function.
- *
- * Uses an LLM to judge the quality of each matched finding.
- */
 export async function findingQuality({
   inputs,
   outputs,
@@ -150,7 +136,6 @@ Issue: ${ref.description}`;
       const text =
         typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
 
-      // Extract JSON from the response
       const jsonMatch = text.match(/\{[^}]+\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]) as Record<string, number>;

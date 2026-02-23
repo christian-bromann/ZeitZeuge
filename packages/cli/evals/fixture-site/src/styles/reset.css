@@ -1,0 +1,14 @@
+/* PERF ISSUE: CSS @import causes sequential waterfall */
+@import url('./fonts.css');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f8f9fa;
+  color: #333;
+}

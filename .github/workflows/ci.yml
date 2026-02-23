@@ -38,6 +38,6 @@ jobs:
         run: bun run build
 
       - name: Test
-        run: bun test packages/
+        run: bun test packages/*/test/ packages/*/src/
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

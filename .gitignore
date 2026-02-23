@@ -36,3 +36,6 @@ agent-os
 
 # zeitzeuge profiling output
 .zeitzeuge-profiles
+
+# eval temporary files
+packages/cli/evals/.tmp

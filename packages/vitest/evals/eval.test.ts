@@ -1,10 +1,11 @@
 /**
- * Alternative eval runner using Bun's test framework.
+ * Vitest agent evaluation suite.
  *
- * Run with: cd evals && bun test eval.test.ts
+ * Run with: cd packages/vitest && bun test evals/eval.test.ts
  *
- * This wraps the same evaluation logic in a test harness with
- * assertions against scoring targets from the spec.
+ * Runs the vitest performance agent against pre-captured CPU profiles
+ * and listener-tracking data, then scores findings against 16 known
+ * performance flaws in the example project.
  */
 
 import { resolve, dirname } from 'node:path';
@@ -19,18 +20,15 @@ import { severityAccuracy } from './src/evaluators/severity-accuracy.js';
 import { noHallucination } from './src/evaluators/no-hallucination.js';
 import type { Finding } from '@zeitzeuge/utils';
 
-// Absolute paths derived from this file's location
-const ROOT = resolve(dirname(import.meta.filename), '..');
-const DATASET_PATH = resolve(ROOT, 'evals', 'dataset');
+const ROOT = resolve(dirname(import.meta.filename), '..', '..', '..');
+const DATASET_PATH = resolve(dirname(import.meta.filename), 'dataset');
 const PROJECT_ROOT = resolve(ROOT, 'example');
 
-// The agent can take several minutes to run
-const AGENT_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+const AGENT_TIMEOUT = 10 * 60 * 1000;
 
-describe('Zeitzeuge Agent Quality', () => {
+describe('Zeitzeuge Vitest Agent Quality', () => {
   let findings: Finding[];
 
-  // Run the agent once, share findings across tests
   test(
     'agent produces findings from static dataset',
     async () => {
@@ -79,7 +77,6 @@ describe('Zeitzeuge Agent Quality', () => {
     console.log(`  Missed:                   ${coverage.missedFindings.join(', ') || '(none)'}`);
     console.log(`  False Positives:          ${coverage.falsePositives}`);
 
-    // Scoring targets (soft — logged but not hard failures initially)
     expect(coverage.overallCoverage).toBeGreaterThanOrEqual(0.8);
     expect(coverage.blockingCoverage).toBeGreaterThanOrEqual(0.8);
     expect(coverage.listenerLeakCoverage).toBeGreaterThanOrEqual(0.7);
