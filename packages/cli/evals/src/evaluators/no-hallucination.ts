@@ -47,13 +47,21 @@ function isValidReference(path: string): boolean {
     return true;
   }
 
-  // Temp sandbox paths (e.g. /tmp/vfs-exec-XXX/scripts/App.tsx)
-  if (path.includes('/vfs-') && WORKSPACE_PREFIXES.some((prefix) => path.includes(prefix))) {
+  // Temp/sandbox paths containing any workspace prefix
+  if (WORKSPACE_PREFIXES.some((prefix) => path.includes(prefix))) {
     return true;
   }
 
-  // Localhost URLs from the fixture site
+  // Localhost or data URLs from the fixture site
   if (path.startsWith('http://localhost:') || path.startsWith('https://localhost:')) {
+    return true;
+  }
+  if (path.startsWith('data:')) {
+    return true;
+  }
+
+  // Absolute temp paths from the sandbox exec environment
+  if (path.startsWith('/tmp/')) {
     return true;
   }
 
@@ -63,8 +71,11 @@ function isValidReference(path: string): boolean {
     return true;
   }
 
-  // Paths containing src/ components/ utils/ styles/ — likely real references
-  if (/\/(src|components|utils|styles)\//.test(path)) {
+  // Common source file extensions in recognizable directory patterns
+  if (
+    /\.(tsx?|jsx?|css|html)$/.test(basename) &&
+    /\/(src|components|utils|styles|public)\//.test(path)
+  ) {
     return true;
   }
 
