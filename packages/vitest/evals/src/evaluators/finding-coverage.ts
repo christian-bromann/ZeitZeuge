@@ -6,10 +6,9 @@
  * to map agent findings to reference findings.
  */
 
-import { REFERENCE_FINDINGS, type FlawCategory } from '../reference-findings.js';
 import type { Finding } from '@zeitzeuge/utils';
-
-// ── Types ────────────────────────────────────────────────────
+import type { ReferenceFinding, FlawCategory } from '../reference-findings.js';
+import { REFERENCE_FINDINGS } from '../reference-findings.js';
 
 export interface CoverageResult {
   blockingCoverage: number;
@@ -29,34 +28,22 @@ interface MatchCandidate {
   score: number;
 }
 
-// ── Matching helpers ─────────────────────────────────────────
-
-/**
- * Check if the agent finding's sourceFile matches the reference sourceFile.
- * Uses fuzzy matching: basename or partial path match.
- */
 function matchesSourceFile(agentSourceFile: string | undefined, refSourceFile: string): boolean {
   if (!agentSourceFile) return false;
   const normalized = agentSourceFile.toLowerCase();
   const refNorm = refSourceFile.toLowerCase();
 
-  // Exact suffix match (e.g. "src/utils/crypto.ts" matches "/src/utils/crypto.ts")
   if (normalized.endsWith(refNorm)) return true;
 
-  // Basename match
   const agentBasename = normalized.split('/').pop() ?? '';
   const refBasename = refNorm.split('/').pop() ?? '';
   if (agentBasename && agentBasename === refBasename) return true;
 
-  // Partial path match (the reference path appears somewhere in the agent path)
   if (normalized.includes(refNorm)) return true;
 
   return false;
 }
 
-/**
- * Check if the agent finding's category matches any of the expected categories.
- */
 function matchesCategory(agentCategory: string | undefined, expectedCategories: string[]): boolean {
   if (!agentCategory) return false;
   return expectedCategories.some(
@@ -64,10 +51,6 @@ function matchesCategory(agentCategory: string | undefined, expectedCategories: 
   );
 }
 
-/**
- * Check if the agent finding's title or description contains any reference keywords.
- * Returns the number of keyword matches (for scoring).
- */
 function countKeywordMatches(finding: Finding, keywords: string[]): number {
   const text = `${finding.title ?? ''} ${finding.description ?? ''}`.toLowerCase();
   let matches = 0;
@@ -79,24 +62,25 @@ function countKeywordMatches(finding: Finding, keywords: string[]): number {
   return matches;
 }
 
-// ── Main evaluator ───────────────────────────────────────────
-
 /**
- * Compute finding coverage: map agent findings to reference findings
- * using the 2-of-3 matching algorithm.
+ * Compute finding coverage against a set of reference findings.
+ *
+ * Accepts an optional `referenceFindings` parameter for reuse across
+ * different eval suites. Falls back to the vitest REFERENCE_FINDINGS.
  */
-export function computeCoverage(findings: Finding[]): CoverageResult {
+export function computeCoverage(
+  findings: Finding[],
+  referenceFindings: ReferenceFinding[] = REFERENCE_FINDINGS,
+): CoverageResult {
   const candidates: MatchCandidate[] = [];
 
-  // Score every (finding, reference) pair
   for (let fi = 0; fi < findings.length; fi++) {
     const finding = findings[fi]!;
 
-    for (const ref of REFERENCE_FINDINGS) {
+    for (const ref of referenceFindings) {
       let signals = 0;
       let score = 0;
 
-      // Signal 1: source file match
       const sfMatch =
         matchesSourceFile(finding.sourceFile, ref.sourceFile) ||
         matchesSourceFile(finding.workspacePath, ref.sourceFile);
@@ -105,27 +89,23 @@ export function computeCoverage(findings: Finding[]): CoverageResult {
         score += 1;
       }
 
-      // Signal 2: category match
       if (matchesCategory(finding.category, ref.expectedCategories)) {
         signals++;
         score += 1;
       }
 
-      // Signal 3: keyword match (at least 2 keywords must appear)
       const kwMatches = countKeywordMatches(finding, ref.keywords);
       if (kwMatches >= 2) {
         signals++;
-        score += Math.min(kwMatches / ref.keywords.length, 1); // normalize
+        score += Math.min(kwMatches / ref.keywords.length, 1);
       }
 
-      // Need at least 2 of 3 signals
       if (signals >= 2) {
         candidates.push({ refId: ref.id, findingIdx: fi, score });
       }
     }
   }
 
-  // Greedy assignment: best score first, each ref matched at most once
   candidates.sort((a, b) => b.score - a.score);
 
   const matchedRefIds = new Set<string>();
@@ -140,14 +120,11 @@ export function computeCoverage(findings: Finding[]): CoverageResult {
   }
 
   const matchedFindings = Array.from(matchedRefIds);
-  const missedFindings = REFERENCE_FINDINGS.filter((r) => !matchedRefIds.has(r.id)).map(
-    (r) => r.id,
-  );
+  const missedFindings = referenceFindings.filter((r) => !matchedRefIds.has(r.id)).map((r) => r.id);
   const falsePositives = findings.length - matchedFindingIdxs.size;
 
-  // Per-category coverage
   const categoryCoverage = (cat: FlawCategory): number => {
-    const refs = REFERENCE_FINDINGS.filter((r) => r.category === cat);
+    const refs = referenceFindings.filter((r) => r.category === cat);
     if (refs.length === 0) return 1;
     const matched = refs.filter((r) => matchedRefIds.has(r.id)).length;
     return matched / refs.length;
@@ -160,18 +137,13 @@ export function computeCoverage(findings: Finding[]): CoverageResult {
     closureLeakCoverage: categoryCoverage('closure-leak'),
     excessiveInstantiationCoverage: categoryCoverage('excessive-instantiation'),
     overallCoverage:
-      REFERENCE_FINDINGS.length > 0 ? matchedRefIds.size / REFERENCE_FINDINGS.length : 0,
+      referenceFindings.length > 0 ? matchedRefIds.size / referenceFindings.length : 0,
     matchedFindings,
     missedFindings,
     falsePositives,
   };
 }
 
-/**
- * LangSmith evaluator function.
- *
- * Receives the run output and example data, returns scores.
- */
 export async function findingCoverage({
   outputs,
 }: {

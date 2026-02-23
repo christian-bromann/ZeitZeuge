@@ -1,0 +1,13 @@
+:root {
+  --primary: #3b82f6;
+  --secondary: #64748b;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --bg: #ffffff;
+  --text: #1e293b;
+}
+
+/* PERF ISSUE: Overly broad universal selector with expensive properties */
+* {
+  transition: all 0.3s ease;
+}

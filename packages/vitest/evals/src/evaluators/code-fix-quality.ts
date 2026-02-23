@@ -8,8 +8,6 @@
 
 import { initModel, type Finding } from '@zeitzeuge/utils';
 
-// ── Judge prompt ─────────────────────────────────────────────
-
 const CODE_FIX_JUDGE_PROMPT = `You are an expert code reviewer evaluating a proposed performance fix.
 
 You will receive:
@@ -28,11 +26,6 @@ Respond with ONLY a JSON object like:
 
 Do not include any other text.`;
 
-// ── Main evaluator ───────────────────────────────────────────
-
-/**
- * LangSmith evaluator function for code fix quality.
- */
 export async function codeFixes({
   outputs,
 }: {
@@ -42,7 +35,6 @@ export async function codeFixes({
 }): Promise<Record<string, number>> {
   const findings = (outputs?.findings ?? []) as Finding[];
 
-  // Filter to findings with both beforeCode and afterCode
   const withFixes = findings.filter((f) => f.beforeCode && f.afterCode);
   const hasBeforeAfterRatio = findings.length > 0 ? withFixes.length / findings.length : 0;
 
@@ -91,7 +83,7 @@ ${finding.afterCode}
             break;
           }
         } catch {
-          // not the right JSON fragment, try next match
+          // not the right JSON fragment
         }
       }
 

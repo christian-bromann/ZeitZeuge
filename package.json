@@ -4,7 +4,6 @@
   "workspaces": [
     "packages/*",
     "example",
-    "evals",
     "website"
   ],
   "type": "module",
@@ -18,7 +17,8 @@
     "build": "bun run --filter '@zeitzeuge/utils' build && bun run --filter '*' build",
     "test": "bun test",
     "example": "bun --filter example test",
-    "evals": "cd evals && bun eval:test",
+    "evals:vitest": "bun test packages/vitest/evals/eval.test.ts",
+    "evals:cli": "bun test packages/cli/evals/eval.test.ts",
     "website": "cd website && bun dev"
   },
   "devDependencies": {

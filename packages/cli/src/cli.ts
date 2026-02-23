@@ -66,7 +66,12 @@ const argv = yargs(hideBin(process.argv))
     alias: 'o',
     type: 'string',
     default: 'zeitzeuge-report.md',
-    describe: 'Output path for the Markdown report',
+    describe: 'Output path for the report (use .json extension for JSON output)',
+  })
+  .option('format', {
+    type: 'string',
+    choices: ['markdown', 'json'] as const,
+    describe: 'Output format (auto-detected from --output extension if omitted)',
   })
   .help('help', 'Show help')
   .alias('h', 'help')
@@ -216,19 +221,46 @@ async function main(): Promise<void> {
     }
 
     // Step 7: Print results
-    printFindings(findings);
-    printCaptureInfo(heapSummary, captureResult.trace);
-
-    // Step 8: Write Markdown report to disk
     const outputPath = argv.output as string;
-    const reportPath = writeReport(resolve(outputPath), {
-      url,
-      version: VERSION,
-      findings,
-      heapSummary,
-      trace: captureResult.trace,
-    });
-    console.log(`\n📄 Report written to ${reportPath}\n`);
+    const explicitFormat = argv.format as 'markdown' | 'json' | undefined;
+    const outputFormat = explicitFormat ?? (outputPath.endsWith('.json') ? 'json' : 'markdown');
+
+    if (outputFormat === 'json') {
+      const jsonReport = {
+        url,
+        version: VERSION,
+        analyzedAt: new Date().toISOString(),
+        findings,
+        metrics: {
+          loadComplete: captureResult.trace.metrics.loadComplete,
+          firstContentfulPaint: captureResult.trace.metrics.firstContentfulPaint,
+          largestContentfulPaint: captureResult.trace.metrics.largestContentfulPaint,
+          totalBlockingTime: captureResult.trace.metrics.totalBlockingTime,
+          heapTotalSize: heapSummary.metadata.totalSize,
+          heapNodeCount: heapSummary.metadata.nodeCount,
+          detachedDomNodes: heapSummary.detachedNodes.count,
+          networkRequests: captureResult.trace.networkRequests.length,
+          totalTransferSize: captureResult.trace.networkRequests.reduce(
+            (s, r) => s + r.encodedSize,
+            0,
+          ),
+        },
+      };
+      const { writeFileSync } = await import('node:fs');
+      writeFileSync(resolve(outputPath), JSON.stringify(jsonReport, null, 2), 'utf-8');
+      console.log(`\n📄 JSON report written to ${resolve(outputPath)}\n`);
+    } else {
+      printFindings(findings);
+      printCaptureInfo(heapSummary, captureResult.trace);
+      const reportPath = writeReport(resolve(outputPath), {
+        url,
+        version: VERSION,
+        findings,
+        heapSummary,
+        trace: captureResult.trace,
+      });
+      console.log(`\n📄 Report written to ${reportPath}\n`);
+    }
   } catch (err) {
     printError(err);
     process.exit(1);

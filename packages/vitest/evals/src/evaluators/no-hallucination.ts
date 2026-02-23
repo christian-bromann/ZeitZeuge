@@ -12,30 +12,20 @@ import { join, resolve } from 'node:path';
 
 import type { Finding } from '@zeitzeuge/utils';
 
-// ── Helpers ──────────────────────────────────────────────────
-
-/**
- * Try to resolve a finding's sourceFile to an actual file on disk.
- * The agent may use workspace paths like /src/utils/crypto.ts or
- * relative paths like src/utils/crypto.ts.
- */
 function resolveSourceFile(sourceFile: string, projectRoot: string): string | null {
-  // Strip leading /src/ or /tests/ workspace prefix
   let normalized = sourceFile;
   if (normalized.startsWith('/src/')) {
-    normalized = normalized.slice(5); // remove "/src/"
+    normalized = normalized.slice(5);
   } else if (normalized.startsWith('/tests/')) {
-    normalized = normalized.slice(7); // remove "/tests/"
+    normalized = normalized.slice(7);
   } else if (normalized.startsWith('/')) {
     normalized = normalized.slice(1);
   }
 
-  // Try direct resolution from project root
   const candidates = [
     join(projectRoot, normalized),
     join(projectRoot, 'src', normalized),
     join(projectRoot, 'tests', normalized),
-    // Try original path as-is (might be absolute)
     sourceFile,
   ];
 
@@ -49,18 +39,13 @@ function resolveSourceFile(sourceFile: string, projectRoot: string): string | nu
   return null;
 }
 
-/**
- * Check if beforeCode approximately appears in the source file.
- * Uses line-by-line fuzzy matching: strips whitespace and checks
- * if enough lines from beforeCode appear in the source.
- */
 function beforeCodeAppearsInSource(beforeCode: string, sourceContent: string): boolean {
   const beforeLines = beforeCode
     .split('\n')
     .map((l) => l.trim())
-    .filter((l) => l.length > 3); // skip very short/empty lines
+    .filter((l) => l.length > 3);
 
-  if (beforeLines.length === 0) return true; // nothing to check
+  if (beforeLines.length === 0) return true;
 
   const sourceNormalized = sourceContent.split('\n').map((l) => l.trim());
 
@@ -71,15 +56,9 @@ function beforeCodeAppearsInSource(beforeCode: string, sourceContent: string): b
     }
   }
 
-  // At least 50% of non-trivial beforeCode lines should appear in the source
   return matchedLines / beforeLines.length >= 0.5;
 }
 
-// ── Main evaluator ───────────────────────────────────────────
-
-/**
- * LangSmith evaluator function for hallucination detection.
- */
 export async function noHallucination({
   inputs,
   outputs,
@@ -105,7 +84,6 @@ export async function noHallucination({
     let isHallucinated = false;
     const sourceFile = finding.sourceFile ?? finding.workspacePath;
 
-    // Check 1: sourceFile resolves to a real file
     if (sourceFile) {
       const resolved = resolveSourceFile(sourceFile, projectRoot);
       if (resolved) {
@@ -113,26 +91,20 @@ export async function noHallucination({
         const sourceContent = readFileSync(resolved, 'utf-8');
         const sourceLines = sourceContent.split('\n');
 
-        // Check 2: lineNumber exists in the file
         if (finding.lineNumber != null) {
           if (finding.lineNumber < 1 || finding.lineNumber > sourceLines.length) {
             isHallucinated = true;
           }
         }
 
-        // Check 3: beforeCode approximately appears in the source
         if (finding.beforeCode) {
           if (!beforeCodeAppearsInSource(finding.beforeCode, sourceContent)) {
             isHallucinated = true;
           }
         }
       } else {
-        // sourceFile doesn't resolve to a real file
         isHallucinated = true;
       }
-    } else {
-      // No sourceFile at all — not necessarily hallucination, but not ideal
-      // Don't count as hallucination since some findings may not need a source file
     }
 
     if (isHallucinated) {
