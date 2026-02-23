@@ -13,7 +13,6 @@
     "fmt:check": "oxfmt --check",
     "lint": "bun ./node_modules/oxlint/dist/cli.js",
     "lint:fix": "bun ./node_modules/oxlint/dist/cli.js --fix",
-    "postinstall": "bash patches/apply.sh",
     "prepare": "simple-git-hooks",
     "build": "bun run --filter '@zeitzeuge/utils' build && bun run --filter '*' build",
     "test": "bun test",
@@ -25,8 +24,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "lint-staged": "^16.2.7",
-    "oxfmt": "^0.32.0",
-    "oxlint": "^1.47.0",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5"
   },
