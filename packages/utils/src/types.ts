@@ -488,3 +488,41 @@ export interface PerformanceMetrics {
   };
   listenerTracking?: EventListenerTracking;
 }
+
+// ── Test workspace options ──
+
+/** Minimal heap profile shape for the workspace builder. */
+export interface CorrelatedHeapProfile {
+  testFile: string;
+  profilePath: string;
+  summary: { totalAllocatedBytes: number };
+}
+
+/** Options for building a test analysis workspace (shared across all runners). */
+export interface TestWorkspaceOptions {
+  testTiming: TestFileTiming[];
+  profiles: CorrelatedProfile[];
+  heapProfiles?: CorrelatedHeapProfile[];
+  testSources: Map<string, string>;
+  sourcePaths?: Map<string, string>;
+  projectRoot?: string;
+  metrics?: PerformanceMetrics;
+  listenerTracking?: EventListenerTracking;
+}
+
+/** Result from creating a test analysis workspace. */
+export interface TestWorkspaceResult {
+  backend: import('deepagents').BackendProtocol;
+  cleanup: () => Promise<void>;
+  sourceFiles: string[];
+  testFiles: string[];
+}
+
+/** Context for building a test analysis user message. */
+export interface TestAnalysisContext {
+  metrics: PerformanceMetrics;
+  hasHeapProfiles: boolean;
+  hasListenerTracking: boolean;
+  sourceFiles?: string[];
+  testFiles?: string[];
+}

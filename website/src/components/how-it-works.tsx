@@ -23,6 +23,26 @@ const TABS = [
       'Deep Agent analyzes application code bottlenecks',
     ],
   },
+  {
+    label: 'Node.js',
+    steps: [
+      'Run node --test with --cpu-prof and the zeitzeuge reporter',
+      'V8 CPU profiles captured per forked test process',
+      'Reporter extracts timing from test:pass / test:fail events',
+      'Hot functions classified and workspace built with source code',
+      'Deep Agent analyzes application code bottlenecks',
+    ],
+  },
+  {
+    label: 'Bun',
+    steps: [
+      'Run bun test with the zeitzeuge preload script',
+      'CPU profiles captured in V8-compatible format',
+      'Preload script records per-test timing via lifecycle hooks',
+      'Hot functions classified and workspace built with source code',
+      'Deep Agent analyzes application code bottlenecks',
+    ],
+  },
 ];
 
 export function HowItWorks() {

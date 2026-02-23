@@ -1,16 +1,19 @@
 /**
  * Classify script URLs into source categories so the Deep Agent can
- * distinguish application code (what the user cares about) from
- * dependencies, test files, and framework internals.
+ * distinguish application code from dependencies, test files, and
+ * framework internals.
+ *
+ * This is the shared implementation used by all test runner integrations.
+ * It recognizes vitest, node:test, bun:test, and other common frameworks.
  */
 
 import { resolve, relative } from 'node:path';
-import type { SourceCategory } from './types.js';
+import type { SourceCategory } from '../types.js';
 
 /** Patterns that identify test files. */
 const TEST_FILE_PATTERNS = [/\.test\./, /\.spec\./, /\.bench\./, /__tests__\//, /__mocks__\//];
 
-/** Patterns that identify framework internals (vitest, tinybench, node:test, bun:test, v8). */
+/** Patterns that identify framework internals (vitest, node:test, bun:test, tinybench, v8). */
 const FRAMEWORK_PATTERNS = [
   /\/vitest\//,
   /\/tinybench\//,
@@ -30,7 +33,7 @@ const FRAMEWORK_PATTERNS = [
 /**
  * Classify a script URL (file path or file:// URL) into a source category.
  *
- * @param scriptUrl - The URL or file path from the V8 profile
+ * @param scriptUrl - The URL or file path from the V8/JSC profile
  * @param projectRoot - The project root directory (absolute path)
  * @param testFiles - Optional set of known test file paths for more accurate classification
  */
@@ -41,7 +44,6 @@ export function classifyScript(
 ): SourceCategory {
   if (!scriptUrl) return 'unknown';
 
-  // Normalize file:// URLs to paths
   let filePath = scriptUrl;
   if (filePath.startsWith('file://')) {
     try {
@@ -51,32 +53,25 @@ export function classifyScript(
     }
   }
 
-  // Internal V8/node/bun builtins
   if (filePath.startsWith('node:') || filePath.startsWith('v8:') || filePath.startsWith('bun:')) {
     return 'framework';
   }
 
-  // Check if it's in node_modules
   if (filePath.includes('/node_modules/') || filePath.includes('\\node_modules\\')) {
     return 'dependency';
   }
 
-  // Check if the file is within the project root BEFORE framework patterns.
-  // Project paths may coincidentally match framework patterns (e.g. a project
-  // inside a directory named "vitest"), so project membership takes priority.
   const resolvedProject = resolve(projectRoot);
   const resolvedFile = resolve(filePath);
   const rel = relative(resolvedProject, resolvedFile);
 
   if (!rel.startsWith('..') && !rel.startsWith('/')) {
-    // Check if it's a known test file
     if (testFiles) {
       if (testFiles.has(resolvedFile)) {
         return 'test';
       }
     }
 
-    // Check test file patterns
     for (const pattern of TEST_FILE_PATTERNS) {
       if (pattern.test(filePath)) {
         return 'test';
@@ -86,8 +81,6 @@ export function classifyScript(
     return 'application';
   }
 
-  // Check framework patterns (vitest/tinybench internals) — only for files
-  // outside the project root.
   for (const pattern of FRAMEWORK_PATTERNS) {
     if (pattern.test(filePath)) {
       return 'framework';

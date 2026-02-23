@@ -1,0 +1,180 @@
+/**
+ * Deep Agent analysis for test performance — shared across all runners.
+ */
+
+import { createDeepAgent, type BackendProtocol, type SubAgent } from 'deepagents';
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import type { Ora } from 'ora';
+
+import {
+  invokeWithTodoStreaming,
+  mergeFindings,
+  insertFileListIntoPrompt,
+  buildFileListPromptSection,
+  deduplicateFindings,
+  rankFindings,
+  type Finding,
+  type FileListConfig,
+} from '../index.js';
+
+import type { TestAnalysisContext } from '../types.js';
+
+import {
+  TEST_ORCHESTRATOR_SYSTEM_PROMPT,
+  CPU_HOTSPOT_PROMPT,
+  LISTENER_LEAK_PROMPT,
+  MEMORY_CLOSURE_PROMPT,
+  CODE_PATTERN_PROMPT,
+} from './prompts/index.js';
+
+function buildFileListSection(ctx: TestAnalysisContext): string {
+  const { sourceFiles, testFiles, hasListenerTracking, hasHeapProfiles } = ctx;
+
+  const dataFiles: FileListConfig['dataFiles'] = [
+    {
+      path: '/src/index.json',
+      description: '(source file -> hot function mapping — read this first)',
+    },
+    {
+      path: '/hot-functions/application.json',
+      description: '(hot functions with selfTime, selfPercent, sourceSnippet)',
+    },
+    { path: '/scripts/application.json', description: '(per-script time breakdown)' },
+    { path: '/profiles/index.json', description: '(manifest of CPU profiles)' },
+  ];
+
+  if (hasListenerTracking) {
+    dataFiles.push({
+      path: '/listener-tracking.json',
+      description: '(event listener add/remove counts and exceedances)',
+    });
+  }
+  if (hasHeapProfiles) {
+    dataFiles.push({ path: '/heap-profiles/index.json' });
+  }
+
+  dataFiles.push(
+    { path: '/summary.json', description: '(overall test run stats)' },
+    { path: '/metrics/current.json' },
+  );
+
+  return buildFileListPromptSection({ dataFiles, sourceFiles, testFiles });
+}
+
+function buildUserMessage(ctx: TestAnalysisContext): string {
+  const { metrics, sourceFiles = [], hasListenerTracking } = ctx;
+
+  const srcFiles = sourceFiles.map((f) => `  ${f}`).join('\n');
+  const dataFiles = [
+    '  /src/index.json',
+    '  /hot-functions/application.json',
+    '  /scripts/application.json',
+    hasListenerTracking ? '  /listener-tracking.json' : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const allFiles = `${dataFiles}\n${srcFiles}`;
+
+  return `Dispatch all 4 subagent tasks NOW in a single response.
+Use these EXACT descriptions (copy them verbatim):
+
+TASK 1 — subagent_type: "cpu-hotspot"
+description: "Find blocking/event-loop-blocking operations and excessive object instantiation.
+In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
+${allFiles}
+Read EVERY file above in ONE batch. Then analyze for: synchronous CPU-bound loops, compound blockers (A calls blocking B — report BOTH), and per-call object creation (new TextEncoder, new RegExp, new Date in sort comparators). Report each distinct issue as a separate finding with beforeCode and afterCode."
+
+TASK 2 — subagent_type: "listener-leak"
+description: "Find event listener leaks, add/remove imbalances, and maxListeners exceedances.
+In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
+${allFiles}
+Read EVERY file above in ONE batch. Then analyze for: listeners added without removal, missing unsubscribe mechanisms, maxListeners threshold exceedances. Report each pattern as a separate finding with beforeCode and afterCode."
+
+TASK 3 — subagent_type: "memory-closure"
+description: "Find closure-based memory leaks, unbounded data structures, and missing cleanup/eviction.
+In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
+${allFiles}
+Read EVERY file above in ONE batch. Then analyze for: closures capturing outer-scope data, unbounded arrays/Maps/Sets with no eviction, closures capturing transient objects. A single class can have 3+ separate issues — report each one. Include beforeCode and afterCode for every finding."
+
+TASK 4 — subagent_type: "code-pattern"
+description: "Find O(n²) algorithms, unnecessary JSON serialization, regex recompilation, and expensive sort comparators.
+In your FIRST response, call read_file for ALL of these files (do NOT use ls or glob):
+${allFiles}
+Read EVERY file above in ONE batch. Then check EVERY function for: nested loops/filter-inside-loop, JSON.parse(JSON.stringify(...)) cloning, new RegExp with constant patterns, sort comparators that create objects. Report each pattern as a separate finding with beforeCode and afterCode."
+
+Test suite: ${metrics.suite.totalTests} tests, ${metrics.suite.totalDuration}ms
+CPU: app ${metrics.cpu.applicationPercent}%, deps ${metrics.cpu.dependencyPercent}%, GC ${metrics.cpu.gcPercentage}%`;
+}
+
+function buildSubagents(ctx?: TestAnalysisContext): SubAgent[] {
+  const fileSection = ctx ? buildFileListSection(ctx) : '';
+  const inject = (prompt: string) => insertFileListIntoPrompt(prompt, fileSection);
+  const skills = ['skills/data-scripting/', 'skills/profile-analysis/'];
+  return [
+    {
+      name: 'cpu-hotspot',
+      description:
+        'Analyzes CPU profiling data to find blocking/event-loop-blocking operations and excessive object instantiation.',
+      systemPrompt: inject(CPU_HOTSPOT_PROMPT),
+      skills,
+    },
+    {
+      name: 'listener-leak',
+      description:
+        'Detects event listener leaks, add/remove imbalances, and maxListeners exceedances.',
+      systemPrompt: inject(LISTENER_LEAK_PROMPT),
+      skills,
+    },
+    {
+      name: 'memory-closure',
+      description:
+        'Finds closure-based memory leaks, unbounded data structures, and missing cleanup/eviction.',
+      systemPrompt: inject(MEMORY_CLOSURE_PROMPT),
+      skills,
+    },
+    {
+      name: 'code-pattern',
+      description:
+        'Detects algorithmic inefficiencies (O(n²)), unnecessary serialization, regex recompilation, and expensive sort comparators.',
+      systemPrompt: inject(CODE_PATTERN_PROMPT),
+      skills,
+    },
+  ];
+}
+
+export async function analyzeTestPerformance(
+  model: BaseChatModel,
+  backend: BackendProtocol,
+  spinner: Ora,
+  context?: TestAnalysisContext,
+  { animateProgress = true }: { animateProgress?: boolean } = {},
+): Promise<Finding[]> {
+  const subagents = buildSubagents(context);
+
+  const agent = createDeepAgent({
+    model,
+    systemPrompt: TEST_ORCHESTRATOR_SYSTEM_PROMPT,
+    backend,
+    subagents,
+    skills: ['skills/'],
+  });
+
+  const userMessage = context
+    ? buildUserMessage(context)
+    : [
+        'Analyze the performance of the APPLICATION CODE being tested in this workspace.',
+        '',
+        'Start with hot-functions/application.json, then explore source files to verify',
+        'root causes and provide code-level fixes.',
+      ].join('\n');
+
+  await invokeWithTodoStreaming(agent, userMessage, spinner, { animateProgress });
+
+  const findings = await mergeFindings(backend);
+  if (findings.length === 0) {
+    throw new Error('Subagents did not write any findings to /findings/*.json');
+  }
+
+  const deduped = deduplicateFindings(findings);
+  return rankFindings(deduped);
+}

@@ -123,9 +123,9 @@ const FEATURES: { icon: ReactNode; title: string; description: string }[] = [
   },
   {
     icon: <ZapIcon />,
-    title: 'Vitest Integration',
+    title: 'Test Runner Integrations',
     description:
-      'Drop-in Vitest plugin that profiles your test suite with V8 CPU profiling and analyzes your application code performance.',
+      'Profile your test suite with Vitest, Node.js test runner, or Bun — V8 CPU profiling and AI analysis of your application code.',
   },
   {
     icon: <BrainIcon />,
@@ -149,7 +149,7 @@ const FEATURES: { icon: ReactNode; title: string; description: string }[] = [
     icon: <SparklesIcon />,
     title: 'Zero Config',
     description:
-      'Set an API key, run npx zeitzeuge <url> — done. For Vitest, add one plugin line to your config.',
+      'Set an API key, run npx zeitzeuge <url> — done. For test runners, add one plugin line or CLI flag.',
   },
 ];
 

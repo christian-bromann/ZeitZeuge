@@ -55,6 +55,27 @@ export {
   PROFILE_ANALYSIS_SKILL_FILES,
 } from './skills/index.js';
 
+// ── Profiling ──
+export {
+  parseCpuProfile,
+  classifyScript,
+  classifyScripts,
+  mergeHotFunctions,
+  computeMetrics,
+  createTestWorkspace,
+  analyzeTestPerformance,
+  TEST_ORCHESTRATOR_SYSTEM_PROMPT,
+  CPU_HOTSPOT_PROMPT,
+  LISTENER_LEAK_PROMPT,
+  MEMORY_CLOSURE_PROMPT,
+  CODE_PATTERN_PROMPT,
+  WORKSPACE_STRUCTURE,
+  SEVERITY_RULES,
+  type V8CpuProfile,
+  type V8CpuProfileNode,
+  type HeapProfileWithAllocations,
+} from './profiling/index.js';
+
 // ── Output ──
 export { TodoProgressRenderer, type ChunkMeta } from './output/progress.js';
 export {
