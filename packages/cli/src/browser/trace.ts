@@ -7,8 +7,11 @@ import type {
   TraceHandle,
   CaptureOptions,
   RuntimeTraceSummary,
+  ScreencastFrame,
 } from '@zeitzeuge/utils';
 import { parseRuntimeTrace } from './runtime-trace.js';
+import { startScreencast, type ScreencastHandle } from './screencast.js';
+import { buildRenderingDiagnostic } from './fcp-analysis.js';
 
 /**
  * Text-based resource types whose response bodies we capture.
@@ -48,6 +51,7 @@ export async function tracePageLoad(
 ): Promise<TraceHandle> {
   const requests = new Map<string, Partial<NetworkRequest>>();
   const finishedIds = new Set<string>();
+  const enableScreencast = _options.screencast !== false;
 
   // ── Chrome Tracing domain (runtime trace) ──
   const traceEvents: TraceEvent[] = [];
@@ -71,6 +75,18 @@ export async function tracePageLoad(
     tracingStarted = true;
   } catch {
     // Tracing not supported on this Chrome version — continue without it
+  }
+
+  // ── Screencast capture (rendering diagnostics) ──
+  let screencastHandle: ScreencastHandle | undefined;
+  const navigationStartMs = Date.now();
+
+  if (enableScreencast) {
+    try {
+      screencastHandle = await startScreencast(cdpSession, navigationStartMs);
+    } catch {
+      // Screencast not supported — continue without it
+    }
   }
 
   // ── Network domain ──
@@ -240,6 +256,16 @@ export async function tracePageLoad(
       const fp = paintEntries.find((e: any) => e.name === 'first-paint');
       const fcp = paintEntries.find((e: any) => e.name === 'first-contentful-paint');
 
+      // ── Stop screencast and build rendering diagnostic ──
+      let screencastFrames: ScreencastFrame[] = [];
+      if (screencastHandle) {
+        try {
+          screencastFrames = await screencastHandle.stop();
+        } catch {
+          // Non-fatal
+        }
+      }
+
       // Disable Network domain
       await cdpSession.send('Network.disable');
 
@@ -257,12 +283,23 @@ export async function tracePageLoad(
         longTasks,
       };
 
-      return {
+      const traceResult: TraceResult = {
         networkRequests,
         metrics,
         runtimeTrace,
         rawTraceEvents: tracingStarted ? traceEvents : undefined,
       };
+
+      // Build rendering diagnostic if we have screencast frames
+      if (screencastFrames.length > 0) {
+        try {
+          traceResult.renderingDiagnostic = buildRenderingDiagnostic(traceResult, screencastFrames);
+        } catch {
+          // Rendering diagnostic is best-effort
+        }
+      }
+
+      return traceResult;
     },
   };
 }

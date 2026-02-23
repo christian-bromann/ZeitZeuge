@@ -7,6 +7,7 @@ import { MEMORY_HEAP_PROMPT } from './prompts/memory-heap.js';
 import { PAGE_LOAD_PROMPT } from './prompts/page-load.js';
 import { RUNTIME_BLOCKING_PROMPT } from './prompts/runtime-blocking.js';
 import { CODE_PATTERN_PROMPT } from './prompts/code-pattern.js';
+import { RENDERING_FCP_PROMPT } from './prompts/rendering-fcp.js';
 import {
   invokeWithTodoStreaming,
   mergeFindings,
@@ -100,6 +101,22 @@ function buildAgentFileListSection(agentName: string, ctx: PageLoadContext): str
         ...files.styles.map((f) => ({ path: f, description: '(CSS source — check first)' })),
       ];
       break;
+    case 'rendering-fcp':
+      dataFiles = [
+        {
+          path: '/trace/rendering/fcp-diagnostic.json',
+          description: '(FCP bottlenecks and correlation data — your PRIMARY data)',
+        },
+        {
+          path: '/trace/rendering/visual-progress.json',
+          description: '(visual change timeline, speed index, rendering phases)',
+        },
+        {
+          path: '/trace/rendering/filmstrip.json',
+          description: '(frame-by-frame rendering progress)',
+        },
+      ];
+      break;
   }
 
   // Only code-pattern and page-load need a source file listing.
@@ -119,6 +136,15 @@ function buildAgentFileListSection(agentName: string, ctx: PageLoadContext): str
     if (allSource.length > 0) {
       additionalSections.push({
         title: 'Available source files — read ONLY the ones flagged as problematic in trace data',
+        files: allSource,
+      });
+    }
+  } else if (agentName === 'rendering-fcp') {
+    const allSource = [...files.scripts, ...files.styles, ...files.html];
+    if (allSource.length > 0) {
+      additionalSections.push({
+        title:
+          'Available source files — read ONLY the ones implicated in FCP bottlenecks or visual delays',
         files: allSource,
       });
     }
@@ -143,6 +169,7 @@ function buildBrowserUserMessage(ctx: PageLoadContext): string {
   const renderBlocking = traceResult.networkRequests.filter((r) => r.isRenderBlocking).length;
   const totalTransfer = traceResult.networkRequests.reduce((s, r) => s + r.encodedSize, 0);
   const hasRuntime = !!traceResult.runtimeTrace;
+  const hasRendering = !!traceResult.renderingDiagnostic;
 
   let runtimeInfo = '';
   if (hasRuntime) {
@@ -150,7 +177,23 @@ function buildBrowserUserMessage(ctx: PageLoadContext): string {
     runtimeInfo = `\nRuntime trace: ${rt.blockingFunctions.length} blocking functions, ${rt.gcEvents.length} GC events (${Math.round(rt.gcEvents.reduce((s, e) => s + e.duration, 0))}ms total)`;
   }
 
-  return `Dispatch all 4 subagent tasks NOW in a single response.
+  let renderingInfo = '';
+  if (hasRendering) {
+    const rd = traceResult.renderingDiagnostic!;
+    renderingInfo = `\nRendering: Speed Index ${rd.speedIndex}ms, ${rd.fcpBottlenecks.length} FCP bottlenecks, ${rd.visualChanges.length} visual changes detected`;
+  }
+
+  const taskCount = hasRendering ? 5 : 4;
+
+  let renderingTask = '';
+  if (hasRendering) {
+    renderingTask = `
+
+TASK 5 — subagent_type: "rendering-fcp"
+description: "Analyze rendering speed and FCP behavior. Read /trace/rendering/fcp-diagnostic.json, /trace/rendering/visual-progress.json, and /trace/rendering/filmstrip.json FIRST. Identify FCP bottlenecks (render-blocking resources, long tasks before FCP, sequential resource chains, excessive layout). Cross-reference with network waterfall and source files. For each bottleneck, verify root cause and estimate delay. Report each bottleneck and rendering improvement as a separate finding. Do NOT suggest code fixes for minified/compiled JS."`;
+  }
+
+  return `Dispatch all ${taskCount} subagent tasks NOW in a single response.
 Use these EXACT descriptions (copy them verbatim):
 
 TASK 1 — subagent_type: "memory-heap"
@@ -163,12 +206,12 @@ TASK 3 — subagent_type: "runtime-blocking"
 description: "Find runtime issues: main-thread blocking functions, event listener imbalances, GC pressure, layout thrashing, and unthrottled event handlers. Read /trace/runtime/ data files FIRST (do NOT read source files yet). Analyze blocking-functions.json for functions >50ms, event-listeners.json for add/remove imbalances. Then read ONLY the source files at the reported locations. Check for compound blockers (A calls blocking B — report BOTH). Report each distinct issue as a separate finding. Do NOT suggest code fixes for minified/compiled JS."
 
 TASK 4 — subagent_type: "code-pattern"
-description: "Find frontend code anti-patterns: inline scripts, DOM manipulation in loops, missing event delegation, synchronous XHR, non-passive listeners, CSS issues, and missing image dimensions. Read HTML and CSS files FIRST. Check for inline <script> blocks, <img> without width/height, CSS @import. Then read ONLY the script files referenced by issues found. Report each pattern as a separate finding. Do NOT suggest code fixes for minified/compiled JS."
+description: "Find frontend code anti-patterns: inline scripts, DOM manipulation in loops, missing event delegation, synchronous XHR, non-passive listeners, CSS issues, and missing image dimensions. Read HTML and CSS files FIRST. Check for inline <script> blocks, <img> without width/height, CSS @import. Then read ONLY the script files referenced by issues found. Report each pattern as a separate finding. Do NOT suggest code fixes for minified/compiled JS."${renderingTask}
 
 URL: ${url}
 Page load: ${Math.round(m.loadComplete)}ms | FCP: ${Math.round(m.firstContentfulPaint)}ms | LCP: ${Math.round(m.largestContentfulPaint)}ms | TBT: ${Math.round(m.totalBlockingTime)}ms
 Heap: ${formatBytes(heapSummary.metadata.totalSize)} total, ${heapSummary.metadata.nodeCount.toLocaleString()} nodes, ${heapSummary.detachedNodes.count} detached DOM nodes
-Network: ${reqCount} requests, ${formatBytes(totalTransfer)} transferred, ${renderBlocking} render-blocking${runtimeInfo}`;
+Network: ${reqCount} requests, ${formatBytes(totalTransfer)} transferred, ${renderBlocking} render-blocking${runtimeInfo}${renderingInfo}`;
 }
 
 /**
@@ -179,6 +222,8 @@ Network: ${reqCount} requests, ${formatBytes(totalTransfer)} transferred, ${rend
  * source files as "available for selective reading".
  */
 function buildSubagents(ctx?: PageLoadContext): SubAgent[] {
+  const hasRendering = !!ctx?.traceResult?.renderingDiagnostic;
+
   const agentDefs: Array<{ name: string; description: string; prompt: string }> = [
     {
       name: 'memory-heap',
@@ -204,6 +249,16 @@ function buildSubagents(ctx?: PageLoadContext): SubAgent[] {
         'Detects frontend code anti-patterns: inline scripts, DOM manipulation in loops, missing event delegation, non-passive listeners.',
       prompt: CODE_PATTERN_PROMPT,
     },
+    ...(hasRendering
+      ? [
+          {
+            name: 'rendering-fcp',
+            description:
+              'Analyzes rendering speed and FCP behavior: identifies bottlenecks delaying first contentful paint, analyzes visual rendering order, and suggests rendering optimizations.',
+            prompt: RENDERING_FCP_PROMPT,
+          },
+        ]
+      : []),
   ];
 
   return agentDefs.map(({ name, description, prompt }) => {

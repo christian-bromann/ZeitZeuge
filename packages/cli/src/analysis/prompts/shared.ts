@@ -91,6 +91,14 @@ export const WORKSPACE_STRUCTURE = `## Workspace structure
   paint vs GC
 - trace/runtime/raw-events.json — Full Chrome trace events (large file — read
   to investigate specific function calls, layouts, GC, and event dispatches)
+- trace/rendering/fcp-diagnostic.json — FCP bottleneck analysis: correlation
+  of FCP with render-blocking resources, long tasks, sequential chains, and
+  layout time. Includes estimated delay per bottleneck.
+- trace/rendering/visual-progress.json — Visual progress timeline: speed
+  index, visual change points with timestamps and completeness %, and
+  rendering phases with main-thread activity breakdown.
+- trace/rendering/filmstrip.json — Frame-by-frame rendering progress from
+  Chrome DevTools screencast: timestamps, data sizes, and visual change flags.
 - scripts/*.js — Actual JavaScript source files captured during page load
 - styles/*.css — Actual CSS source files
 - html/document.html — The HTML document
