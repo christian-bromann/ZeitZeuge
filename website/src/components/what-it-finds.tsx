@@ -7,7 +7,7 @@ const PAGE_LOAD_FINDINGS = [
   'GC pressure & layout thrashing',
 ];
 
-const VITEST_FINDINGS = [
+const TEST_RUNNER_FINDINGS = [
   'Hot functions with high self time in your source code',
   'Expensive algorithms (O(n\u00B2) loops, redundant computation)',
   'Dependency bottlenecks',
@@ -37,10 +37,11 @@ export function WhatItFinds() {
           </div>
           <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
             <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-foreground">
-              <span>⚡</span> Vitest
+              <span>⚡</span> Test Runners
             </h3>
+            <p className="text-xs text-text-muted mb-3">Vitest · Node.js · Bun</p>
             <ul className="space-y-2.5">
-              {VITEST_FINDINGS.map((item) => (
+              {TEST_RUNNER_FINDINGS.map((item) => (
                 <li key={item} className="flex items-start gap-2.5 text-sm text-text-secondary">
                   <span className="text-primary mt-0.5 shrink-0">•</span>
                   {item}
