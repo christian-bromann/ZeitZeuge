@@ -10,9 +10,10 @@ import {
   createWorkspaceFromFiles,
   DATA_SCRIPTING_SKILL_FILES,
   PROFILE_ANALYSIS_SKILL_FILES,
+  mergeHotFunctions,
 } from '@zeitzeuge/utils';
 
-import type { CorrelatedProfile, HotFunction, VitestWorkspaceOptions } from './types.js';
+import type { HotFunction, VitestWorkspaceOptions } from './types.js';
 
 /** Number of context lines to include above and below a hot function's line. */
 const SOURCE_SNIPPET_CONTEXT = 5;
@@ -398,42 +399,8 @@ export async function createVitestWorkspace(
   return { backend, cleanup, sourceFiles: sourceFilesList, testFiles: testFilesList };
 }
 
-/**
- * Merge hot functions from multiple profiles, deduplicating by
- * (scriptUrl, functionName, lineNumber) and summing selfTime.
- */
-export function mergeHotFunctions(profiles: CorrelatedProfile[]): HotFunction[] {
-  const merged = new Map<string, HotFunction>();
-  let totalDuration = 0;
-
-  for (const profile of profiles) {
-    totalDuration += profile.summary.duration;
-
-    for (const fn of profile.summary.hotFunctions) {
-      const key = `${fn.scriptUrl}:${fn.functionName}:${fn.lineNumber}`;
-      const existing = merged.get(key);
-      if (existing) {
-        existing.selfTime += fn.selfTime;
-        existing.totalTime += fn.totalTime;
-        existing.hitCount += fn.hitCount;
-      } else {
-        merged.set(key, { ...fn });
-      }
-    }
-  }
-
-  // Recalculate selfPercent against total duration
-  if (totalDuration > 0) {
-    for (const fn of merged.values()) {
-      fn.selfPercent = round((fn.selfTime / totalDuration) * 100);
-    }
-  }
-
-  const results = Array.from(merged.values());
-  results.sort((a, b) => b.selfTime - a.selfTime);
-
-  return results.slice(0, 50);
-}
+// Re-export for backward compatibility
+export { mergeHotFunctions } from '@zeitzeuge/utils';
 
 // ── Helpers ───────────────────────────────────────────────────
 

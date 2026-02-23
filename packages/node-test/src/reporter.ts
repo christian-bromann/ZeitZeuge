@@ -18,6 +18,21 @@
 import { readdirSync, readFileSync, existsSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import ora from 'ora';
+
+import {
+  parseCpuProfile,
+  classifyScript,
+  computeMetrics,
+  initModel,
+  printMetricsSummary,
+  printFindingsVitest,
+  writeTestReport,
+} from '@zeitzeuge/utils';
+
+import { createNodeTestWorkspace } from './workspace.js';
+import { analyzeTestPerformance } from './agent.js';
+
 import type { TestFileTiming, CorrelatedProfile, V8CpuProfile } from '@zeitzeuge/utils';
 
 /** Shape of node:test TestEvent objects. */
@@ -228,17 +243,6 @@ async function runAnalysis(opts: {
   }
 
   lines.push(`\n# zeitzeuge: ${profileFiles.length} CPU profile(s) collected\n`);
-
-  // Lazy-import the heavy analysis modules (profile parser, workspace, agent, etc.)
-  // These are re-exported from the main index for programmatic use.
-  const { parseCpuProfile } = await import('./profile-parser.js');
-  const { classifyScript } = await import('./classify.js');
-  const { computeMetrics } = await import('./metrics.js');
-  const { initModel, printMetricsSummary, printFindingsVitest, writeTestReport } =
-    await import('@zeitzeuge/utils');
-  const { createNodeTestWorkspace } = await import('./workspace.js');
-  const { analyzeTestPerformance } = await import('./agent.js');
-  const ora = (await import('ora')).default;
 
   const byMtime = [...profileFiles].sort((a, b) => a.lastModified - b.lastModified);
   const orderedTestFiles = testTiming.map((t) => t.file);

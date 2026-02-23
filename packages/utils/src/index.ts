@@ -59,8 +59,11 @@ export {
   parseCpuProfile,
   classifyScript,
   classifyScripts,
+  mergeHotFunctions,
+  computeMetrics,
   type V8CpuProfile,
   type V8CpuProfileNode,
+  type HeapProfileWithAllocations,
 } from './profiling/index.js';
 
 // ── Output ──

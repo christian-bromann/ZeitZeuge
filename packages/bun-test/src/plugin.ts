@@ -35,6 +35,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 
 import {
+  computeMetrics,
   initModel,
   printFindingsVitest,
   printMetricsSummary,
@@ -43,6 +44,8 @@ import {
 
 import { parseBunProfile } from './profile-adapter.js';
 import { classifyScript } from './classify.js';
+import { createBunTestWorkspace } from './workspace.js';
+import { analyzeTestPerformance } from './agent.js';
 import type { ZeitZeugeBunTestOptions } from './types.js';
 import type { TestFileTiming, CorrelatedProfile, V8CpuProfile } from '@zeitzeuge/utils';
 
@@ -152,8 +155,6 @@ export async function analyzeTestRun(options: ZeitZeugeBunTestOptions = {}): Pro
     return;
   }
 
-  // Compute metrics
-  const { computeMetrics } = await import('../../vitest/src/metrics.js');
   const metrics = computeMetrics(testTiming, topProfiles, [], resolvedProjectRoot);
 
   console.log(chalk.cyan('\nzeitzeuge: Performance Metrics\n'));
@@ -161,14 +162,10 @@ export async function analyzeTestRun(options: ZeitZeugeBunTestOptions = {}): Pro
 
   if (!analyzeOnFinish) return;
 
-  // Build workspace and run analysis
-  const { createVitestWorkspace } = await import('../../vitest/src/workspace.js');
-  const { analyzeTestPerformance } = await import('../../vitest/src/agent.js');
-
   const testSources = readTestSources(testTiming);
   const sourcePaths = readHotFunctionSources(topProfiles);
 
-  const workspace = await createVitestWorkspace({
+  const workspace = await createBunTestWorkspace({
     testTiming,
     profiles: topProfiles,
     testSources,
