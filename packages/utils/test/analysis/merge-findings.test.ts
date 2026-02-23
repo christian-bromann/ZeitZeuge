@@ -165,6 +165,40 @@ describe('mergeFindings', () => {
     expect(result[0]!.title).toBe('Valid');
   });
 
+  test('handles relative paths with dir prefix from lsInfo', async () => {
+    const f1 = makeFinding({ title: 'Found it' });
+
+    const backend = {
+      lsInfo: mock(async () => [{ path: 'findings/runtime-blocking.json', is_dir: false }]),
+      readRaw: mock(async (path: string) => {
+        expect(path).toBe('/findings/runtime-blocking.json');
+        return { content: [JSON.stringify({ findings: [f1] })] };
+      }),
+      write: mock(async () => ({ error: null })),
+    } as any;
+
+    const result = await mergeFindings(backend);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.title).toBe('Found it');
+  });
+
+  test('handles bare filename paths from lsInfo', async () => {
+    const f1 = makeFinding({ title: 'Bare name' });
+
+    const backend = {
+      lsInfo: mock(async () => [{ path: 'page-load.json', is_dir: false }]),
+      readRaw: mock(async (path: string) => {
+        expect(path).toBe('/findings/page-load.json');
+        return { content: [JSON.stringify({ findings: [f1] })] };
+      }),
+      write: mock(async () => ({ error: null })),
+    } as any;
+
+    const result = await mergeFindings(backend);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.title).toBe('Bare name');
+  });
+
   test('skips non-json files', async () => {
     const { backend } = createMockBackend({});
 

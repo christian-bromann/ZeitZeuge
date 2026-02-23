@@ -7,6 +7,22 @@ const FINDINGS_DIR = '/findings';
 const MERGED_FILENAME = 'merged.json';
 
 /**
+ * Normalize an entry path returned by `lsInfo` into an absolute workspace path.
+ *
+ * `lsInfo` implementations return varying formats:
+ *   - absolute: `/findings/memory-heap.json`
+ *   - relative with dir: `findings/memory-heap.json`
+ *   - filename only: `memory-heap.json`
+ *
+ * We extract just the basename and prepend `/findings/`.
+ */
+function toAbsoluteFindingsPath(entryPath: string): string {
+  const lastSlash = entryPath.lastIndexOf('/');
+  const filename = lastSlash >= 0 ? entryPath.slice(lastSlash + 1) : entryPath;
+  return `${FINDINGS_DIR}/${filename}`;
+}
+
+/**
  * Read and merge all subagent finding files from the workspace.
  *
  * Each subagent writes its findings to `/findings/<name>.json`.
@@ -23,7 +39,7 @@ export async function mergeFindings(backend: BackendProtocol): Promise<Finding[]
   }
 
   const jsonFiles = entries.filter(
-    (e) => e.path.endsWith('.json') && !e.path.endsWith(`/${MERGED_FILENAME}`),
+    (e) => e.path.endsWith('.json') && !e.path.endsWith(MERGED_FILENAME),
   );
 
   if (jsonFiles.length === 0) {
@@ -33,7 +49,7 @@ export async function mergeFindings(backend: BackendProtocol): Promise<Finding[]
   const allFindings: Finding[] = [];
 
   for (const entry of jsonFiles) {
-    const filePath = entry.path.startsWith('/') ? entry.path : `${FINDINGS_DIR}/${entry.path}`;
+    const filePath = toAbsoluteFindingsPath(entry.path);
 
     try {
       const fileData = await backend.readRaw(filePath);

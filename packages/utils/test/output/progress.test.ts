@@ -1296,6 +1296,7 @@ describe('TodoProgressRenderer', () => {
         mkdirSync(join(workDir, 'hot-functions'), { recursive: true });
         mkdirSync(join(workDir, 'scripts'), { recursive: true });
         mkdirSync(join(workDir, 'src'), { recursive: true });
+        mkdirSync(join(workDir, 'findings'), { recursive: true });
 
         writeFileSync(
           join(workDir, 'hot-functions', 'application.json'),
@@ -1333,15 +1334,36 @@ describe('TodoProgressRenderer', () => {
           }),
         );
 
-        const backend = new FilesystemBackend({ rootDir: workDir });
+        writeFileSync(
+          join(workDir, 'findings', 'cpu-hotspot.json'),
+          JSON.stringify({
+            findings: [
+              {
+                severity: 'warning',
+                title: 'Deep-clone via JSON round-trip in processRecords',
+                description:
+                  'processRecords() uses JSON.parse(JSON.stringify(r)) to clone each record, which is O(n) serialization per item.',
+                category: 'hot-function',
+                sourceFile: '/src/data.ts',
+                lineNumber: 4,
+                impactMs: 320,
+                suggestedFix: 'Use structuredClone(r) or a shallow spread instead.',
+                hotFunction: {
+                  name: 'processRecords',
+                  scriptUrl: '/src/data.ts',
+                  lineNumber: 42,
+                  selfTime: 320,
+                  selfPercent: 18.5,
+                },
+              },
+            ],
+          }),
+        );
+
+        const backend = new FilesystemBackend({ rootDir: workDir, virtualMode: true });
 
         // 2. Build the fake model with a multi-step message sequence.
-        //    The builder receives the bound tool names so it can call the
-        //    structured-output tool by its dynamic name on the final step.
-        const model = new FakeToolCallingModel((boundToolNames) => {
-          // The structured-output tool is the one starting with "extract-"
-          const structTool = boundToolNames.find((n) => n.startsWith('extract-')) ?? 'extract-1';
-
+        const model = new FakeToolCallingModel(() => {
           return [
             // Step 1: Create an analysis plan via write_todos
             new AIMessage({
@@ -1410,37 +1432,9 @@ describe('TodoProgressRenderer', () => {
                 },
               ],
             }),
-            // Step 6: Submit structured findings (terminates the agent loop)
+            // Step 6: Final response (terminates the agent loop)
             new AIMessage({
-              content: '',
-              tool_calls: [
-                {
-                  id: 'call_060',
-                  name: structTool,
-                  args: {
-                    findings: [
-                      {
-                        severity: 'warning',
-                        title: 'Deep-clone via JSON round-trip in processRecords',
-                        description:
-                          'processRecords() uses JSON.parse(JSON.stringify(r)) to clone each record, which is O(n) serialization per item.',
-                        category: 'hot-function',
-                        sourceFile: '/src/data.ts',
-                        lineNumber: 4,
-                        impactMs: 320,
-                        suggestedFix: 'Use structuredClone(r) or a shallow spread instead.',
-                        hotFunction: {
-                          name: 'processRecords',
-                          scriptUrl: '/src/data.ts',
-                          lineNumber: 42,
-                          selfTime: 320,
-                          selfPercent: 18.5,
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
+              content: 'Found 1 issue: 1 warning. Written to /findings/cpu-hotspot.json',
             }),
           ];
         });
