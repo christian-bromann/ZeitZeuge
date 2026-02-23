@@ -1010,9 +1010,11 @@ describe('TodoProgressRenderer', () => {
       );
 
       const texts = spinner.persistedTexts();
-      const subLine = texts.find((t) => t.includes('[cpu-hotspot]'));
+      // Auto-synthesized progress line appears first, then the real tool call
+      const autoLine = texts.find((t) => t.includes('[cpu-hotspot]') && t.includes('▸'));
+      expect(autoLine).toBeDefined();
+      const subLine = texts.find((t) => t.includes('[cpu-hotspot]') && t.includes('read_file'));
       expect(subLine).toBeDefined();
-      expect(subLine).toContain('read_file');
     });
 
     test('falls back to [subagent] when no prior task() call provides a name', () => {
@@ -1054,8 +1056,9 @@ describe('TodoProgressRenderer', () => {
       );
 
       const texts = spinner.persistedTexts();
+      // 3 lines: auto-synthesized in-progress + 2 tool call lines
       const subLines = texts.filter((t) => t.includes('[listener-leak]'));
-      expect(subLines.length).toBe(2);
+      expect(subLines.length).toBe(3);
     });
 
     test('updates label when main agent spawns a different subagent', () => {
@@ -1122,10 +1125,9 @@ describe('TodoProgressRenderer', () => {
       );
 
       const texts = spinner.persistedTexts();
-      // Both the pre-reset and post-reset chunks should show [cpu-hotspot]
-      // because the dispatched subagent list is preserved (subagents are still running)
+      // 3 lines: auto-synthesized in-progress + pre-reset tool call + post-reset tool call
       const cpuHotspotLabels = texts.filter((t) => t.includes('[cpu-hotspot]'));
-      expect(cpuHotspotLabels.length).toBe(2);
+      expect(cpuHotspotLabels.length).toBe(3);
     });
   });
 
@@ -1178,10 +1180,12 @@ describe('TodoProgressRenderer', () => {
       ]);
 
       const texts = spinner.persistedTexts();
-      // 2/5 * 25% = 10%
-      const pctLine = texts.find((t) => t.includes('[cpu-hotspot]') && t.includes('▸'));
-      expect(pctLine).toBeDefined();
-      expect(pctLine).toContain('10%');
+      // The real write_todos ▸ line (not the auto-synthesized one) should show 10%
+      // 2/5 * 25% = 10% (auto entries contribute 0% each, real entry contributes 10%)
+      const pctLines = texts.filter((t) => t.includes('[cpu-hotspot]') && t.includes('▸'));
+      expect(pctLines.length).toBeGreaterThanOrEqual(2);
+      const realLine = pctLines[pctLines.length - 1]!;
+      expect(realLine).toContain('10%');
     });
 
     test('progress increases monotonically as subagents report', () => {
