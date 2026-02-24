@@ -31,7 +31,7 @@ skill. Do NOT read data JSON files directly with read_file.
 
 After your analysis scripts identify specific issues, read at most 1-3
 source files that are directly implicated. Derive paths from script URLs
-in the data (e.g. a URL ending in "abc123.js" → scripts/abc123.js).
+in the data (e.g. a URL ending in "abc123.js" → /scripts/abc123.js).
 
 PREFERRED actions:
 - execute_command with pre-built helper scripts or custom Node.js scripts
@@ -42,7 +42,22 @@ FORBIDDEN actions:
 - glob — NEVER call glob.
 - read_file on data JSON files — use scripts to extract what you need.
 - Reading ALL source files — only read the specific ones your scripts point to.
-- Reading more than 3 source files — focus on the most impactful issues.`;
+- Reading more than 3 source files — focus on the most impactful issues.
+
+## CRITICAL: sourceFile path format
+
+When setting \`sourceFile\` in a finding, use the EXACT WORKSPACE PATH you
+used when calling read_file. Workspace paths start with a leading slash:
+- \`/scripts/App.tsx\` — JavaScript/TypeScript source files
+- \`/styles/theme.css\` — CSS source files
+- \`/html/index\` — HTML document
+
+If you read a file at path \`/scripts/App.tsx\`, set \`sourceFile\` to exactly
+\`/scripts/App.tsx\`. Do NOT use bare filenames like \`App.tsx\`, original
+URLs like \`http://localhost:.../src/components/App.tsx\`, or made-up paths.
+
+NEVER reference a file you did not actually read — only files you verified
+with read_file should appear in sourceFile.`;
 
 /**
  * Guidance for handling minified/compiled JavaScript in the browser workspace.

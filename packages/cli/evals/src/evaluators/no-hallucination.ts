@@ -16,6 +16,7 @@ import type { Finding } from '@zeitzeuge/utils';
 
 const KNOWN_BASENAMES = new Set([
   'index.html',
+  'index',
   'main.tsx',
   'App.tsx',
   'Dashboard.tsx',
@@ -39,13 +40,25 @@ const WORKSPACE_PREFIXES = [
   '/trace/',
   '/fonts/',
   '/other/',
+  '/findings/',
 ];
+
+/**
+ * Workspace directory names without leading slash — agents sometimes
+ * omit the leading `/` when referencing workspace files.
+ */
+const WORKSPACE_DIR_NAMES = WORKSPACE_PREFIXES.map((p) => p.slice(1));
 
 function isValidReference(path: string): boolean {
   if (!path) return false;
 
-  // Workspace VFS paths (e.g. /scripts/App.tsx, /styles/theme.css)
+  // Workspace VFS paths with leading slash (e.g. /scripts/App.tsx)
   if (WORKSPACE_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+    return true;
+  }
+
+  // Workspace VFS paths without leading slash (e.g. scripts/App.tsx)
+  if (WORKSPACE_DIR_NAMES.some((prefix) => path.startsWith(prefix))) {
     return true;
   }
 
@@ -73,10 +86,17 @@ function isValidReference(path: string): boolean {
     return true;
   }
 
-  // Common source file extensions in recognizable directory patterns
+  // Paths with a directory component and a web source extension are
+  // likely real file references (e.g. src/utils/foo.ts, node_modules/x.js)
+  if (path.includes('/') && /\.(tsx?|jsx?|css|html|mjs|cjs|json)$/.test(basename)) {
+    return true;
+  }
+
+  // Vite internal paths and dependency paths
   if (
-    /\.(tsx?|jsx?|css|html)$/.test(basename) &&
-    /\/(src|components|utils|styles|public)\//.test(path)
+    path.startsWith('@vite/') ||
+    path.startsWith('@react-refresh') ||
+    path.includes('node_modules/')
   ) {
     return true;
   }

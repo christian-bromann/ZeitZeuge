@@ -123,6 +123,16 @@ document.addEventListener('DOMContentLoaded', () => {
    rendering order and identify missed optimization opportunities.
 5. Report each bottleneck and improvement opportunity as a separate finding.
 
+### Source file path mapping
+
+The FCP diagnostic data contains resource URLs (e.g. http://localhost:.../src/utils/foo.js).
+To read the actual source, map the URL's last path segment to its workspace path:
+- Scripts: URL ending in \`foo.js\` → workspace path \`/scripts/foo.js\`
+- Stylesheets: URL ending in \`bar.css\` → workspace path \`/styles/bar.css\`
+- HTML document: \`/html/index\`
+
+Always use the WORKSPACE PATH (with leading /) in your finding's \`sourceFile\` field.
+
 ### CRITICAL: Report EACH issue as a SEPARATE finding
 
 - Each render-blocking resource → separate finding

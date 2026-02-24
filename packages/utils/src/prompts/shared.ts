@@ -117,7 +117,9 @@ export const STRUCTURED_OUTPUT_FIELDS = `## Structured output fields — REQUIRE
 
 Every finding MUST include ALL of these fields:
 
-- \`sourceFile\` — (REQUIRED) the workspace path (e.g. src/utils/parser.ts or scripts/app.js)
+- \`sourceFile\` — (REQUIRED) the EXACT workspace path you used with read_file
+  (e.g. /scripts/app.js, /styles/theme.css, /html/index).
+  NEVER use bare filenames, original URLs, or paths you did not read.
 - \`lineNumber\` — (REQUIRED) the 1-based line number, verified by reading the file
 - \`confidence\` — \`high\` if you read the source, \`medium\` if strongly suggested,
   \`low\` if inferred
