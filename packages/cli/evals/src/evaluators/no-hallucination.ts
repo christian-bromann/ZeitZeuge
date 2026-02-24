@@ -23,10 +23,12 @@ const KNOWN_BASENAMES = new Set([
   'SearchBar.tsx',
   'heavy-init.ts',
   'analytics-blocking.js',
+  'viewport-calibration.js',
   'reset.css',
   'theme.css',
   'layout.css',
   'fonts.css',
+  'above-fold-hero.css',
 ]);
 
 const WORKSPACE_PREFIXES = [

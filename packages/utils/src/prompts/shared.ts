@@ -97,7 +97,7 @@ When your analysis is complete, you MUST write ALL findings to a JSON file using
 
 1. Call write_file with path: \`/findings/<YOUR_AGENT_NAME>.json\`
    Use your agent name as the filename (e.g. memory-heap, page-load, runtime-blocking,
-   code-pattern, cpu-hotspot, listener-leak, memory-closure).
+   code-pattern, rendering-fcp, cpu-hotspot, listener-leak, memory-closure).
 
 2. The file content MUST be a JSON object with this exact structure:
    { "findings": [ { "severity": "...", "title": "...", ... }, ... ] }
