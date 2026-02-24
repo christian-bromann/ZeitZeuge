@@ -82,7 +82,7 @@
     },
     "packages/node": {
       "name": "@zeitzeuge/node",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@langchain/core": "^1.1.27",
         "@langchain/node-vfs": "^0.1.2",
