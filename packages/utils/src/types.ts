@@ -133,6 +133,10 @@ export interface TraceResult {
   runtimeTrace?: RuntimeTraceSummary;
   /** Raw Chrome trace events from the Tracing domain — for storage in the workspace. */
   rawTraceEvents?: TraceEvent[];
+  /** Rendering diagnostic data from screencast capture (optional). */
+  renderingDiagnostic?: RenderingDiagnostic;
+  /** Raw screencast frames with base64 JPEG data — used for filmstrip in reports. */
+  screencastFrames?: ScreencastFrame[];
 }
 
 // ── Runtime trace types (from Chrome Tracing domain) ──
@@ -255,6 +259,132 @@ export interface TraceHandle {
   stop(): Promise<TraceResult>;
 }
 
+// ── Screencast / FCP rendering diagnostics ──
+
+/** A single frame captured by CDP Page.startScreencast. */
+export interface ScreencastFrame {
+  /** Timestamp in ms relative to navigation start. */
+  timestamp: number;
+  /** Base64-encoded image data (JPEG). */
+  data: string;
+  /** Session ID for acknowledging receipt. */
+  sessionId: number;
+  /** Byte length of the base64-decoded image. */
+  dataLength: number;
+}
+
+/** Summary of a screencast frame (without the full image data). */
+export interface FrameSummary {
+  /** Frame index (0-based). */
+  index: number;
+  /** Timestamp in ms relative to navigation start. */
+  timestamp: number;
+  /** Byte length of the decoded image. */
+  dataLength: number;
+  /** Whether a significant visual change was detected relative to the previous frame. */
+  isVisualChange: boolean;
+}
+
+/** A detected visual change point in the screencast filmstrip. */
+export interface VisualChangePoint {
+  /** Timestamp in ms relative to navigation start. */
+  timestamp: number;
+  /** Index into the frames array. */
+  frameIndex: number;
+  /** Percentage of visual completeness (0-100) estimated from frame data size. */
+  visualCompleteness: number;
+  /** Magnitude of the change relative to the final frame (0-1). */
+  changeMagnitude: number;
+}
+
+/** Correlation of FCP with other diagnostic data. */
+export interface FCPCorrelation {
+  /** FCP timestamp in ms relative to navigation start. */
+  fcpTimestamp: number;
+  /** Index of the screencast frame nearest to FCP. */
+  nearestFrameIndex: number;
+  /** Network requests that completed before FCP. */
+  resourcesLoadedBeforeFCP: Array<{
+    url: string;
+    resourceType: string;
+    duration: number;
+    isRenderBlocking: boolean;
+    endTime: number;
+  }>;
+  /** Network requests still loading at FCP time. */
+  resourcesLoadingAtFCP: Array<{
+    url: string;
+    resourceType: string;
+    startTime: number;
+  }>;
+  /** Render-blocking resources that had to complete before FCP. */
+  renderBlockingChain: Array<{
+    url: string;
+    resourceType: string;
+    duration: number;
+    size: number;
+  }>;
+  /** Blocking main-thread functions that executed before FCP. */
+  mainThreadBlockersBeforeFCP: Array<{
+    functionName: string;
+    scriptUrl: string;
+    duration: number;
+    startTime: number;
+  }>;
+  /** Total time the main thread was blocked before FCP. */
+  totalBlockingTimeBeforeFCP: number;
+  /** Time spent in layout/style recalculation before FCP. */
+  layoutTimeBeforeFCP: number;
+}
+
+/** Identified rendering phase during page load. */
+export interface RenderingPhase {
+  /** Phase name. */
+  name: string;
+  /** Start time in ms relative to navigation start. */
+  startTime: number;
+  /** End time in ms relative to navigation start. */
+  endTime: number;
+  /** Duration in ms. */
+  duration: number;
+  /** Human-readable description. */
+  description: string;
+}
+
+/** Complete rendering diagnostic data. */
+export interface RenderingDiagnostic {
+  /** Screencast frame summaries (without image data). */
+  filmstrip: FrameSummary[];
+  /** Detected visual change points. */
+  visualChanges: VisualChangePoint[];
+  /** FCP correlation data. */
+  fcpCorrelation: FCPCorrelation;
+  /** Rendering phases from navigation to load complete. */
+  renderingPhases: RenderingPhase[];
+  /** Speed Index approximation based on visual progress. */
+  speedIndex: number;
+  /** Suggestions for improving FCP based on the diagnostics. */
+  fcpBottlenecks: FCPBottleneck[];
+}
+
+/** An identified bottleneck affecting FCP. */
+export interface FCPBottleneck {
+  /** Type of bottleneck. */
+  type:
+    | 'render-blocking-resource'
+    | 'long-task-before-fcp'
+    | 'large-dom'
+    | 'slow-server-response'
+    | 'sequential-resource-chain'
+    | 'excessive-layout';
+  /** Human-readable description. */
+  description: string;
+  /** Estimated FCP delay caused by this bottleneck in ms. */
+  estimatedDelayMs: number;
+  /** Related resource URL or function name. */
+  source: string;
+}
+
 /** Combined result of unified page capture (heap + trace). */
 export interface CaptureResult {
   heapSnapshot: RawSnapshot;
@@ -267,6 +397,8 @@ export interface CaptureResult {
 export interface CaptureOptions {
   /** Page load timeout in milliseconds. */
   timeout?: number;
+  /** Enable screencast-based rendering diagnostics. Default: true */
+  screencast?: boolean;
 }
 
 /** Options for browser launch. */

@@ -24,6 +24,12 @@
     <script src="/src/utils/analytics-blocking.js"></script>
   </head>
   <body>
+    <!-- PERF ISSUE: Viewport calibration forces synchronous layout before FCP -->
+    <script src="/src/utils/viewport-calibration.js"></script>
+
+    <!-- PERF ISSUE: Critical above-fold CSS loaded in <body> — browser cannot preload it -->
+    <link rel="stylesheet" href="/src/styles/above-fold-hero.css" />
+
     <div id="root"></div>
 
     <!-- PERF ISSUE: Images without explicit width/height -->

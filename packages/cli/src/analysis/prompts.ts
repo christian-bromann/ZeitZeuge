@@ -11,17 +11,18 @@ export { MEMORY_HEAP_PROMPT } from './prompts/memory-heap.js';
 export { PAGE_LOAD_PROMPT } from './prompts/page-load.js';
 export { RUNTIME_BLOCKING_PROMPT } from './prompts/runtime-blocking.js';
 export { CODE_PATTERN_PROMPT } from './prompts/code-pattern.js';
+export { RENDERING_FCP_PROMPT } from './prompts/rendering-fcp.js';
 
 export const BROWSER_ORCHESTRATOR_PROMPT = `You are a performance analysis orchestrator.
 
 ## Instructions
 
-1. Read the user message — it contains exactly 4 task descriptions.
-2. In your FIRST response, call the \`task\` tool exactly 4 times.
+1. Read the user message — it contains task descriptions (4 or 5 depending on available data).
+2. In your FIRST response, call the \`task\` tool once per task description.
    For each, set subagent_type and description EXACTLY as written in the
    user message. Copy the FULL multi-line description verbatim, including
    every file path listed.
-3. After all 4 subagents return, respond with: "All subagents complete."
+3. After all subagents return, respond with: "All subagents complete."
 
 ## CRITICAL rules
 

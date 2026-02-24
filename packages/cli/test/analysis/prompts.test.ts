@@ -4,10 +4,11 @@ import { MEMORY_HEAP_PROMPT } from '../../src/analysis/prompts/memory-heap';
 import { PAGE_LOAD_PROMPT } from '../../src/analysis/prompts/page-load';
 import { RUNTIME_BLOCKING_PROMPT } from '../../src/analysis/prompts/runtime-blocking';
 import { CODE_PATTERN_PROMPT } from '../../src/analysis/prompts/code-pattern';
+import { RENDERING_FCP_PROMPT } from '../../src/analysis/prompts/rendering-fcp';
 
 describe('orchestrator prompt', () => {
   test('includes dispatch instructions', () => {
-    expect(BROWSER_ORCHESTRATOR_PROMPT).toContain('call the `task` tool exactly 4 times');
+    expect(BROWSER_ORCHESTRATOR_PROMPT).toContain('call the `task` tool once per task description');
   });
 
   test('delegates finding persistence to subagents', () => {
@@ -30,6 +31,7 @@ describe('subagent prompts include required shared fragments', () => {
     { name: 'page-load', prompt: PAGE_LOAD_PROMPT },
     { name: 'runtime-blocking', prompt: RUNTIME_BLOCKING_PROMPT },
     { name: 'code-pattern', prompt: CODE_PATTERN_PROMPT },
+    { name: 'rendering-fcp', prompt: RENDERING_FCP_PROMPT },
   ];
 
   for (const { name, prompt } of prompts) {
@@ -96,5 +98,15 @@ describe('subagent prompts have domain-specific content', () => {
     expect(CODE_PATTERN_PROMPT).toContain('Missing Event Delegation');
     expect(CODE_PATTERN_PROMPT).toContain('Non-Passive');
     expect(CODE_PATTERN_PROMPT).toContain('Missing Image Dimensions');
+  });
+
+  test('rendering-fcp focuses on FCP and rendering', () => {
+    expect(RENDERING_FCP_PROMPT).toContain('First Contentful Paint');
+    expect(RENDERING_FCP_PROMPT).toContain('FCP Bottleneck Analysis');
+    expect(RENDERING_FCP_PROMPT).toContain('Rendering Order');
+    expect(RENDERING_FCP_PROMPT).toContain('Speed Index');
+    expect(RENDERING_FCP_PROMPT).toContain('Render-Blocking Resource Chains');
+    expect(RENDERING_FCP_PROMPT).toContain('fcp-diagnostic.json');
+    expect(RENDERING_FCP_PROMPT).toContain('visual-progress.json');
   });
 });

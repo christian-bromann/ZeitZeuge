@@ -11,7 +11,8 @@ export type FlawCategory =
   | 'code-pattern'
   | 'runtime-blocking'
   | 'memory-issue'
-  | 'listener-leak';
+  | 'listener-leak'
+  | 'rendering-fcp';
 
 export interface ReferenceFinding {
   id: string;
@@ -292,6 +293,51 @@ export const REFERENCE_FINDINGS: ReferenceFinding[] = [
       'useEffect',
       'every render',
       'leak',
+    ],
+  },
+
+  // ─── Rendering / FCP (2) ────────────────────────────────────
+
+  {
+    id: 'viewport-calibration-layout-before-fcp',
+    category: 'rendering-fcp',
+    sourceFile: 'src/utils/viewport-calibration.js',
+    functionName: '(IIFE)',
+    flawType: 'forced-layout-before-fcp',
+    description:
+      'viewport-calibration.js forces synchronous layout recalculations in a loop before FCP by interleaving CSS custom property writes with getComputedStyle reads, delaying first contentful paint.',
+    expectedCategories: ['render-blocking', 'long-task', 'frame-blocking-function', 'other'],
+    expectedSeverity: 'warning',
+    keywords: [
+      'FCP',
+      'first contentful paint',
+      'visual progress',
+      'speed index',
+      'forced layout',
+      'critical rendering path',
+      'rendering phase',
+      'before first paint',
+    ],
+  },
+  {
+    id: 'body-stylesheet-delays-fcp',
+    category: 'rendering-fcp',
+    sourceFile: 'src/styles/above-fold-hero.css',
+    functionName: '(CSS)',
+    flawType: 'late-discovered-render-blocking-css',
+    description:
+      'above-fold-hero.css is loaded via <link> in <body> instead of <head>, preventing browser preloading and creating a late-discovered render-blocking resource that delays first contentful paint.',
+    expectedCategories: ['render-blocking', 'waterfall-bottleneck', 'large-asset', 'other'],
+    expectedSeverity: 'warning',
+    keywords: [
+      'FCP',
+      'first contentful paint',
+      'visual progress',
+      'speed index',
+      'rendering delay',
+      'late-discovered',
+      'critical rendering path',
+      'filmstrip',
     ],
   },
 ];

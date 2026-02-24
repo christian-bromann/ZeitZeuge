@@ -143,12 +143,16 @@ async function main(): Promise<void> {
       const runtimeTraceInfo = captureResult.trace.runtimeTrace
         ? `\n   Runtime trace: ${captureResult.trace.runtimeTrace.totalEvents.toLocaleString()} events captured`
         : '';
+      const renderingInfo = captureResult.trace.renderingDiagnostic
+        ? `\n   Rendering: FCP ${Math.round(captureResult.trace.metrics.firstContentfulPaint)}ms, Speed Index ${captureResult.trace.renderingDiagnostic.speedIndex}ms, ${captureResult.trace.renderingDiagnostic.fcpBottlenecks.length} bottlenecks, ${captureResult.trace.renderingDiagnostic.filmstrip.length} frames`
+        : '';
       captureSpinner.succeed(
         `Page loaded in ${(captureResult.trace.metrics.loadComplete / 1000).toFixed(1)}s\n` +
           `   Heap snapshot: ${heapSizeMB} MB\n` +
           `   Network requests: ${reqCount} captured\n` +
           `   Long tasks: ${longTaskCount} detected` +
-          runtimeTraceInfo,
+          runtimeTraceInfo +
+          renderingInfo,
       );
     } catch (err) {
       captureSpinner.fail('Failed to capture page data');
@@ -182,9 +186,13 @@ async function main(): Promise<void> {
       const runtimeWorkspaceInfo = captureResult.trace.runtimeTrace
         ? `\n   Runtime trace: summaries + raw events`
         : '';
+      const renderingWorkspaceInfo = captureResult.trace.renderingDiagnostic
+        ? `\n   Rendering diagnostics: FCP correlation + visual progress + filmstrip`
+        : '';
       workspaceSpinner.succeed(
         `${storedCount} assets stored in workspace (${formatBytes(totalSize)} total)` +
-          runtimeWorkspaceInfo,
+          runtimeWorkspaceInfo +
+          renderingWorkspaceInfo,
       );
     } catch (err) {
       workspaceSpinner.fail('Failed to build workspace');
@@ -245,6 +253,13 @@ async function main(): Promise<void> {
             (s, r) => s + r.encodedSize,
             0,
           ),
+          ...(captureResult.trace.renderingDiagnostic
+            ? {
+                speedIndex: captureResult.trace.renderingDiagnostic.speedIndex,
+                fcpBottlenecks: captureResult.trace.renderingDiagnostic.fcpBottlenecks.length,
+                renderingPhases: captureResult.trace.renderingDiagnostic.renderingPhases.length,
+              }
+            : {}),
         },
       };
       const { writeFileSync } = await import('node:fs');

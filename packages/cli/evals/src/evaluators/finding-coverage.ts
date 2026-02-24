@@ -19,6 +19,7 @@ export interface CoverageResult {
   runtimeBlockingCoverage: number;
   memoryIssueCoverage: number;
   listenerLeakCoverage: number;
+  renderingFcpCoverage: number;
   overallCoverage: number;
   matchedFindings: string[];
   missedFindings: string[];
@@ -134,6 +135,7 @@ export function computeCoverage(
     runtimeBlockingCoverage: categoryCoverage('runtime-blocking'),
     memoryIssueCoverage: categoryCoverage('memory-issue'),
     listenerLeakCoverage: categoryCoverage('listener-leak'),
+    renderingFcpCoverage: categoryCoverage('rendering-fcp'),
     overallCoverage:
       referenceFindings.length > 0 ? matchedRefIds.size / referenceFindings.length : 0,
     matchedFindings,

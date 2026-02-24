@@ -76,6 +76,7 @@ describe('Zeitzeuge CLI Agent Quality', () => {
     console.log(`  Runtime Blocking:   ${(coverage.runtimeBlockingCoverage * 100).toFixed(1)}%`);
     console.log(`  Memory Issues:      ${(coverage.memoryIssueCoverage * 100).toFixed(1)}%`);
     console.log(`  Listener Leaks:     ${(coverage.listenerLeakCoverage * 100).toFixed(1)}%`);
+    console.log(`  Rendering/FCP:      ${(coverage.renderingFcpCoverage * 100).toFixed(1)}%`);
     console.log(
       `  Matched:            ${coverage.matchedFindings.length}/${REFERENCE_FINDINGS.length}`,
     );

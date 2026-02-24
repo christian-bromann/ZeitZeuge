@@ -97,7 +97,7 @@ When your analysis is complete, you MUST write ALL findings to a JSON file using
 
 1. Call write_file with path: \`/findings/<YOUR_AGENT_NAME>.json\`
    Use your agent name as the filename (e.g. memory-heap, page-load, runtime-blocking,
-   code-pattern, cpu-hotspot, listener-leak, memory-closure).
+   code-pattern, rendering-fcp, cpu-hotspot, listener-leak, memory-closure).
 
 2. The file content MUST be a JSON object with this exact structure:
    { "findings": [ { "severity": "...", "title": "...", ... }, ... ] }
@@ -117,7 +117,9 @@ export const STRUCTURED_OUTPUT_FIELDS = `## Structured output fields — REQUIRE
 
 Every finding MUST include ALL of these fields:
 
-- \`sourceFile\` — (REQUIRED) the workspace path (e.g. src/utils/parser.ts or scripts/app.js)
+- \`sourceFile\` — (REQUIRED) the EXACT workspace path you used with read_file
+  (e.g. /scripts/app.js, /styles/theme.css, /html/index).
+  NEVER use bare filenames, original URLs, or paths you did not read.
 - \`lineNumber\` — (REQUIRED) the 1-based line number, verified by reading the file
 - \`confidence\` — \`high\` if you read the source, \`medium\` if strongly suggested,
   \`low\` if inferred

@@ -1,0 +1,35 @@
+/*
+ * PERF ISSUE: Critical above-fold CSS loaded via <link> in <body>
+ *
+ * This stylesheet contains styles for the hero/header section that is
+ * visible on initial page load. Loading it from <body> instead of <head>
+ * means the browser cannot discover or preload it during the initial
+ * HTML parse. This creates a late-discovered render-blocking resource
+ * that delays first contentful paint.
+ *
+ * Fix: Move this <link> to <head> or inline the critical CSS.
+ */
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100px;
+  padding: 24px 32px;
+}
+
+.header h1 {
+  color: white;
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  letter-spacing: -0.02em;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  margin-top: 8px;
+}

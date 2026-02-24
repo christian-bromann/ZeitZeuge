@@ -146,6 +146,44 @@ export async function createWorkspace(options: WorkspaceOptions): Promise<Worksp
     files['/trace/runtime/frame-breakdown.json'] = JSON.stringify(rt.frameBreakdown, null, 2);
   }
 
+  // ── Rendering diagnostic data (from screencast + FCP analysis) ──
+  if (traceResult.renderingDiagnostic) {
+    const rd = traceResult.renderingDiagnostic;
+
+    files['/trace/rendering/fcp-diagnostic.json'] = JSON.stringify(
+      {
+        fcpTimestamp: rd.fcpCorrelation.fcpTimestamp,
+        speedIndex: rd.speedIndex,
+        bottleneckCount: rd.fcpBottlenecks.length,
+        totalEstimatedDelay: rd.fcpBottlenecks.reduce((s, b) => s + b.estimatedDelayMs, 0),
+        fcpCorrelation: rd.fcpCorrelation,
+        fcpBottlenecks: rd.fcpBottlenecks,
+      },
+      null,
+      2,
+    );
+
+    files['/trace/rendering/filmstrip.json'] = JSON.stringify(
+      {
+        frameCount: rd.filmstrip.length,
+        visualChangeCount: rd.visualChanges.length,
+        frames: rd.filmstrip,
+      },
+      null,
+      2,
+    );
+
+    files['/trace/rendering/visual-progress.json'] = JSON.stringify(
+      {
+        speedIndex: rd.speedIndex,
+        visualChanges: rd.visualChanges,
+        renderingPhases: rd.renderingPhases,
+      },
+      null,
+      2,
+    );
+  }
+
   // ── Raw trace events (from Chrome Tracing domain) ──
   if (traceResult.rawTraceEvents && traceResult.rawTraceEvents.length > 0) {
     const rawJson = JSON.stringify(traceResult.rawTraceEvents);

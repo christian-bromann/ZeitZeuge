@@ -6,6 +6,8 @@ import type {
   TestFileTiming,
   CorrelatedProfile,
   PerformanceMetrics,
+  ScreencastFrame,
+  RenderingDiagnostic,
 } from '../types.js';
 import { getListenerImbalances } from '../types.js';
 import { formatBytes } from './terminal.js';
@@ -102,6 +104,13 @@ export function generateMarkdown(options: ReportOptions): string {
       `**Heap** ${heapSize} · **${reqCount} requests** (${formatBytes(totalTransfer)} transferred)`,
   );
   sections.push('');
+
+  // ── Rendering filmstrip & diagnostics ──
+  if (trace.renderingDiagnostic) {
+    sections.push(
+      ...generateFilmstripSection(trace.renderingDiagnostic, trace.screencastFrames ?? []),
+    );
+  }
 
   // ── Summary ──
   const counts = {
@@ -476,6 +485,128 @@ export function generateTestMarkdown(options: TestReportOptions): string {
   sections.push('');
 
   return sections.join('\n');
+}
+
+// ── Rendering filmstrip helpers ──────────────────────────────
+
+/**
+ * Maximum number of filmstrip frames to embed in the report.
+ * We select key frames (visual changes) rather than dumping every frame.
+ */
+const MAX_FILMSTRIP_FRAMES = 10;
+
+/**
+ * Select the most meaningful frames for the filmstrip: the first frame,
+ * all visual-change frames, and the last frame. Caps at MAX_FILMSTRIP_FRAMES.
+ */
+function selectKeyFrames(
+  diagnostic: RenderingDiagnostic,
+  frames: ScreencastFrame[],
+): ScreencastFrame[] {
+  if (frames.length === 0) return [];
+
+  const changeIndices = new Set(diagnostic.visualChanges.map((vc) => vc.frameIndex));
+  changeIndices.add(0);
+  changeIndices.add(frames.length - 1);
+
+  const selected = [...changeIndices]
+    .sort((a, b) => a - b)
+    .filter((i) => i >= 0 && i < frames.length)
+    .map((i) => frames[i]!);
+
+  if (selected.length <= MAX_FILMSTRIP_FRAMES) return selected;
+
+  const step = Math.ceil(selected.length / MAX_FILMSTRIP_FRAMES);
+  const sampled: ScreencastFrame[] = [];
+  for (let i = 0; i < selected.length; i += step) {
+    sampled.push(selected[i]!);
+  }
+  if (sampled[sampled.length - 1] !== selected[selected.length - 1]) {
+    sampled.push(selected[selected.length - 1]!);
+  }
+  return sampled.slice(0, MAX_FILMSTRIP_FRAMES);
+}
+
+/**
+ * Generate the rendering filmstrip section for the markdown report.
+ *
+ * Embeds key screencast frames as base64 data-URI images in a table,
+ * followed by rendering phases and FCP bottleneck summaries.
+ */
+function generateFilmstripSection(
+  diagnostic: RenderingDiagnostic,
+  frames: ScreencastFrame[],
+): string[] {
+  const sections: string[] = [];
+
+  sections.push(`## Rendering Filmstrip`);
+  sections.push('');
+
+  const speedIdx = diagnostic.speedIndex;
+  const fcpTs = diagnostic.fcpCorrelation.fcpTimestamp;
+  sections.push(`**Speed Index** ${speedIdx}ms · **FCP** ${fcpTs}ms`);
+  sections.push('');
+
+  // ── Filmstrip frames as inline images ──
+  const keyFrames = selectKeyFrames(diagnostic, frames);
+
+  if (keyFrames.length > 0) {
+    const headerCells = keyFrames.map((f) => `${Math.round(f.timestamp)}ms`).join(' | ');
+    const separatorCells = keyFrames.map(() => ':---:').join(' | ');
+    const imageCells = keyFrames
+      .map(
+        (f) =>
+          `<img src="data:image/jpeg;base64,${f.data}" width="120" alt="${Math.round(f.timestamp)}ms" />`,
+      )
+      .join(' | ');
+
+    sections.push(`| ${headerCells} |`);
+    sections.push(`| ${separatorCells} |`);
+    sections.push(`| ${imageCells} |`);
+    sections.push('');
+  }
+
+  // ── Visual progress ──
+  if (diagnostic.visualChanges.length > 0) {
+    sections.push(`### Visual Progress`);
+    sections.push('');
+    sections.push(`| Time | Visual Completeness |`);
+    sections.push(`|------|:-------------------:|`);
+    for (const vc of diagnostic.visualChanges) {
+      const bar =
+        '█'.repeat(Math.round(vc.visualCompleteness / 5)) +
+        '░'.repeat(20 - Math.round(vc.visualCompleteness / 5));
+      sections.push(`| ${Math.round(vc.timestamp)}ms | ${bar} ${vc.visualCompleteness}% |`);
+    }
+    sections.push('');
+  }
+
+  // ── Rendering phases ──
+  if (diagnostic.renderingPhases.length > 0) {
+    sections.push(`### Rendering Phases`);
+    sections.push('');
+    sections.push(`| Phase | Duration | Description |`);
+    sections.push(`|-------|----------|-------------|`);
+    for (const phase of diagnostic.renderingPhases) {
+      sections.push(`| ${phase.name} | ${phase.duration}ms | ${phase.description} |`);
+    }
+    sections.push('');
+  }
+
+  // ── FCP bottlenecks ──
+  if (diagnostic.fcpBottlenecks.length > 0) {
+    sections.push(`### FCP Bottlenecks`);
+    sections.push('');
+    sections.push(`| Type | Estimated Delay | Description |`);
+    sections.push(`|------|:---------------:|-------------|`);
+    for (const b of diagnostic.fcpBottlenecks) {
+      const typeLabel = b.type.replace(/-/g, ' ');
+      sections.push(`| ${typeLabel} | ${b.estimatedDelayMs}ms | ${b.description} |`);
+    }
+    sections.push('');
+  }
+
+  return sections;
 }
 
 // ── Markdown helpers ─────────────────────────────────────────
