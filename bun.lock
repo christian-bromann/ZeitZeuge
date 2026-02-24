@@ -50,7 +50,7 @@
     },
     "packages/cli": {
       "name": "zeitzeuge",
-      "version": "0.9.1",
+      "version": "0.10.0",
       "bin": {
         "zeitzeuge": "./dist/cli.js",
       },
