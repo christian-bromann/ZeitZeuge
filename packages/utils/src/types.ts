@@ -135,6 +135,8 @@ export interface TraceResult {
   rawTraceEvents?: TraceEvent[];
   /** Rendering diagnostic data from screencast capture (optional). */
   renderingDiagnostic?: RenderingDiagnostic;
+  /** Raw screencast frames with base64 JPEG data — used for filmstrip in reports. */
+  screencastFrames?: ScreencastFrame[];
 }
 
 // ── Runtime trace types (from Chrome Tracing domain) ──

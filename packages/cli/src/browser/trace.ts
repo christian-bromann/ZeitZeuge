@@ -297,6 +297,7 @@ export async function tracePageLoad(
         } catch {
           // Rendering diagnostic is best-effort
         }
+        traceResult.screencastFrames = screencastFrames;
       }
 
       return traceResult;
