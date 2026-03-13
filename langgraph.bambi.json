@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": {},
+  "env": "./.env",
+  "node_version": "20"
+}

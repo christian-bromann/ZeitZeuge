@@ -43,5 +43,6 @@
     "*.{json,md,css,html,yaml,yml}": [
       "oxfmt"
     ]
-  }
+  },
+  "packageManager": "bun"
 }
