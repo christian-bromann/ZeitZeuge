@@ -3,5 +3,6 @@
   "graphs": {
     "agent": "./agent2.ts:agent"
   },
-  "env": "./.env"
+  "env": "./.env",
+  "node_version": "22"
 }
