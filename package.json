@@ -43,8 +43,5 @@
     "*.{json,md,css,html,yaml,yml}": [
       "oxfmt"
     ]
-  },
-  "engines": {
-    "node": ">=22"
   }
 }
